@@ -1,0 +1,6 @@
+# فایل‌های زمان اجرا — هرگز وارد گیت نشوند
+storage/database.sqlite
+storage/*.sqlite
+storage/app.key
+storage/modules-state.json
+storage/modules-meta.json

@@ -1,0 +1,8 @@
+# دسترسی مستقیم به هسته، ماژول‌ها و فضای ذخیره‌سازی از بیرون بسته است
+RewriteEngine On
+RewriteRule ^(core|modules|storage)/ - [F,L]
+
+# بقیه درخواست‌ها (به‌جز فایل‌های استاتیک واقعی) به index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [L]
