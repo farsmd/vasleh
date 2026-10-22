@@ -53,7 +53,7 @@
       <td><?= e($row['actor']) ?></td>
       <td><code><?= e($row['ip']) ?></code></td>
       <td title="<?= e($row['ua']) ?>"><?= e(Logger::uaSummary((string) $row['ua'])) ?></td>
-      <td><?= e(is_array($meta) ? (string) ($meta['referer'] ?? '') : '') ?></td>
+      <td class="wrap" style="max-width:240px;word-break:break-all"><?= e(is_array($meta) ? (string) ($meta['referer'] ?? '') : '') ?></td>
     </tr>
     <?php endforeach; ?>
   </table>

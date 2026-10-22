@@ -6,7 +6,7 @@
     <tr><th>ماژول</th><th>نامک</th><th>نسخه</th><th>وضعیت</th><th>عملیات</th></tr>
     <?php foreach ($modules as $slug => $m): ?>
     <tr>
-      <td><?= e($m['title']) ?><?= !empty($m['system']) ? ' <small>(سیستمی)</small>' : '' ?><br><small><?= e($m['description'] ?? '') ?></small><?php if (!empty($m['error'])): ?><br><small style="color:#b91c1c"><?= e($m['error']) ?></small><?php endif; ?></td>
+      <td class="wrap"><?= e($m['title']) ?><?= !empty($m['system']) ? ' <small>(سیستمی)</small>' : '' ?><br><small><?= e($m['description'] ?? '') ?></small><?php if (!empty($m['error'])): ?><br><small style="color:#b91c1c"><?= e($m['error']) ?></small><?php endif; ?></td>
       <td><code><?= e($slug) ?></code></td>
       <td><?= e($m['version']) ?></td>
       <td><?= $m['enabled'] ? 'فعال' : 'غیرفعال' ?></td>

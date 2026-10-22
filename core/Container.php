@@ -32,6 +32,12 @@ final class Container
         return isset($this->factories[$id]) || array_key_exists($id, $this->instances);
     }
 
+    /** حذف یک سرویس — هسته وقتی ماژولی را به‌خاطر خطا کنار می‌گذارد صدا می‌زند. */
+    public function remove(string $id): void
+    {
+        unset($this->factories[$id], $this->instances[$id]);
+    }
+
     public function get(string $id): mixed
     {
         if (array_key_exists($id, $this->instances)) {

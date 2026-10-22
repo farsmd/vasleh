@@ -64,10 +64,17 @@ final class ModuleLoader
                 $this->errors[$slug] = 'فایل core.php ندارد';
                 continue;
             }
-            $definition = require $file;
+            try {
+                $definition = require $file;
+            } catch (\Throwable $error) {
+                // ماژول خراب (خطای نحوی یا اجرا در core.php) نباید کل سیستم را بخواباند؛
+                // با یک تعریف جایگزین در فهرست می‌ماند تا خطایش در پنل دیده شود.
+                $this->errors[$slug] = 'خطای بارگذاری ماژول: ' . substr($error->getMessage(), 0, 200);
+                $definition = ['slug' => $slug, 'title' => $slug, 'description' => '', 'version' => '?', 'system' => false, 'requires' => []];
+            }
             if (!is_array($definition) || ($definition['slug'] ?? null) !== $slug) {
                 $this->errors[$slug] = 'تعریف core.php نامعتبر است یا slug با نام پوشه یکی نیست';
-                continue;
+                $definition = ['slug' => $slug, 'title' => $slug, 'description' => '', 'version' => '?', 'system' => false, 'requires' => []];
             }
             $definition['dir'] = $dir;
             $this->definitions[$slug] = $definition;
@@ -96,6 +103,17 @@ final class ModuleLoader
                     $this->errors[$slug] = 'وابستگی برآورده نشده: ' . $need;
                 }
             }
+        }
+    }
+
+    /**
+     * ثبت خطای زمان اجرا (مایگریشن/روت/هوک) — ماژول از این لحظه کنار گذاشته
+     * می‌شود تا خرابی‌اش کل سیستم را نخواباند؛ خطا روی داشبورد دیده می‌شود.
+     */
+    public function markError(string $slug, string $message): void
+    {
+        if (!isset($this->errors[$slug])) {
+            $this->errors[$slug] = $message;
         }
     }
 

@@ -39,25 +39,50 @@ final class Kernel
 
         try {
             // ۲) مایگریشن‌های ماژول‌ها (هر ماژول جدول‌های خودش را می‌سازد)
-            foreach ($active as $definition) {
+            // خطای یک ماژول فقط خودش را کنار می‌گذارد، نه کل سیستم را:
+            // سرویس‌هایش هم از ظرف حذف می‌شوند تا کسی صدایشان نزند.
+            foreach ($active as $slug => $definition) {
                 if (isset($definition['migrate']) && is_callable($definition['migrate'])) {
-                    ($definition['migrate'])($container);
+                    try {
+                        ($definition['migrate'])($container);
+                    } catch (\Throwable $error) {
+                        error_log('[kernel] migrate ' . $slug . ': ' . $error->getMessage());
+                        $loader->markError($slug, 'خطای مایگریشن: ' . substr($error->getMessage(), 0, 200));
+                        if (method_exists($container, 'remove')) {
+                            foreach (array_keys((array) ($definition['services'] ?? [])) as $serviceId) {
+                                $container->remove((string) $serviceId);
+                            }
+                        }
+                    }
                 }
             }
 
-            // ۳) روت‌های ماژول‌ها
+            // ۳) روت‌های ماژول‌های سالم
             $router = new Router();
-            foreach ($active as $slug => $definition) {
+            foreach ($loader->active() as $slug => $definition) {
                 if (isset($definition['routes']) && is_callable($definition['routes'])) {
-                    ($definition['routes'])($router, $container, $slug);
+                    try {
+                        ($definition['routes'])($router, $container, $slug);
+                    } catch (\Throwable $error) {
+                        error_log('[kernel] routes ' . $slug . ': ' . $error->getMessage());
+                        $loader->markError($slug, 'خطای ثبت روت: ' . substr($error->getMessage(), 0, 200));
+                    }
                 }
             }
 
             // ۴) هوک‌های قبل از اجرا (مثل گارد امنیتی ماژول session)
-            foreach ($active as $definition) {
+            // هوک خراب رد می‌شود و ماژول برای این درخواست کنار می‌رود؛
+            // سیستم به‌خاطر هوک یک ماژول هرگز نمی‌خوابد.
+            foreach ($loader->active() as $slug => $definition) {
                 $hook = $definition['hooks']['before_dispatch'] ?? null;
                 if (is_callable($hook)) {
-                    $early = $hook($request, $container);
+                    try {
+                        $early = $hook($request, $container);
+                    } catch (\Throwable $error) {
+                        error_log('[kernel] hook ' . $slug . ': ' . $error->getMessage());
+                        $loader->markError($slug, 'خطای هوک: ' . substr($error->getMessage(), 0, 200));
+                        continue;
+                    }
                     if ($early instanceof Response) {
                         return $this->secure($early);
                     }
