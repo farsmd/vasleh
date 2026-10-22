@@ -1,5 +1,9 @@
 # دسترسی مستقیم به هسته، ماژول‌ها و فضای ذخیره‌سازی از بیرون بسته است
 RewriteEngine On
+
+# رساندن هدر Authorization به PHP روی هاست‌هایی که پیش‌فرض عبورش نمی‌دهند (API)
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
 RewriteRule ^(core|modules|storage)/ - [F,L]
 
 # بقیه درخواست‌ها (به‌جز فایل‌های استاتیک واقعی) به index.php

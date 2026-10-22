@@ -30,12 +30,25 @@ final class RemoteController
     /** @return array|Response ردیف توکن معتبر، یا پاسخ ۴۰۱ */
     private function requireToken(): array|Response
     {
-        $header = (string) ($_SERVER['HTTP_AUTHORIZATION'] ?? '');
+        // بعضی هاست‌ها (CGI/FastCGI و برخی کانفیگ‌های LiteSpeed) هدر Authorization را
+        // به شکل پیش‌فرض به PHP نمی‌رسانند؛ همه منبع‌های ممکن خوانده می‌شود.
+        $header = (string) ($_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '');
+        $apiTokenHeader = (string) ($_SERVER['HTTP_X_API_TOKEN'] ?? '');
+        if (function_exists('getallheaders')) {
+            foreach ((array) getallheaders() as $name => $value) {
+                $lower = strtolower((string) $name);
+                if ($lower === 'authorization' && $header === '') {
+                    $header = (string) $value;
+                } elseif ($lower === 'x-api-token' && $apiTokenHeader === '') {
+                    $apiTokenHeader = (string) $value;
+                }
+            }
+        }
         $token = '';
         if (preg_match('/^Bearer\s+(.+)$/i', $header, $m) === 1) {
             $token = trim($m[1]);
-        } elseif (!empty($_SERVER['HTTP_X_API_TOKEN'])) {
-            $token = trim((string) $_SERVER['HTTP_X_API_TOKEN']);
+        } elseif ($apiTokenHeader !== '') {
+            $token = trim($apiTokenHeader);
         }
         $row = $this->tokens()->authenticate($token);
         if ($row === null) {
