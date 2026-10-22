@@ -49,6 +49,35 @@ final class Auth
         return ['id' => (int) $row['id'], 'username' => (string) $row['username'], 'role' => (string) $row['role']];
     }
 
+    /** @return array{id:int, username:string, role:string, created_at:string}|null */
+    public function userById(int $id): ?array
+    {
+        $stmt = $this->db->pdo()->prepare('SELECT id, username, role, created_at FROM users WHERE id = ?');
+        $stmt->execute([$id]);
+        $row = $stmt->fetch();
+        return is_array($row) ? $row : null;
+    }
+
+    /**
+     * تغییر کلمه عبور خود کاربر — رمز فعلی باید درست باشد.
+     * خروجی: ok | wrong_current | weak
+     */
+    public function changePassword(int $id, string $current, string $new): string
+    {
+        if (strlen($new) < 8) {
+            return 'weak';
+        }
+        $stmt = $this->db->pdo()->prepare('SELECT pass_hash FROM users WHERE id = ?');
+        $stmt->execute([$id]);
+        $hash = $stmt->fetchColumn();
+        if (!is_string($hash) || !password_verify($current, $hash)) {
+            return 'wrong_current';
+        }
+        $update = $this->db->pdo()->prepare('UPDATE users SET pass_hash = ? WHERE id = ?');
+        $update->execute([password_hash($new, PASSWORD_DEFAULT), $id]);
+        return 'ok';
+    }
+
     public function users(): array
     {
         return $this->db->pdo()
