@@ -69,11 +69,73 @@ final class ModulesController
 
     public function edit(Request $request, array $params): Response
     {
-        $module = $this->container->get('loader')->get((string) ($params['slug'] ?? ''));
+        $loader = $this->container->get('loader');
+        $slug = (string) ($params['slug'] ?? '');
+        $module = $loader->get($slug);
         if ($module === null) {
             return Response::notFound('ماژولی با این نام نیست');
         }
-        return $this->admin()->page('module-edit', ['module' => $module, 'csrf' => $this->csrf()], 'ویرایش ماژول');
+        return $this->admin()->page('module-edit', [
+            'module'  => $module,
+            'csrf'    => $this->csrf(),
+            'details' => $this->details($slug, $module),
+        ], 'ویرایش ماژول');
+    }
+
+    /**
+     * جزئیات کامل ماژول برای صفحه ویرایش:
+     * مقادیر تعریف، روت‌ها (با اجرای صرفِ ثبت روی یک روتر ضبط‌کننده —
+     * هندلری اجرا نمی‌شود)، آدرس ویوها، سرویس‌ها، هوک‌ها و آیتم‌های منو.
+     */
+    private function details(string $slug, array $module): array
+    {
+        $loader = $this->container->get('loader');
+
+        $routes = [];
+        if (isset($module['routes']) && is_callable($module['routes'])) {
+            try {
+                $recorder = new \Core\Router();
+                ($module['routes'])($recorder, $this->container, $slug);
+                $routes = $recorder->all();
+            } catch (\Throwable) {
+                $routes = [];
+            }
+        }
+
+        $views = [];
+        $viewsDir = (string) ($module['dir'] ?? '') . '/views';
+        if (is_dir($viewsDir)) {
+            foreach (glob($viewsDir . '/*', GLOB_ONLYDIR) ?: [] as $areaDir) {
+                $area = basename($areaDir);
+                foreach (glob($areaDir . '/*.php') ?: [] as $file) {
+                    $name = basename($file, '.php');
+                    $views[] = [
+                        'address' => $slug . '/' . $area . '/' . $name,
+                        'area'    => $area,
+                        'name'    => $name,
+                        'path'    => 'modules/' . $slug . '/views/' . $area . '/' . $name . '.php',
+                    ];
+                }
+            }
+            usort($views, static fn (array $a, array $b): int => $a['address'] <=> $b['address']);
+        }
+
+        $menu = array_values(array_filter(
+            $loader->adminMenu(),
+            static fn (array $item): bool => ($item['module'] ?? '') === $slug,
+        ));
+
+        return [
+            'enabled'  => $loader->isEnabled($slug),
+            'error'    => $loader->errors[$slug] ?? null,
+            'dir'      => 'modules/' . $slug,
+            'requires' => array_values(array_map('strval', (array) ($module['requires'] ?? []))),
+            'services' => array_keys((array) ($module['services'] ?? [])),
+            'hooks'    => array_keys((array) ($module['hooks'] ?? [])),
+            'routes'   => $routes,
+            'views'    => $views,
+            'menu'     => $menu,
+        ];
     }
 
     public function update(Request $request, array $params): Response

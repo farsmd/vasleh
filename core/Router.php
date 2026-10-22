@@ -10,13 +10,22 @@ namespace Core;
  */
 final class Router
 {
-    /** @var array<int, array{method:string, regex:string, handler:mixed, module:string}> */
+    /** @var array<int, array{method:string, pattern:string, regex:string, handler:mixed, module:string}> */
     private array $routes = [];
 
     public function add(string $method, string $pattern, mixed $handler, string $module): void
     {
         $regex = '#^' . preg_replace('#\{(\w+)\}#', '(?P<$1>[^/]+)', $pattern) . '$#';
-        $this->routes[] = ['method' => strtoupper($method), 'regex' => $regex, 'handler' => $handler, 'module' => $module];
+        $this->routes[] = ['method' => strtoupper($method), 'pattern' => $pattern, 'regex' => $regex, 'handler' => $handler, 'module' => $module];
+    }
+
+    /** فهرست روت‌های ثبت‌شده (متد و الگو) — برای نمایش در پنل مدیریت ماژول‌ها. */
+    public function all(): array
+    {
+        return array_map(
+            static fn (array $r): array => ['method' => $r['method'], 'pattern' => $r['pattern'], 'module' => $r['module']],
+            $this->routes,
+        );
     }
 
     public function get(string $pattern, mixed $handler, string $module): void
