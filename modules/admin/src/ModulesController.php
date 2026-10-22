@@ -128,7 +128,176 @@ final class ModulesController
             'module'  => $module,
             'csrf'    => $this->csrf(),
             'details' => $this->details($slug, $module),
+            'files'   => !empty($module['dir']) ? $this->moduleFiles((string) $module['dir']) : [],
+            'isOwner' => $this->isOwner(),
         ], 'ویرایش ماژول');
+    }
+
+    // ---------- ویرایشگر فایل ماژول (فقط مالک) ----------
+
+    private const EDITABLE_EXT = ['php', 'css', 'js', 'html', 'json', 'md', 'txt'];
+    private const MAX_EDIT_BYTES = 524288; // ۵۱۲ کیلوبایت
+
+    private function isOwner(): bool
+    {
+        $user = $this->container->has('session') ? $this->container->get('session')->user() : null;
+        return ($user['role'] ?? '') === 'owner';
+    }
+
+    /** فهرست بازگشتی فایل‌های یک ماژول برای بخش ویرایشگر در صفحه ویرایش. */
+    private function moduleFiles(string $dir): array
+    {
+        $files = [];
+        if (!is_dir($dir)) {
+            return $files;
+        }
+        $it = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS));
+        foreach ($it as $f) {
+            if (!$f->isFile()) {
+                continue;
+            }
+            $rel = str_replace('\\', '/', substr($f->getPathname(), strlen($dir) + 1));
+            $files[] = [
+                'path'     => $rel,
+                'size'     => $f->getSize(),
+                'editable' => in_array(strtolower(pathinfo($rel, PATHINFO_EXTENSION)), self::EDITABLE_EXT, true),
+            ];
+        }
+        usort($files, static fn (array $a, array $b): int => strcmp($a['path'], $b['path']));
+        return $files;
+    }
+
+    /**
+     * اعتبارسنجی مسیر فایل داخل پوشه ماژول: بدون تراورس، پسوند در فهرست مجاز،
+     * و مسیر واقعی حتماً زیر پوشه خود ماژول. خروجی null یعنی رد.
+     */
+    private function guardFile(string $slug, string $rel): ?array
+    {
+        $module = $this->container->get('loader')->get($slug);
+        if ($module === null || empty($module['dir'])) {
+            return null;
+        }
+        $rel = str_replace('\\', '/', trim($rel));
+        if ($rel === '' || str_starts_with($rel, '/')) {
+            return null;
+        }
+        foreach (explode('/', $rel) as $seg) {
+            if ($seg === '..' || $seg === '') {
+                return null;
+            }
+        }
+        $ext = strtolower(pathinfo($rel, PATHINFO_EXTENSION));
+        if (!in_array($ext, self::EDITABLE_EXT, true)) {
+            return null;
+        }
+        $abs = $module['dir'] . '/' . $rel;
+        if (!is_file($abs)) {
+            return null;
+        }
+        $realDir = realpath((string) $module['dir']);
+        $real = realpath($abs);
+        if ($realDir === false || $real === false || !str_starts_with($real, $realDir . '/')) {
+            return null;
+        }
+        return ['abs' => $real, 'ext' => $ext];
+    }
+
+    private function backupsDir(string $slug): string
+    {
+        return (string) $this->container->get('base_path') . '/storage/backups/files/' . $slug;
+    }
+
+    private function backupKey(string $rel): string
+    {
+        return str_replace('/', '__', $rel);
+    }
+
+    private function makeBackup(string $slug, string $rel, string $abs): void
+    {
+        $dir = $this->backupsDir($slug);
+        if (!is_dir($dir)) {
+            mkdir($dir, 0775, true);
+        }
+        // پسوند تصادفی: دو بکاپ در یک ثانیه (مثلاً ذخیره و بازیابی پشت سر هم) روی هم نیفتند.
+        copy($abs, $dir . '/' . $this->backupKey($rel) . '.' . date('Ymd-His') . '-' . bin2hex(random_bytes(2)) . '.bak');
+    }
+
+    private function listBackups(string $slug, string $rel): array
+    {
+        $out = [];
+        foreach (glob($this->backupsDir($slug) . '/' . $this->backupKey($rel) . '.*.bak') ?: [] as $f) {
+            $out[] = [
+                'name' => basename($f),
+                'time' => date('Y-m-d H:i:s', (int) filemtime($f)),
+                'size' => (int) filesize($f),
+            ];
+        }
+        usort($out, static fn (array $a, array $b): int => strcmp($b['name'], $a['name']));
+        return array_slice($out, 0, 10);
+    }
+
+    public function fileEdit(Request $request, array $params): Response
+    {
+        if (!$this->isOwner()) {
+            return Response::forbidden('ویرایش فایل ماژول فقط برای مالک است');
+        }
+        $slug = (string) ($params['slug'] ?? '');
+        $rel = (string) $request->input('path', '');
+        $guard = $this->guardFile($slug, $rel);
+        if ($guard === null) {
+            return Response::notFound('فایل پیدا نشد یا قابل ویرایش نیست');
+        }
+        if (filesize($guard['abs']) > self::MAX_EDIT_BYTES) {
+            return Response::forbidden('این فایل بزرگ‌تر از ۵۱۲ کیلوبایت است و از پنل ویرایش نمی‌شود');
+        }
+        return $this->admin()->page('module-file', [
+            'module'  => $this->container->get('loader')->get($slug),
+            'slug'    => $slug,
+            'path'    => $rel,
+            'ext'     => $guard['ext'],
+            'content' => (string) file_get_contents($guard['abs']),
+            'backups' => $this->listBackups($slug, $rel),
+            'flash'   => $request->input('msg'),
+            'error'   => $request->input('err'),
+            'csrf'    => $this->csrf(),
+        ], 'ویرایش فایل ماژول');
+    }
+
+    public function fileSave(Request $request, array $params): Response
+    {
+        if (!$this->isOwner()) {
+            return Response::forbidden('ویرایش فایل ماژول فقط برای مالک است');
+        }
+        $slug = (string) ($params['slug'] ?? '');
+        $rel = (string) $request->input('path', '');
+        $guard = $this->guardFile($slug, $rel);
+        if ($guard === null) {
+            return Response::notFound('فایل پیدا نشد یا قابل ویرایش نیست');
+        }
+        $back = '/admin/modules/file/' . $slug . '?path=' . urlencode($rel);
+
+        if ((string) $request->input('action', 'save') === 'restore') {
+            $name = basename((string) $request->input('backup', ''));
+            $src = $this->backupsDir($slug) . '/' . $name;
+            if (!str_starts_with($name, $this->backupKey($rel) . '.') || !str_ends_with($name, '.bak') || !is_file($src)) {
+                return Response::redirect($back . '&err=' . urlencode('بکاپ پیدا نشد'));
+            }
+            $this->makeBackup($slug, $rel, $guard['abs']);
+            copy($src, $guard['abs']);
+            $this->log('بازیابی فایل ماژول', $slug . '/' . $rel);
+            return Response::redirect($back . '&msg=' . urlencode('فایل از بکاپ بازیابی شد'));
+        }
+
+        $content = (string) $request->input('content', '');
+        if (strlen($content) > self::MAX_EDIT_BYTES) {
+            return Response::redirect($back . '&err=' . urlencode('محتوا بزرگ‌تر از ۵۱۲ کیلوبایت است'));
+        }
+        $this->makeBackup($slug, $rel, $guard['abs']);
+        $tmp = $guard['abs'] . '.tmp-' . bin2hex(random_bytes(3));
+        file_put_contents($tmp, $content);
+        rename($tmp, $guard['abs']);
+        $this->log('ویرایش فایل ماژول', $slug . '/' . $rel);
+        return Response::redirect($back . '&msg=' . urlencode('ذخیره شد — قبل از ذخیره بکاپ گرفته شد'));
     }
 
     /**

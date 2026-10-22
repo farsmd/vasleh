@@ -11,7 +11,7 @@
     <button class="btn">ذخیره</button>
     <a class="btn gray" href="/admin/modules">برگشت</a>
   </form>
-  <p><small>این فیلدها روی لایه مشخصات اعمال می‌شوند؛ کد ماژول از پنل دست نمی‌خورد. بقیه مقادیر ماژول پایین‌تر فقط نمایش‌اند، چون رفتاری‌اند و از خودِ کد ماژول می‌آیند.</small></p>
+  <p><small>این فیلدها روی لایه مشخصات اعمال می‌شوند. بقیه مقادیر ماژول پایین‌تر فقط نمایش‌اند، چون رفتاری‌اند و از خودِ کد ماژول می‌آیند. ویرایش مستقیم کد هم از بخش «فایل‌های ماژول» پایین صفحه ممکن است (فقط مالک، با بکاپ خودکار).</small></p>
 </div>
 
 <div class="card">
@@ -98,3 +98,30 @@
   </table>
   <?php endif; ?>
 </div>
+
+<?php if (!empty($isOwner)): ?>
+<div class="card">
+  <h3>فایل‌های ماژول — ویرایشگر کد</h3>
+  <p>ویرایش مستقیم فایل‌های این ماژول با ویرایشگر حرفه‌ای (فقط مالک). قبل از هر ذخیره، از نسخه فعلی بکاپ خودکار در <code>storage/backups</code> گرفته می‌شود و از همان‌جا قابل بازیابی است. اگر فایلی خراب شود، هسته فقط همین ماژول را کنار می‌گذارد و سیستم سالم می‌ماند.</p>
+  <?php if (empty($files)): ?>
+    <p>فایلی نیست.</p>
+  <?php else: ?>
+  <table>
+    <tr><th>فایل</th><th>حجم</th><th></th></tr>
+    <?php foreach ($files as $f): ?>
+    <tr>
+      <td><code dir="ltr"><?= e($f['path']) ?></code></td>
+      <td><?= number_format($f['size']) ?> بایت</td>
+      <td>
+        <?php if ($f['editable']): ?>
+          <a class="btn yellow" href="/admin/modules/file/<?= e($module['slug']) ?>?path=<?= urlencode($f['path']) ?>">ویرایش</a>
+        <?php else: ?>
+          <small>قابل ویرایش نیست</small>
+        <?php endif; ?>
+      </td>
+    </tr>
+    <?php endforeach; ?>
+  </table>
+  <?php endif; ?>
+</div>
+<?php endif; ?>

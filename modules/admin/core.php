@@ -40,6 +40,8 @@ return [
         $router->post('/admin/modules/create', [ModulesController::class, 'store'], $module);
         $router->get('/admin/modules/install', [ModulesController::class, 'installForm'], $module);
         $router->post('/admin/modules/install', [ModulesController::class, 'install'], $module);
+        $router->get('/admin/modules/file/{slug}', [ModulesController::class, 'fileEdit'], $module);
+        $router->post('/admin/modules/file/{slug}', [ModulesController::class, 'fileSave'], $module);
         $router->get('/admin/modules/edit/{slug}', [ModulesController::class, 'edit'], $module);
         $router->post('/admin/modules/edit/{slug}', [ModulesController::class, 'update'], $module);
         $router->post('/admin/modules/toggle/{slug}', [ModulesController::class, 'toggle'], $module);
