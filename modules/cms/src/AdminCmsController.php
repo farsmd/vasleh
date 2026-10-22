@@ -18,6 +18,16 @@ final class AdminCmsController
         return $this->container->get('cms.posts');
     }
 
+    private function layoutsData(): array
+    {
+        $layouts = $this->container->get('cms.layouts');
+        return [
+            'headers'   => $layouts->all('header'),
+            'footers'   => $layouts->all('footer'),
+            'templates' => $layouts->all('template'),
+        ];
+    }
+
     private function page(string $view, array $data, string $title): Response
     {
         $session = $this->container->get('session');
@@ -54,9 +64,10 @@ final class AdminCmsController
     public function createForm(Request $request): Response
     {
         return $this->page('form', [
-            'post'  => ['title' => '', 'slug' => '', 'excerpt' => '', 'body' => '', 'type' => 'post', 'status' => 'draft'],
-            'action' => '/admin/cms/create',
-            'error' => null,
+            'post'    => ['title' => '', 'slug' => '', 'excerpt' => '', 'body' => '', 'type' => 'post', 'status' => 'draft', 'header_id' => null, 'footer_id' => null, 'template_id' => null],
+            'action'  => '/admin/cms/create',
+            'error'   => null,
+            'layouts' => $this->layoutsData(),
         ], 'محتوای تازه');
     }
 
@@ -65,9 +76,10 @@ final class AdminCmsController
         [$data, $error] = $this->validate($request, 0);
         if ($error !== null) {
             return $this->page('form', [
-                'post'   => $data,
-                'action' => '/admin/cms/create',
-                'error'  => $error,
+                'post'    => $data,
+                'action'  => '/admin/cms/create',
+                'error'   => $error,
+                'layouts' => $this->layoutsData(),
             ], 'محتوای تازه');
         }
         $id = $this->posts()->create($data);
@@ -86,9 +98,10 @@ final class AdminCmsController
             return Response::notFound('محتوا پیدا نشد');
         }
         return $this->page('form', [
-            'post'   => $post,
-            'action' => '/admin/cms/edit/' . (int) $post['id'],
-            'error'  => null,
+            'post'    => $post,
+            'action'  => '/admin/cms/edit/' . (int) $post['id'],
+            'error'   => null,
+            'layouts' => $this->layoutsData(),
         ], 'ویرایش محتوا');
     }
 
@@ -103,9 +116,10 @@ final class AdminCmsController
         if ($error !== null) {
             $data['id'] = $id;
             return $this->page('form', [
-                'post'   => $data,
-                'action' => '/admin/cms/edit/' . $id,
-                'error'  => $error,
+                'post'    => $data,
+                'action'  => '/admin/cms/edit/' . $id,
+                'error'   => $error,
+                'layouts' => $this->layoutsData(),
             ], 'ویرایش محتوا');
         }
         if ($data['slug'] === '') {
@@ -153,6 +167,46 @@ final class AdminCmsController
         if ($data['slug'] !== '' && $this->posts()->slugTaken($data['slug'], $selfId)) {
             return [$data, 'این نامک قبلاً برای محتوای دیگری استفاده شده است'];
         }
+        $data['header_id'] = $this->layoutId($request, 'header_id', 'header');
+        $data['footer_id'] = $this->layoutId($request, 'footer_id', 'footer');
+        $data['template_id'] = $this->layoutId($request, 'template_id', 'template');
         return [$data, null];
+    }
+
+    /** آی‌دی چیدمان از فرم: خالی/نامعتبر = null (یعنی پیش‌فرض همان نوع). */
+    private function layoutId(Request $request, string $field, string $kind): ?int
+    {
+        $id = (int) $request->input($field, 0);
+        if ($id <= 0) {
+            return null;
+        }
+        $row = $this->container->get('cms.layouts')->find($id);
+        return ($row !== null && $row['kind'] === $kind) ? $id : null;
+    }
+
+    // ---------- تنظیمات محتوا ----------
+
+    public function settingsForm(Request $request): Response
+    {
+        $settings = $this->container->get('cms.settings');
+        return $this->page('settings', [
+            'siteName'  => $settings->get('site_name', 'وصله'),
+            'homepage'  => $settings->get('homepage', ''),
+            'published' => array_merge($this->posts()->published('page'), $this->posts()->published('post')),
+            'flash'     => $request->input('msg'),
+        ], 'تنظیمات محتوا');
+    }
+
+    public function settingsSave(Request $request): Response
+    {
+        $settings = $this->container->get('cms.settings');
+        $settings->set('site_name', trim((string) $request->input('site_name', '')) ?: 'وصله');
+        $home = (string) $request->input('homepage', '');
+        if ($home !== '' && $home !== 'blog' && !(ctype_digit($home) && $this->posts()->findPublished((int) $home) !== null)) {
+            $home = '';
+        }
+        $settings->set('homepage', $home);
+        $this->log('تنظیمات محتوا', 'صفحه اصلی: ' . ($home === '' ? 'پیش‌فرض سیستم' : $home));
+        return Response::redirect('/admin/cms/settings?msg=' . urlencode('تنظیمات ذخیره شد'));
     }
 }

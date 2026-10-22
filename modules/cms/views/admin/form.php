@@ -20,6 +20,27 @@
     </select>
     <label>خلاصه (برای فهرست وبلاگ)</label>
     <textarea name="excerpt" rows="2"><?= e($post['excerpt']) ?></textarea>
+    <label>هدر این محتوا</label>
+    <select name="header_id">
+      <option value="">پیش‌فرض سیستم</option>
+      <?php foreach (($layouts['headers'] ?? []) as $h): ?>
+      <option value="<?= (int) $h['id'] ?>" <?= (int) ($post['header_id'] ?? 0) === (int) $h['id'] ? 'selected' : '' ?>><?= e($h['name']) ?><?= !empty($h['is_default']) ? ' (پیش‌فرض)' : '' ?></option>
+      <?php endforeach; ?>
+    </select>
+    <label>قالب نمایش این محتوا</label>
+    <select name="template_id">
+      <option value="">پیش‌فرض سیستم</option>
+      <?php foreach (($layouts['templates'] ?? []) as $t): ?>
+      <option value="<?= (int) $t['id'] ?>" <?= (int) ($post['template_id'] ?? 0) === (int) $t['id'] ? 'selected' : '' ?>><?= e($t['name']) ?><?= !empty($t['is_default']) ? ' (پیش‌فرض)' : '' ?></option>
+      <?php endforeach; ?>
+    </select>
+    <label>فوتر این محتوا</label>
+    <select name="footer_id">
+      <option value="">پیش‌فرض سیستم</option>
+      <?php foreach (($layouts['footers'] ?? []) as $f): ?>
+      <option value="<?= (int) $f['id'] ?>" <?= (int) ($post['footer_id'] ?? 0) === (int) $f['id'] ? 'selected' : '' ?>><?= e($f['name']) ?><?= !empty($f['is_default']) ? ' (پیش‌فرض)' : '' ?></option>
+      <?php endforeach; ?>
+    </select>
     <label>متن (HTML)</label>
     <textarea name="body" id="cmsBody" rows="14" dir="ltr"><?= e($post['body']) ?></textarea>
     <p>

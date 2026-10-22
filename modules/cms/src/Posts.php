@@ -26,10 +26,23 @@ final class Posts
                 body TEXT NOT NULL DEFAULT \'\',
                 type TEXT NOT NULL DEFAULT \'post\',
                 status TEXT NOT NULL DEFAULT \'draft\',
+                header_id INTEGER,
+                footer_id INTEGER,
+                template_id INTEGER,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             )'
         );
+        // جدول‌های قدیمی (قبل از چیدمان‌ها) ستون‌ها را با ALTER می‌گیرند.
+        $cols = array_column(
+            $this->pdo()->query('PRAGMA table_info(cms_posts)')->fetchAll(\PDO::FETCH_ASSOC),
+            'name'
+        );
+        foreach (['header_id', 'footer_id', 'template_id'] as $col) {
+            if (!in_array($col, $cols, true)) {
+                $this->pdo()->exec('ALTER TABLE cms_posts ADD COLUMN ' . $col . ' INTEGER');
+            }
+        }
     }
 
     /** محتوای نمونه فقط وقتی جدول کاملاً خالی است تا فرانت از اول خالی نباشد. */
@@ -97,6 +110,14 @@ final class Posts
         return $row === false ? null : $row;
     }
 
+    public function findPublished(int $id): ?array
+    {
+        $stmt = $this->pdo()->prepare('SELECT * FROM cms_posts WHERE id = :id AND status = \'published\'');
+        $stmt->execute(['id' => $id]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+        return $row === false ? null : $row;
+    }
+
     public function slugTaken(string $slug, int $exceptId = 0): bool
     {
         $stmt = $this->pdo()->prepare('SELECT COUNT(*) FROM cms_posts WHERE slug = :slug AND id != :except');
@@ -108,17 +129,20 @@ final class Posts
     {
         $now = date('Y-m-d H:i:s');
         $stmt = $this->pdo()->prepare(
-            'INSERT INTO cms_posts (slug, title, excerpt, body, type, status, created_at, updated_at)
-             VALUES (:slug, :title, :excerpt, :body, :type, :status, :now, :now)'
+            'INSERT INTO cms_posts (slug, title, excerpt, body, type, status, header_id, footer_id, template_id, created_at, updated_at)
+             VALUES (:slug, :title, :excerpt, :body, :type, :status, :header, :footer, :template, :now, :now)'
         );
         $stmt->execute([
-            'slug'    => $data['slug'],
-            'title'   => $data['title'],
-            'excerpt' => $data['excerpt'],
-            'body'    => $data['body'],
-            'type'    => $data['type'],
-            'status'  => $data['status'],
-            'now'     => $now,
+            'slug'     => $data['slug'],
+            'title'    => $data['title'],
+            'excerpt'  => $data['excerpt'],
+            'body'     => $data['body'],
+            'type'     => $data['type'],
+            'status'   => $data['status'],
+            'header'   => $data['header_id'] ?? null,
+            'footer'   => $data['footer_id'] ?? null,
+            'template' => $data['template_id'] ?? null,
+            'now'      => $now,
         ]);
         return (int) $this->pdo()->lastInsertId();
     }
@@ -127,17 +151,21 @@ final class Posts
     {
         $stmt = $this->pdo()->prepare(
             'UPDATE cms_posts SET slug = :slug, title = :title, excerpt = :excerpt, body = :body,
-             type = :type, status = :status, updated_at = :now WHERE id = :id'
+             type = :type, status = :status, header_id = :header, footer_id = :footer,
+             template_id = :template, updated_at = :now WHERE id = :id'
         );
         $stmt->execute([
-            'slug'    => $data['slug'],
-            'title'   => $data['title'],
-            'excerpt' => $data['excerpt'],
-            'body'    => $data['body'],
-            'type'    => $data['type'],
-            'status'  => $data['status'],
-            'now'     => date('Y-m-d H:i:s'),
-            'id'      => $id,
+            'slug'     => $data['slug'],
+            'title'    => $data['title'],
+            'excerpt'  => $data['excerpt'],
+            'body'     => $data['body'],
+            'type'     => $data['type'],
+            'status'   => $data['status'],
+            'header'   => $data['header_id'] ?? null,
+            'footer'   => $data['footer_id'] ?? null,
+            'template' => $data['template_id'] ?? null,
+            'now'      => date('Y-m-d H:i:s'),
+            'id'       => $id,
         ]);
     }
 

@@ -6,9 +6,8 @@ namespace Modules\Cms;
 use Core\Container;
 use Core\Request;
 use Core\Response;
-use Core\View;
 
-/** صفحات عمومی وبلاگ و برگه‌ها. */
+/** صفحات عمومی: ریشه (طبق تنظیم)، وبلاگ و برگه‌ها — همه با موتور رندر چیدمان‌ها. */
 final class CmsController
 {
     public function __construct(private readonly Container $container) {}
@@ -18,18 +17,30 @@ final class CmsController
         return $this->container->get('cms.posts');
     }
 
-    private function page(string $view, array $data, string $title, int $status = 200): Response
+    private function renderer(): Renderer
     {
-        $content = View::render('cms', 'front', $view, $data);
-        return Response::html(View::render('cms', 'front', 'layout', [
-            'title'   => $title,
-            'content' => $content,
-        ]), $status);
+        return $this->container->get('cms.render');
+    }
+
+    /** ریشه سایت — فقط وقتی در تنظیمات محتوا صفحه اصلی تعیین شده باشد ثبت می‌شود. */
+    public function home(Request $request): Response
+    {
+        $home = $this->container->get('cms.settings')->get('homepage', '');
+        if ($home === 'blog') {
+            return Response::html($this->renderer()->renderListing($this->posts()->published('post'), 'وبلاگ'));
+        }
+        if (ctype_digit($home)) {
+            $post = $this->posts()->findPublished((int) $home);
+            if ($post !== null) {
+                return Response::html($this->renderer()->renderPost($post));
+            }
+        }
+        return Response::html($this->renderer()->renderListing($this->posts()->published('post'), 'وبلاگ'));
     }
 
     public function blogIndex(Request $request): Response
     {
-        return $this->page('index', ['posts' => $this->posts()->published('post')], 'وبلاگ');
+        return Response::html($this->renderer()->renderListing($this->posts()->published('post'), 'وبلاگ'));
     }
 
     public function blogShow(Request $request, array $params): Response
@@ -37,17 +48,17 @@ final class CmsController
         // مسیر خام URL-encoded می‌رسد؛ نامک‌های فارسی باید دیکود شوند.
         $post = $this->posts()->findPublishedBySlug(rawurldecode((string) ($params['slug'] ?? '')), 'post');
         if ($post === null) {
-            return $this->page('notfound', [], 'پیدا نشد', 404);
+            return Response::html($this->renderer()->renderNotFound(), 404);
         }
-        return $this->page('show', ['post' => $post], (string) $post['title']);
+        return Response::html($this->renderer()->renderPost($post));
     }
 
     public function pageShow(Request $request, array $params): Response
     {
         $post = $this->posts()->findPublishedBySlug(rawurldecode((string) ($params['slug'] ?? '')), 'page');
         if ($post === null) {
-            return $this->page('notfound', [], 'پیدا نشد', 404);
+            return Response::html($this->renderer()->renderNotFound(), 404);
         }
-        return $this->page('show', ['post' => $post], (string) $post['title']);
+        return Response::html($this->renderer()->renderPost($post));
     }
 }
