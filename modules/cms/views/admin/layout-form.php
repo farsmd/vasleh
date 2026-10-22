@@ -11,6 +11,8 @@
     <input name="slug" dir="ltr" value="<?= e($layout['slug']) ?>" placeholder="my-header">
     <label>HTML چیدمان</label>
     <textarea name="html" id="layoutHtml" rows="16" dir="ltr"><?= e($layout['html']) ?></textarea>
+    <label>CSS اختصاصی این چیدمان (فقط روی صفحاتی که از این چیدمان استفاده می‌کنند)</label>
+    <textarea name="css" id="layoutCss" rows="10" dir="ltr"><?= e($layout['css'] ?? '') ?></textarea>
     <p><small>جانگهدارها: <code dir="ltr">{{content}}</code> (فقط قالب)، <code dir="ltr">{{title}}</code>، <code dir="ltr">{{excerpt}}</code>، <code dir="ltr">{{date}}</code>، <code dir="ltr">{{site_name}}</code>، <code dir="ltr">{{menu:main}}</code></small></p>
     <label style="display:flex;gap:8px;align-items:center">
       <input type="checkbox" name="is_default" value="1" <?= !empty($layout['is_default']) ? 'checked' : '' ?> style="width:auto">
@@ -34,6 +36,9 @@
 if (window.CodeMirror) {
   CodeMirror.fromTextArea(document.getElementById('layoutHtml'), {
     mode: 'htmlmixed', theme: 'material-darker', lineNumbers: true, lineWrapping: true
+  });
+  CodeMirror.fromTextArea(document.getElementById('layoutCss'), {
+    mode: 'css', theme: 'material-darker', lineNumbers: true, lineWrapping: true
   });
 }
 </script>

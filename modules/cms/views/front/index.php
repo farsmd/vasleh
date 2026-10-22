@@ -1,4 +1,3 @@
-<h1 style="margin-top:0">وبلاگ</h1>
 <?php if (empty($posts)): ?>
   <p>هنوز نوشته‌ای منتشر نشده است.</p>
 <?php endif; ?>

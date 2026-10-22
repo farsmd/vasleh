@@ -57,16 +57,25 @@ final class AdminLayoutsController
             'footers'   => $this->layouts()->all('footer'),
             'templates' => $this->layouts()->all('template'),
             'labels'    => self::KIND_LABELS,
+            'siteCss'   => $this->container->get('cms.settings')->get('site_css', ''),
             'flash'     => $request->input('msg'),
             'error'     => $request->input('err'),
         ], 'هدر، فوتر و قالب‌ها');
+    }
+
+    /** ذخیره CSS کلی سایت (در تنظیمات ماژول) — روی همه صفحات فرانت اعمال می‌شود. */
+    public function cssSave(Request $request): Response
+    {
+        $this->container->get('cms.settings')->set('site_css', (string) $request->input('site_css', ''));
+        $this->log('ویرایش CSS کلی سایت', 'site_css');
+        return Response::redirect('/admin/cms/layouts?msg=' . urlencode('CSS کلی ذخیره شد'));
     }
 
     public function createForm(Request $request): Response
     {
         $kind = $this->kind($request);
         return $this->page('layout-form', [
-            'layout' => ['name' => '', 'slug' => '', 'html' => '', 'kind' => $kind, 'is_default' => 0],
+            'layout' => ['name' => '', 'slug' => '', 'html' => '', 'css' => '', 'kind' => $kind, 'is_default' => 0],
             'action' => '/admin/cms/layouts/create',
             'labels' => self::KIND_LABELS,
             'error'  => null,
@@ -86,7 +95,7 @@ final class AdminLayoutsController
                 'error'  => $error,
             ], 'چیدمان تازه');
         }
-        $this->layouts()->create($kind, $data['name'], $data['slug'], $data['html'], !empty($request->input('is_default')));
+        $this->layouts()->create($kind, $data['name'], $data['slug'], $data['html'], !empty($request->input('is_default')), $data['css']);
         $this->log('ساخت چیدمان', self::KIND_LABELS[$kind] . ': ' . $data['name']);
         return Response::redirect('/admin/cms/layouts?msg=' . urlencode('چیدمان ساخته شد'));
     }
@@ -123,7 +132,7 @@ final class AdminLayoutsController
                 'error'  => $error,
             ], 'ویرایش چیدمان');
         }
-        $this->layouts()->update($id, $data['name'], $data['slug'], $data['html']);
+        $this->layouts()->update($id, $data['name'], $data['slug'], $data['html'], $data['css']);
         if (!empty($request->input('is_default'))) {
             $this->layouts()->setDefault($id);
         }
@@ -160,6 +169,7 @@ final class AdminLayoutsController
             'name' => trim((string) $request->input('name', '')),
             'slug' => trim((string) $request->input('slug', '')),
             'html' => (string) $request->input('html', ''),
+            'css'  => (string) $request->input('css', ''),
         ];
         if ($data['name'] === '') {
             return [$data, 'نام را بنویسید'];

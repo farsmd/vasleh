@@ -26,12 +26,21 @@ final class Layouts
                 name TEXT NOT NULL,
                 slug TEXT NOT NULL,
                 html TEXT NOT NULL DEFAULT \'\',
+                css TEXT NOT NULL DEFAULT \'\',
                 is_default INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
                 UNIQUE(kind, slug)
             )'
         );
+        // جدول‌های قدیمی ستون css را با ALTER می‌گیرند.
+        $cols = array_column(
+            $this->pdo()->query('PRAGMA table_info(cms_layouts)')->fetchAll(\PDO::FETCH_ASSOC),
+            'name'
+        );
+        if (!in_array('css', $cols, true)) {
+            $this->pdo()->exec('ALTER TABLE cms_layouts ADD COLUMN css TEXT NOT NULL DEFAULT \'\'');
+        }
     }
 
     /** چیدمان‌های پیش‌فرض زیبا برای هر نوع — فقط وقتی آن نوع هیچ ردیفی ندارد. */
@@ -109,15 +118,15 @@ final class Layouts
         return (int) $stmt->fetchColumn() > 0;
     }
 
-    public function create(string $kind, string $name, string $slug, string $html, bool $isDefault): int
+    public function create(string $kind, string $name, string $slug, string $html, bool $isDefault, string $css = ''): int
     {
         $now = date('Y-m-d H:i:s');
         $stmt = $this->pdo()->prepare(
-            'INSERT INTO cms_layouts (kind, name, slug, html, is_default, created_at, updated_at)
-             VALUES (:kind, :name, :slug, :html, :def, :now, :now)'
+            'INSERT INTO cms_layouts (kind, name, slug, html, css, is_default, created_at, updated_at)
+             VALUES (:kind, :name, :slug, :html, :css, :def, :now, :now)'
         );
         $stmt->execute([
-            'kind' => $kind, 'name' => $name, 'slug' => $slug, 'html' => $html,
+            'kind' => $kind, 'name' => $name, 'slug' => $slug, 'html' => $html, 'css' => $css,
             'def' => $isDefault ? 1 : 0, 'now' => $now,
         ]);
         $id = (int) $this->pdo()->lastInsertId();
@@ -127,12 +136,12 @@ final class Layouts
         return $id;
     }
 
-    public function update(int $id, string $name, string $slug, string $html): void
+    public function update(int $id, string $name, string $slug, string $html, string $css = ''): void
     {
         $stmt = $this->pdo()->prepare(
-            'UPDATE cms_layouts SET name = :name, slug = :slug, html = :html, updated_at = :now WHERE id = :id'
+            'UPDATE cms_layouts SET name = :name, slug = :slug, html = :html, css = :css, updated_at = :now WHERE id = :id'
         );
-        $stmt->execute(['name' => $name, 'slug' => $slug, 'html' => $html, 'now' => date('Y-m-d H:i:s'), 'id' => $id]);
+        $stmt->execute(['name' => $name, 'slug' => $slug, 'html' => $html, 'css' => $css, 'now' => date('Y-m-d H:i:s'), 'id' => $id]);
     }
 
     public function setDefault(int $id): void

@@ -4,7 +4,30 @@ $sections = [
     'template' => $templates,
     'footer'   => $footers,
 ];
+$assetBase = rtrim(str_replace('\\', '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? ''))), '/');
 ?>
+<div class="card">
+  <h1>CSS کلی سایت</h1>
+  <p>این استایل روی همه صفحات فرانت (وبلاگ، برگه‌ها و صفحه اصلیِ محتوا) اعمال می‌شود و از آدرس <code dir="ltr">/cms.css</code> سرو می‌شود. هر چیدان هم می‌تواند CSS اختصاصی خودش را داشته باشد.</p>
+  <form method="post" action="/admin/cms/layouts/css">
+    <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
+    <textarea name="site_css" id="siteCss" rows="14" dir="ltr"><?= e($siteCss) ?></textarea>
+    <p><button class="btn green">ذخیره CSS کلی</button></p>
+  </form>
+</div>
+<link rel="stylesheet" href="<?= e($assetBase) ?>/assets/codemirror/codemirror.css">
+<link rel="stylesheet" href="<?= e($assetBase) ?>/assets/codemirror/theme/material-darker.css">
+<style>.CodeMirror{height:38vh;direction:ltr;text-align:left;font-size:13.5px;border-radius:10px}</style>
+<script src="<?= e($assetBase) ?>/assets/codemirror/codemirror.js"></script>
+<script src="<?= e($assetBase) ?>/assets/codemirror/mode/css.js"></script>
+<script>
+if (window.CodeMirror) {
+  CodeMirror.fromTextArea(document.getElementById('siteCss'), {
+    mode: 'css', theme: 'material-darker', lineNumbers: true, lineWrapping: true
+  });
+}
+</script>
+
 <div class="card">
   <h1>هدر، فوتر و قالب‌ها</h1>
   <?php if (!empty($flash)): ?><div class="flash"><?= e($flash) ?></div><?php endif; ?>

@@ -43,6 +43,13 @@ final class CmsController
         return Response::html($this->renderer()->renderListing($this->posts()->published('post'), 'وبلاگ'));
     }
 
+    /** CSS کلی سایت — از تنظیمات ماژول خوانده و با نوع محتوای درست سرو می‌شود. */
+    public function stylesheet(Request $request): Response
+    {
+        $css = $this->container->get('cms.settings')->get('site_css', '');
+        return Response::html($css)->withHeader('Content-Type', 'text/css; charset=utf-8');
+    }
+
     public function blogShow(Request $request, array $params): Response
     {
         // مسیر خام URL-encoded می‌رسد؛ نامک‌های فارسی باید دیکود شوند.
