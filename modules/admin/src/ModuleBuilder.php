@@ -48,6 +48,7 @@ return [
     'description' => {$export($description)},
     'version'     => '0.1.0',
     'system'      => false,
+    'icon'        => '', // آیکون SVG گروه منو — خالی یعنی آیکون پیش‌فرض وصله
 
     'routes' => static function (Router \$router, Container \$c, string \$module): void {
         \$router->get('/{$slug}', static fn (): Response =>

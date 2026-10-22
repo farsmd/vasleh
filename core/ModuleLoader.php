@@ -185,13 +185,15 @@ final class ModuleLoader
         return true;
     }
 
-    /** آیتم‌های منوی مدیریت از همه ماژول‌های فعال جمع می‌شود. */
+    /** آیتم‌های منوی مدیریت از همه ماژول‌های فعال جمع می‌شود؛ عنوان و آیکون ماژول هم همراهشان می‌آید تا منو گروهی رندر شود. */
     public function adminMenu(): array
     {
         $items = [];
         foreach ($this->active() as $slug => $definition) {
             foreach ((array) ($definition['admin_menu'] ?? []) as $item) {
                 $item['module'] = $slug;
+                $item['module_title'] = (string) ($definition['title'] ?? $slug);
+                $item['module_icon'] = (string) ($definition['icon'] ?? '');
                 $items[] = $item;
             }
         }

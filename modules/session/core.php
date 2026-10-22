@@ -18,6 +18,7 @@ use Modules\Session\SessionManager;
 return [
     'slug'        => 'session',
     'title'       => 'سشن امن و دسترسی',
+    'icon'        => '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M17 3.5a4 4 0 0 1 0 7"/><path d="M21.5 21v-2a4 4 0 0 0-3-3.85"/></svg>',
     'description' => 'سشن دیتابیسی با کوکی امضاشده، ورود مدیر، کاربران و نقش‌های مدیریت',
     'version'     => '0.1.0',
     'system'      => true,

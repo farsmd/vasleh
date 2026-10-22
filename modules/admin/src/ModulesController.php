@@ -32,6 +32,41 @@ final class ModulesController
         $this->container->get('logger')->user($actor, $action, $target);
     }
 
+    private function ownerOnly(): ?Response
+    {
+        $user = $this->container->has('session') ? $this->container->get('session')->user() : null;
+        if (($user['role'] ?? '') !== 'owner') {
+            return Response::forbidden('نصب ماژول فقط برای مالک است');
+        }
+        return null;
+    }
+
+    public function installForm(Request $request): Response
+    {
+        if ($deny = $this->ownerOnly()) {
+            return $deny;
+        }
+        return $this->admin()->page('install', [
+            'error' => $request->input('err'),
+            'csrf'  => $this->csrf(),
+        ], 'نصب ماژول از ZIP');
+    }
+
+    public function install(Request $request): Response
+    {
+        if ($deny = $this->ownerOnly()) {
+            return $deny;
+        }
+        $base = (string) $this->container->get('base_path');
+        $installer = new ModuleInstaller($base . '/modules', $base . '/storage');
+        $result = $installer->install((array) ($_FILES['module_zip'] ?? []));
+        if (empty($result['ok'])) {
+            return Response::redirect('/admin/modules/install?err=' . urlencode((string) ($result['error'] ?? 'خطا')));
+        }
+        $this->log('نصب ماژول', (string) $result['slug']);
+        return Response::redirect('/admin/modules?msg=' . urlencode('ماژول «' . $result['slug'] . '» نصب و فعال شد'));
+    }
+
     public function index(Request $request): Response
     {
         $loader = $this->container->get('loader');

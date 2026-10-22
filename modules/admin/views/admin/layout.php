@@ -23,6 +23,26 @@ $isActive = static function (string $path) use ($currentPath): bool {
     }
     return $currentPath === $path;
 };
+// منو گروهی است: هر ماژول یک گروه بازشو با آیکون و عنوان خودش.
+// گروهی که صفحه فعلی داخل آن است، باز شروع می‌شود.
+$fallbackIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 9-9 9-9-9z"/></svg>';
+$groups = [];
+foreach (($menu ?? []) as $item) {
+    $slug = (string) ($item['module'] ?? 'misc');
+    if (!isset($groups[$slug])) {
+        $groups[$slug] = [
+            'slug'  => $slug,
+            'title' => (string) ($item['module_title'] ?? $slug),
+            'icon'  => (string) ($item['module_icon'] ?? ''),
+            'items' => [],
+            'open'  => false,
+        ];
+    }
+    if ($isActive((string) $item['path'])) {
+        $groups[$slug]['open'] = true;
+    }
+    $groups[$slug]['items'][] = $item;
+}
 ?>
 <!doctype html>
 <html lang="fa" dir="rtl">
@@ -42,9 +62,28 @@ body{font-family:Tahoma,"Segoe UI",sans-serif;background:var(--admin-bg)}
 .admin-sidebar .brand strong{font-size:1.25rem}
 .admin-sidebar .brand small{color:#9ba0a3}
 .admin-sidebar nav{padding:8px}
-.admin-sidebar nav a{display:block;color:#c3c4c7;text-decoration:none;padding:9px 12px;margin-bottom:2px;border-radius:8px;font-size:.95rem;transition:background .15s ease,color .15s ease}
-.admin-sidebar nav a:hover{background:var(--wp-dark-2);color:#fff}
-.admin-sidebar nav a.active{background:var(--wp-blue);color:#fff}
+.group-head{display:flex;align-items:center;gap:10px;width:100%;background:transparent;border:0;color:#c3c4c7;padding:9px 12px;margin-bottom:2px;border-radius:8px;font-size:.95rem;cursor:pointer;font-family:inherit;text-align:right;transition:background .15s ease,color .15s ease}
+.group-head:hover{background:var(--wp-dark-2);color:#fff}
+.group-head .g-icon,.site-row .g-icon{display:flex;flex:0 0 auto}
+.group-head .g-icon svg,.site-row .g-icon svg{display:block}
+.group-head .g-chev{margin-inline-start:auto;flex:0 0 auto;transition:transform .2s ease}
+.menu-group.open .group-head .g-chev{transform:rotate(180deg)}
+.group-items{display:none;padding-inline-start:20px}
+.menu-group.open .group-items{display:block}
+.group-items a{display:block;color:#c3c4c7;text-decoration:none;padding:7px 12px;margin-bottom:2px;border-radius:8px;font-size:.92rem;transition:background .15s ease,color .15s ease}
+.group-items a:hover{background:var(--wp-dark-2);color:#fff}
+.group-items a.active{background:var(--wp-blue);color:#fff}
+.site-row{display:flex;align-items:center;gap:10px;color:#c3c4c7;text-decoration:none;padding:9px 12px;border-radius:8px;font-size:.95rem}
+.site-row:hover{background:var(--wp-dark-2);color:#fff}
+.rail-toggle{align-items:center;gap:10px;width:calc(100% - 16px);margin:0 8px 12px;background:transparent;border:1px solid #3c434a;color:#c3c4c7;border-radius:8px;padding:8px 12px;cursor:pointer;font-family:inherit;font-size:.9rem}
+.rail-toggle:hover{background:var(--wp-dark-2);color:#fff}
+@media (min-width:992px){
+.admin-shell.rail .admin-sidebar{width:68px;flex-basis:68px}
+.admin-shell.rail .g-title,.admin-shell.rail .g-chev,.admin-shell.rail .group-items,.admin-shell.rail .brand small,.admin-shell.rail .u-meta,.admin-shell.rail .site-row span:last-child,.admin-shell.rail .rail-toggle span{display:none}
+.admin-shell.rail .brand{justify-content:center;padding-inline:0}
+.admin-shell.rail .group-head,.admin-shell.rail .site-row,.admin-shell.rail .rail-toggle{justify-content:center}
+.admin-shell.rail .side-user{text-align:center}
+}
 .admin-sidebar .side-user{border-top:1px solid #3c434a;margin-top:10px;padding:12px 16px;font-size:.9rem}
 .admin-sidebar .side-user form{margin-top:8px}
 .admin-sidebar .side-user button{background:var(--wp-dark-2);color:#fff;border:0;padding:6px 12px;border-radius:6px;cursor:pointer}
@@ -92,20 +131,38 @@ body{font-family:Tahoma,"Segoe UI",sans-serif;background:var(--admin-bg)}
     </div>
     <div class="brand"><strong>وصله</strong><?php if ($appVersion !== ''): ?><small>نسخه <?= e($appVersion) ?></small><?php endif; ?></div>
     <nav>
-      <?php foreach (($menu ?? []) as $item): ?>
-        <a href="<?= e($item['path']) ?>" class="<?= $isActive((string) $item['path']) ? 'active' : '' ?>"><?= e($item['label']) ?></a>
+      <?php foreach ($groups as $g): ?>
+      <div class="menu-group<?= $g['open'] ? ' open' : '' ?>" data-group="<?= e($g['slug']) ?>">
+        <button type="button" class="group-head" aria-expanded="<?= $g['open'] ? 'true' : 'false' ?>">
+          <span class="g-icon"><?= $g['icon'] !== '' ? $g['icon'] : $fallbackIcon ?></span>
+          <span class="g-title"><?= e($g['title']) ?></span>
+          <svg class="g-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="group-items">
+          <?php foreach ($g['items'] as $item): ?>
+            <a href="<?= e($item['path']) ?>" class="<?= $isActive((string) $item['path']) ? 'active' : '' ?>"><?= e($item['label']) ?></a>
+          <?php endforeach; ?>
+        </div>
+      </div>
       <?php endforeach; ?>
-      <a href="<?= e($assetBase === '' ? '/' : $assetBase . '/') ?>">مشاهده سایت</a>
+      <a class="site-row" href="<?= e($assetBase === '' ? '/' : $assetBase . '/') ?>">
+        <span class="g-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
+        <span>مشاهده سایت</span>
+      </a>
     </nav>
     <?php if (!empty($user)): ?>
     <div class="side-user">
-      <div><?= e($user['username']) ?> <small>(<?= e($user['role'] === 'owner' ? 'مالک' : 'مدیر') ?>)</small></div>
+      <div class="u-meta"><?= e($user['username']) ?> <small>(<?= e($user['role'] === 'owner' ? 'مالک' : 'مدیر') ?>)</small></div>
       <form method="post" action="<?= e($assetBase) ?>/admin/logout">
         <input type="hidden" name="_csrf" value="<?= e($csrf ?? '') ?>">
         <button type="submit">خروج</button>
       </form>
     </div>
     <?php endif; ?>
+    <button type="button" id="railToggle" class="rail-toggle d-none d-lg-flex" title="جمع‌کردن / بازکردن منو">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
+      <span>جمع‌کردن منو</span>
+    </button>
   </aside>
 
   <div class="admin-main">
@@ -131,6 +188,49 @@ document.querySelectorAll('.admin-content table').forEach(function (t) {
   w.className = 'table-responsive';
   t.parentNode.insertBefore(w, t);
   w.appendChild(t);
+});
+
+// منوی گروهی بازشو (آکاردئونی) + حالت جمع‌شده سایدبار در دسکتاپ؛ وضعیت در localStorage می‌ماند.
+var shell = document.querySelector('.admin-shell');
+if (shell && localStorage.getItem('vasleh-rail') === '1') shell.classList.add('rail');
+var storedGroups = null;
+try { storedGroups = JSON.parse(localStorage.getItem('vasleh-groups') || 'null'); } catch (e) {}
+if (Array.isArray(storedGroups)) {
+  document.querySelectorAll('.menu-group').forEach(function (g) {
+    var open = storedGroups.indexOf(g.dataset.group) !== -1;
+    g.classList.toggle('open', open);
+    var head = g.querySelector('.group-head');
+    if (head) head.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+}
+function saveGroups() {
+  var open = [];
+  document.querySelectorAll('.menu-group.open').forEach(function (g) { open.push(g.dataset.group); });
+  localStorage.setItem('vasleh-groups', JSON.stringify(open));
+}
+document.querySelectorAll('.group-head').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var group = btn.closest('.menu-group');
+    if (shell && shell.classList.contains('rail') && window.innerWidth >= 992) {
+      var first = group.querySelector('.group-items a');
+      if (first) location.href = first.href;
+      return;
+    }
+    var willOpen = !group.classList.contains('open');
+    document.querySelectorAll('.menu-group.open').forEach(function (g) {
+      g.classList.remove('open');
+      var h = g.querySelector('.group-head');
+      if (h) h.setAttribute('aria-expanded', 'false');
+    });
+    if (willOpen) group.classList.add('open');
+    btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    saveGroups();
+  });
+});
+var railBtn = document.getElementById('railToggle');
+if (railBtn && shell) railBtn.addEventListener('click', function () {
+  shell.classList.toggle('rail');
+  localStorage.setItem('vasleh-rail', shell.classList.contains('rail') ? '1' : '0');
 });
 </script>
 </body>
