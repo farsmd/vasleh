@@ -22,6 +22,16 @@ final class ModulesController
         return $this->container->has('session') ? $this->container->get('session')->csrfToken() : '';
     }
 
+    /** ثبت رویداد در گزارشات، اگر ماژول reports حاضر باشد. */
+    private function log(string $action, string $target): void
+    {
+        if (!$this->container->has('logger') || !$this->container->has('session')) {
+            return;
+        }
+        $actor = (string) ($this->container->get('session')->user()['username'] ?? '');
+        $this->container->get('logger')->user($actor, $action, $target);
+    }
+
     public function index(Request $request): Response
     {
         $loader = $this->container->get('loader');
@@ -43,7 +53,10 @@ final class ModulesController
         $loader = $this->container->get('loader');
         $slug = (string) ($params['slug'] ?? '');
         if ($loader->exists($slug)) {
-            $loader->setEnabled($slug, !$loader->isEnabled($slug));
+            $enable = !$loader->isEnabled($slug);
+            if ($loader->setEnabled($slug, $enable)) {
+                $this->log($enable ? 'فعال‌کردن ماژول' : 'غیرفعال‌کردن ماژول', $slug);
+            }
         }
         return Response::redirect('/admin/modules');
     }
@@ -64,6 +77,7 @@ final class ModulesController
             return Response::redirect('/admin/modules/create?err=' . urlencode('نام لاتین نامعتبر یا تکراری است'));
         }
         (new ModuleBuilder($this->container->get('base_path') . '/modules'))->create($slug, $title, $description);
+        $this->log('ساخت ماژول', $slug);
         return Response::redirect('/admin/modules?msg=' . urlencode('ماژول ساخته شد و روتش زنده است'));
     }
 
@@ -142,11 +156,14 @@ final class ModulesController
     {
         $loader = $this->container->get('loader');
         $slug = (string) ($params['slug'] ?? '');
-        $loader->updateMeta($slug, [
+        $ok = $loader->updateMeta($slug, [
             'title'       => trim((string) $request->input('title', '')),
             'description' => trim((string) $request->input('description', '')),
             'version'     => trim((string) $request->input('version', '')),
         ]);
+        if ($ok) {
+            $this->log('ویرایش مشخصات ماژول', $slug);
+        }
         return Response::redirect('/admin/modules?msg=' . urlencode('مشخصات ماژول ویرایش شد'));
     }
 }

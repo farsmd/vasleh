@@ -65,8 +65,13 @@ final class AdminApiController
         if ($deny = $this->ownerOnly()) {
             return $deny;
         }
-        $created = $this->tokens()->create(trim((string) $request->input('name', '')));
+        $name = trim((string) $request->input('name', ''));
+        $created = $this->tokens()->create($name);
         $this->session()->set('_api_new_token', $created['token']);
+        if ($this->container->has('logger')) {
+            $actor = (string) ($this->session()->user()['username'] ?? '');
+            $this->container->get('logger')->user($actor, 'ساخت توکن API', $name !== '' ? $name : 'بدون نام');
+        }
         return Response::redirect('/admin/api');
     }
 
@@ -75,7 +80,12 @@ final class AdminApiController
         if ($deny = $this->ownerOnly()) {
             return $deny;
         }
-        $this->tokens()->revoke((int) ($params['id'] ?? 0));
+        $id = (int) ($params['id'] ?? 0);
+        $this->tokens()->revoke($id);
+        if ($this->container->has('logger')) {
+            $actor = (string) ($this->session()->user()['username'] ?? '');
+            $this->container->get('logger')->user($actor, 'لغو توکن API', '#' . $id);
+        }
         return Response::redirect('/admin/api');
     }
 }

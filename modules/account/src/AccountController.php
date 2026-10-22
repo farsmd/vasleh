@@ -72,6 +72,10 @@ final class AccountController
             return Response::redirect('/account/password?err=' . $result);
         }
 
+        if ($this->container->has('logger')) {
+            $this->container->get('logger')->user((string) ($sessionUser['username'] ?? ''), 'تغییر کلمه عبور');
+        }
+
         // بعد از تغییر رمز، شناسه سشن می‌چرخد تا سشن فعلی هم تازه شود.
         $fresh = $auth->userById((int) $sessionUser['id']);
         if ($fresh !== null) {

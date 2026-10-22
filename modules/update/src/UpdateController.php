@@ -69,10 +69,17 @@ final class UpdateController
         $updater = $this->updater();
         $result = null;
         $error = null;
+        $actor = (string) ($this->session()->user()['username'] ?? '');
         try {
             $result = $updater->apply();
+            if ($this->container->has('logger')) {
+                $this->container->get('logger')->user($actor, 'نصب آپدیت', $result['from'] . ' ← ' . $result['to']);
+            }
         } catch (\Throwable $e) {
             $error = $e->getMessage();
+            if ($this->container->has('logger')) {
+                $this->container->get('logger')->system('خطای آپدیت', $error, $actor);
+            }
         }
         return $this->page([
             'preflight' => $updater->preflight(),

@@ -87,15 +87,26 @@ return [
         $router->post('/admin/login', static function (Request $request) use ($c): Response {
             /** @var Auth $auth */
             $auth = $c->get('auth');
-            $user = $auth->attempt((string) $request->input('username', ''), (string) $request->input('password', ''));
+            $username = (string) $request->input('username', '');
+            $user = $auth->attempt($username, (string) $request->input('password', ''));
             if ($user === null) {
+                if ($c->has('logger')) {
+                    $c->get('logger')->system('تلاش ناموفق برای ورود', $username);
+                }
                 return Response::redirect('/admin/login?err=1');
             }
             $c->get('session')->login($user);
+            if ($c->has('logger')) {
+                $c->get('logger')->user($user['username'], 'ورود به سیستم');
+            }
             return Response::redirect('/admin');
         }, $module);
 
         $router->post('/admin/logout', static function () use ($c): Response {
+            $user = $c->get('session')->user();
+            if ($user !== null && $c->has('logger')) {
+                $c->get('logger')->user((string) $user['username'], 'خروج از سیستم');
+            }
             $c->get('session')->logout();
             return Response::redirect('/admin/login');
         }, $module);
@@ -117,11 +128,17 @@ return [
         }, $module);
 
         $router->post('/admin/users', static function (Request $request) use ($c): Response {
+            $newUsername = trim((string) $request->input('username', ''));
+            $role = (string) $request->input('role', 'admin');
             $ok = $c->get('auth')->create(
-                trim((string) $request->input('username', '')),
+                $newUsername,
                 (string) $request->input('password', ''),
-                (string) $request->input('role', 'admin'),
+                $role,
             );
+            if ($ok && $c->has('logger')) {
+                $actor = (string) ($c->get('session')->user()['username'] ?? '');
+                $c->get('logger')->user($actor, 'ساخت کاربر', $newUsername . ' (' . $role . ')');
+            }
             return Response::redirect('/admin/users' . ($ok ? '' : '?err=1'));
         }, $module);
     },
