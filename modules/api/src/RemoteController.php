@@ -79,9 +79,18 @@ final class RemoteController
         foreach ($this->container->get('loader')->active() as $slug => $definition) {
             $modules[] = ['slug' => $slug, 'title' => (string) ($definition['title'] ?? $slug), 'version' => (string) ($definition['version'] ?? '')];
         }
+        $version = null;
+        $versionFile = (string) $this->container->get('base_path') . '/version.json';
+        if (is_file($versionFile)) {
+            $parts = json_decode((string) file_get_contents($versionFile), true);
+            if (is_array($parts)) {
+                $version = (int) ($parts['core'] ?? 0) . '.' . (int) ($parts['system'] ?? 0) . '.' . (int) ($parts['other'] ?? 0);
+            }
+        }
         return Response::json([
             'ok'      => true,
             'app'     => 'وصله',
+            'version' => $version,
             'php'     => PHP_VERSION,
             'time'    => date('c'),
             'token'   => ['id' => (int) $auth['id'], 'name' => (string) $auth['name']],

@@ -1,0 +1,42 @@
+<?php
+declare(strict_types=1);
+
+use Core\Container;
+use Core\Router;
+use Modules\Update\UpdateController;
+use Modules\Update\Updater;
+
+/*
+ * ماژول update — آپدیت از گیت‌هاب:
+ * نسخه سه‌بخشی برنامه (هسته . ماژول‌های سیستمی . بقیه) در فایل version.json
+ * ریشه نگه داشته می‌شود. این ماژول نسخه روی گیت‌هاب را می‌خواند، اگر تازه‌تر
+ * بود با یک کلیک دانلود و نصب می‌کند — بدون دست‌زدن به storage
+ * (دیتابیس، کلید، بکاپ‌ها) و با بکاپ خودکار قبل از نصب.
+ * ماژول سیستمی است تا همیشه در دسترس بماند.
+ */
+
+return [
+    'slug'        => 'update',
+    'title'       => 'آپدیت سیستم',
+    'description' => 'بررسی و نصب نسخه تازه از گیت‌هاب با نسخه‌بندی سه‌بخشی (هسته/سیستمی/بقیه)',
+    'version'     => '0.1.0',
+    'system'      => true,
+    'requires'    => ['session'],
+
+    'permissions' => [
+        'update.manage' => 'بررسی و نصب آپدیت از گیت‌هاب',
+    ],
+
+    'admin_menu' => [
+        ['label' => 'آپدیت', 'path' => '/admin/update', 'permission' => 'update.manage'],
+    ],
+
+    'services' => [
+        'updater' => static fn (Container $c): Updater => new Updater((string) $c->get('base_path')),
+    ],
+
+    'routes' => static function (Router $router, Container $c, string $module): void {
+        $router->get('/admin/update', [UpdateController::class, 'index'], $module);
+        $router->post('/admin/update/run', [UpdateController::class, 'run'], $module);
+    },
+];
