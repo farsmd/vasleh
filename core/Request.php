@@ -18,10 +18,16 @@ final class Request
         $uri = (string) ($_SERVER['REQUEST_URI'] ?? '/');
         $rawPath = (string) (parse_url($uri, PHP_URL_PATH) ?? '/');
 
-        // پشتیبانی از نصب در ساب‌فولدر هاست اشتراکی
-        $scriptDir = rtrim(str_replace('\\', '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? ''))), '/');
-        if ($scriptDir !== '' && str_starts_with($rawPath, $scriptDir)) {
-            $rawPath = substr($rawPath, strlen($scriptDir)) ?: '/';
+        // پشتیبانی از نصب در ساب‌فولدر هاست اشتراکی — فقط وقتی اسکریپت واقعاً
+        // فرانت‌کنترلر (index.php) است؛ روی سرور توسعه PHP برای آدرس‌هایی که
+        // بخش آخرشان نقطه دارد (مثل نام فایل بکاپ) SCRIPT_NAME خودِ مسیر
+        // درخواست می‌شود و بریدن مسیر از روی آن، آدرس را خراب می‌کند.
+        $script = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));
+        if (basename($script) === 'index.php') {
+            $scriptDir = rtrim(dirname($script), '/');
+            if ($scriptDir !== '' && str_starts_with($rawPath, $scriptDir)) {
+                $rawPath = substr($rawPath, strlen($scriptDir)) ?: '/';
+            }
         }
 
         $path = '/' . trim($rawPath, '/');
