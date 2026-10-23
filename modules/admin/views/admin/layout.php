@@ -57,7 +57,14 @@ html,body{overflow-x:clip}
 body{font-family:Tahoma,"Segoe UI",sans-serif;background:var(--admin-bg)}
 .admin-shell{min-height:100vh}
 /* سایدبار وردپرسی */
-.admin-sidebar{background:var(--wp-dark);color:#c3c4c7;width:236px;flex:0 0 236px}
+.admin-sidebar{background:var(--wp-dark);color:#c3c4c7;width:236px;flex:0 0 236px;display:flex;flex-direction:column}
+/* منو داخل خودش اسکرول می‌خورد: برند و بخش کاربر ثابت، ناوبری وسط اسکرول‌پذیر (با ۱۴+ ماژول، منو از قد صفحه بلندتر است) */
+.admin-sidebar nav{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#3c434a transparent}
+.admin-sidebar nav::-webkit-scrollbar{width:6px}
+.admin-sidebar nav::-webkit-scrollbar-thumb{background:#3c434a;border-radius:3px}
+@media (min-width:992px){
+.admin-sidebar{position:sticky;top:0;height:100vh;height:100dvh;max-height:100vh;max-height:100dvh}
+}
 .admin-sidebar .brand{display:flex;align-items:baseline;gap:8px;padding:16px 16px 10px;color:#fff}
 .admin-sidebar .brand strong{font-size:1.25rem}
 .admin-sidebar .brand small{color:#9ba0a3}
