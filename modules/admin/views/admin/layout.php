@@ -56,47 +56,47 @@ foreach (($menu ?? []) as $item) {
 html,body{overflow-x:clip}
 body{font-family:Tahoma,"Segoe UI",sans-serif;background:var(--admin-bg)}
 .admin-shell{min-height:100vh}
-/* سایدبار وردپرسی */
-.admin-sidebar{background:var(--wp-dark);color:#c3c4c7;width:236px;flex:0 0 236px;display:flex;flex-direction:column}
+/* سایدبار شناور به سبک Velocity (دموی frontendjoe): پنل گرادیانی با گوشه گرد، جدا از لبه‌های صفحه */
+.admin-sidebar{background:linear-gradient(180deg,#0b1f3a 0%,#1d4ed8 52%,#14b8a6 100%);color:#fff;width:240px;flex:0 0 240px;display:flex;flex-direction:column}
 /* منو داخل خودش اسکرول می‌خورد: برند و بخش کاربر ثابت، ناوبری وسط اسکرول‌پذیر (با ۱۴+ ماژول، منو از قد صفحه بلندتر است) */
-.admin-sidebar nav{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#3c434a transparent}
+.admin-sidebar nav{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.35) transparent}
 .admin-sidebar nav::-webkit-scrollbar{width:6px}
-.admin-sidebar nav::-webkit-scrollbar-thumb{background:#3c434a;border-radius:3px}
+.admin-sidebar nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.35);border-radius:3px}
 @media (min-width:992px){
-.admin-sidebar{position:sticky;top:0;height:100vh;height:100dvh;max-height:100vh;max-height:100dvh}
+.admin-sidebar{position:sticky;top:16px;height:calc(100vh - 32px);height:calc(100dvh - 32px);max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px);margin:16px;border-radius:20px;overflow:hidden;box-shadow:0 12px 32px rgba(11,31,58,.22)}
 }
 .admin-sidebar .brand{display:flex;align-items:baseline;gap:8px;padding:16px 16px 10px;color:#fff}
 .admin-sidebar .brand strong{font-size:1.25rem}
-.admin-sidebar .brand small{color:#9ba0a3}
+.admin-sidebar .brand small{color:rgba(255,255,255,.7)}
 .admin-sidebar nav{padding:8px}
-.group-head{display:flex;align-items:center;gap:10px;width:100%;background:transparent;border:0;color:#c3c4c7;padding:9px 12px;margin-bottom:2px;border-radius:8px;font-size:.95rem;cursor:pointer;font-family:inherit;text-align:right;transition:background .15s ease,color .15s ease}
-.group-head:hover{background:var(--wp-dark-2);color:#fff}
+.group-head{display:flex;align-items:center;gap:10px;width:100%;background:transparent;border:0;color:rgba(255,255,255,.85);padding:9px 12px;margin-bottom:2px;border-radius:8px;font-size:.95rem;cursor:pointer;font-family:inherit;text-align:right;transition:background .15s ease,color .15s ease}
+.group-head:hover{background:rgba(255,255,255,.12);color:#fff}
 .group-head .g-icon,.site-row .g-icon{display:flex;flex:0 0 auto}
 .group-head .g-icon svg,.site-row .g-icon svg{display:block}
 .group-head .g-chev{margin-inline-start:auto;flex:0 0 auto;transition:transform .2s ease}
 .menu-group.open .group-head .g-chev{transform:rotate(180deg)}
 .group-items{display:none;padding-inline-start:20px}
 .menu-group.open .group-items{display:block}
-.group-items a{display:block;color:#c3c4c7;text-decoration:none;padding:7px 12px;margin-bottom:2px;border-radius:8px;font-size:.92rem;transition:background .15s ease,color .15s ease}
-.group-items a:hover{background:var(--wp-dark-2);color:#fff}
-.group-items a.active{background:var(--wp-blue);color:#fff}
-.site-row{display:flex;align-items:center;gap:10px;color:#c3c4c7;text-decoration:none;padding:9px 12px;border-radius:8px;font-size:.95rem}
-.site-row:hover{background:var(--wp-dark-2);color:#fff}
-.rail-toggle{align-items:center;gap:10px;width:calc(100% - 16px);margin:0 8px 12px;background:transparent;border:1px solid #3c434a;color:#c3c4c7;border-radius:8px;padding:8px 12px;cursor:pointer;font-family:inherit;font-size:.9rem}
-.rail-toggle:hover{background:var(--wp-dark-2);color:#fff}
+.group-items a{display:block;color:rgba(255,255,255,.85);text-decoration:none;padding:7px 12px;margin-bottom:2px;border-radius:8px;font-size:.92rem;transition:background .15s ease,color .15s ease}
+.group-items a:hover{background:rgba(255,255,255,.12);color:#fff}
+.group-items a.active{background:rgba(255,255,255,.2);color:#fff}
+.site-row{display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.85);text-decoration:none;padding:9px 12px;border-radius:8px;font-size:.95rem}
+.site-row:hover{background:rgba(255,255,255,.12);color:#fff}
+.rail-toggle{align-items:center;gap:10px;width:calc(100% - 16px);margin:0 8px 12px;background:transparent;border:1px solid rgba(255,255,255,.25);color:rgba(255,255,255,.9);border-radius:8px;padding:8px 12px;cursor:pointer;font-family:inherit;font-size:.9rem}
+.rail-toggle:hover{background:rgba(255,255,255,.12);color:#fff}
 @media (min-width:992px){
-.admin-shell.rail .admin-sidebar{width:68px;flex-basis:68px}
+.admin-shell.rail .admin-sidebar{width:56px;flex-basis:56px}
 .admin-shell.rail .g-title,.admin-shell.rail .g-chev,.admin-shell.rail .group-items,.admin-shell.rail .brand small,.admin-shell.rail .u-meta,.admin-shell.rail .site-row span:last-child,.admin-shell.rail .rail-toggle span{display:none}
 .admin-shell.rail .brand{justify-content:center;padding-inline:0}
 .admin-shell.rail .group-head,.admin-shell.rail .site-row,.admin-shell.rail .rail-toggle{justify-content:center}
 .admin-shell.rail .side-user{text-align:center}
 }
-.admin-sidebar .side-user{border-top:1px solid #3c434a;margin-top:10px;padding:12px 16px;font-size:.9rem}
+.admin-sidebar .side-user{border-top:1px solid rgba(255,255,255,.2);margin-top:10px;padding:12px 16px;font-size:.9rem}
 .admin-sidebar .side-user form{margin-top:8px}
-.admin-sidebar .side-user button{background:var(--wp-dark-2);color:#fff;border:0;padding:6px 12px;border-radius:6px;cursor:pointer}
-.admin-sidebar .offcanvas-header{color:#fff;border-bottom:1px solid #3c434a}
+.admin-sidebar .side-user button{background:rgba(255,255,255,.15);color:#fff;border:0;padding:6px 12px;border-radius:6px;cursor:pointer}
+.admin-sidebar .offcanvas-header{color:#fff;border-bottom:1px solid rgba(255,255,255,.2)}
 @media (max-width:991.98px){
-.admin-sidebar{--bs-offcanvas-width:min(70vw,300px);width:min(70vw,300px);flex-basis:auto;border-top-left-radius:18px;border-bottom-left-radius:18px;box-shadow:-12px 0 32px rgba(0,0,0,.35)}
+.admin-sidebar{--bs-offcanvas-width:min(70vw,300px);width:min(70vw,300px);flex-basis:auto;border-top-left-radius:20px;border-bottom-left-radius:20px;box-shadow:-12px 0 32px rgba(0,0,0,.35)}
 }
 /* بدنه */
 .admin-main{min-width:0;flex:1 1 auto}
@@ -140,7 +140,7 @@ body{font-family:Tahoma,"Segoe UI",sans-serif;background:var(--admin-bg)}
     <nav>
       <?php foreach ($groups as $g): ?>
       <div class="menu-group<?= $g['open'] ? ' open' : '' ?>" data-group="<?= e($g['slug']) ?>">
-        <button type="button" class="group-head" aria-expanded="<?= $g['open'] ? 'true' : 'false' ?>">
+        <button type="button" class="group-head" title="<?= e($g['title']) ?>" aria-expanded="<?= $g['open'] ? 'true' : 'false' ?>">
           <span class="g-icon"><?= $g['icon'] !== '' ? $g['icon'] : $fallbackIcon ?></span>
           <span class="g-title"><?= e($g['title']) ?></span>
           <svg class="g-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
@@ -152,7 +152,7 @@ body{font-family:Tahoma,"Segoe UI",sans-serif;background:var(--admin-bg)}
         </div>
       </div>
       <?php endforeach; ?>
-      <a class="site-row" href="<?= e($assetBase === '' ? '/' : $assetBase . '/') ?>">
+      <a class="site-row" title="مشاهده سایت" href="<?= e($assetBase === '' ? '/' : $assetBase . '/') ?>">
         <span class="g-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
         <span>مشاهده سایت</span>
       </a>
@@ -236,6 +236,14 @@ document.querySelectorAll('.group-head').forEach(function (btn) {
 });
 var railBtn = document.getElementById('railToggle');
 if (railBtn && shell) railBtn.addEventListener('click', function () {
+  shell.classList.toggle('rail');
+  localStorage.setItem('vasleh-rail', shell.classList.contains('rail') ? '1' : '0');
+});
+// دابل‌کلیک روی سایدبار (نه روی لینک/دکمه) هم مثل دموی مرجع، منو را جمع/باز می‌کند.
+var sidebarEl = document.getElementById('adminSidebar');
+if (sidebarEl && shell) sidebarEl.addEventListener('dblclick', function (e) {
+  if (window.innerWidth < 992) return;
+  if (e.target.closest('a,button')) return;
   shell.classList.toggle('rail');
   localStorage.setItem('vasleh-rail', shell.classList.contains('rail') ? '1' : '0');
 });
