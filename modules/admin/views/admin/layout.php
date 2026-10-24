@@ -54,10 +54,10 @@ foreach (($menu ?? []) as $item) {
 <style>
 :root{--wp-dark:#1d2327;--wp-dark-2:#2c3338;--wp-blue:#2271b1;--admin-bg:#f0f0f1}
 html,body{overflow-x:clip}
-body{font-family:Tahoma,"Segoe UI",sans-serif;background:var(--admin-bg)}
+body{font-family:Tahoma,"Segoe UI",sans-serif;background:linear-gradient(180deg,#e9edfa 0%,#f2f4f8 520px,#eafaf5 100%);background-attachment:fixed}
 .admin-shell{min-height:100vh}
 /* سایدبار شناور به سبک Velocity (دموی frontendjoe): پنل گرادیانی با گوشه گرد، جدا از لبه‌های صفحه */
-.admin-sidebar{background:linear-gradient(180deg,#0b1f3a 0%,#1d4ed8 52%,#14b8a6 100%);color:#fff;width:240px;flex:0 0 240px;display:flex;flex-direction:column}
+.admin-sidebar{background:linear-gradient(180deg,rgba(11,31,58,.86) 0%,rgba(29,78,216,.86) 52%,rgba(20,184,166,.86) 100%);-webkit-backdrop-filter:blur(16px) saturate(1.3);backdrop-filter:blur(16px) saturate(1.3);color:#fff;width:240px;flex:0 0 240px;display:flex;flex-direction:column}
 /* منو داخل خودش اسکرول می‌خورد: برند و بخش کاربر ثابت، ناوبری وسط اسکرول‌پذیر (با ۱۴+ ماژول، منو از قد صفحه بلندتر است) */
 .admin-sidebar nav{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.35) transparent}
 .admin-sidebar nav::-webkit-scrollbar{width:6px}
@@ -100,24 +100,26 @@ body{font-family:Tahoma,"Segoe UI",sans-serif;background:var(--admin-bg)}
 }
 /* بدنه */
 .admin-main{min-width:0;flex:1 1 auto}
-.admin-topbar{background:#fff;border-bottom:1px solid #dcdcde;padding:10px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:1020}
-.admin-topbar h1{font-size:1.1rem;margin:0;font-weight:700}
+.admin-topbar{background:rgba(255,255,255,.72);-webkit-backdrop-filter:blur(12px) saturate(1.2);backdrop-filter:blur(12px) saturate(1.2);border-bottom:1px solid rgba(11,31,58,.08);padding:10px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:1020}
+.admin-topbar h1{font-size:1.1rem;margin:0;font-weight:700;color:#0b1f3a}
 .admin-content{padding:20px 16px;max-width:1200px;margin:0 auto}
 /* سازگاری ویوهای ماژول‌ها */
-.admin-content .card{display:block;background:#fff;border:1px solid #dcdcde;border-radius:12px;padding:20px;box-shadow:0 1px 2px rgba(0,0,0,.04);margin-bottom:16px}
-.admin-content h1{font-size:1.45rem;margin-bottom:12px}
+.admin-content .card{display:block;background:rgba(255,255,255,.88);border:1px solid rgba(11,31,58,.08);border-radius:16px;padding:20px;box-shadow:0 8px 24px rgba(11,31,58,.06);margin-bottom:16px}
+.admin-content h1{font-size:1.45rem;margin-bottom:12px;color:#0b1f3a}
 .admin-content h3{font-size:1.1rem;margin:14px 0 10px}
 .admin-content table{width:100%;border-collapse:collapse;margin-bottom:8px}
 .admin-content th,.admin-content td{padding:9px 10px;border-bottom:1px solid #e5e7eb;text-align:right;vertical-align:top;white-space:nowrap}
 .admin-content td.wrap{white-space:normal;min-width:180px}
-.admin-content th{background:#f6f7f7;font-weight:700}
+.admin-content th{background:#eef2ff;font-weight:700;color:#0b1f3a}
 .admin-content code{background:#eef;padding:2px 6px;border-radius:6px;white-space:nowrap}
 .admin-content pre{overflow:auto;max-width:100%}
 .admin-content img,.admin-content svg,.admin-content video,.admin-content iframe{max-width:100%}
 .admin-content input:not([type=checkbox]):not([type=radio]):not([type=submit]),
-.admin-content select,.admin-content textarea{width:100%;padding:9px;border:1px solid #d1d5db;border-radius:8px;margin:4px 0 12px;box-sizing:border-box;background:#fff;font-family:inherit}
-.admin-content .btn{display:inline-block;background:#2563eb;color:#fff;border:0;padding:8px 16px;border-radius:8px;cursor:pointer;text-decoration:none;font-size:.95rem;line-height:1.5}
-.admin-content .btn:hover{background:#1d4ed8;color:#fff}
+.admin-content select,.admin-content textarea{width:100%;padding:9px;border:1px solid #d1d5db;border-radius:10px;margin:4px 0 12px;box-sizing:border-box;background:#fff;font-family:inherit;transition:border-color .15s ease,box-shadow .15s ease}
+.admin-content input:not([type=checkbox]):not([type=radio]):not([type=submit]):focus,
+.admin-content select:focus,.admin-content textarea:focus{border-color:#1d4ed8;box-shadow:0 0 0 3px rgba(29,78,216,.18);outline:none}
+.admin-content .btn{display:inline-block;background:linear-gradient(135deg,#1d4ed8,#0ea5a4);color:#fff;border:0;padding:8px 16px;border-radius:10px;cursor:pointer;text-decoration:none;font-size:.95rem;line-height:1.5;box-shadow:0 4px 14px rgba(29,78,216,.25)}
+.admin-content .btn:hover{filter:brightness(1.08);color:#fff}
 .admin-content .btn.green{background:#16a34a}.admin-content .btn.green:hover{background:#15803d}
 .admin-content .btn.gray{background:#6b7280}.admin-content .btn.gray:hover{background:#4b5563}
 .admin-content .btn.yellow{background:#eab308;color:#111}.admin-content .btn.yellow:hover{background:#ca8a04}
