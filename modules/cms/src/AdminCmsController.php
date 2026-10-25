@@ -64,7 +64,7 @@ final class AdminCmsController
     public function createForm(Request $request): Response
     {
         return $this->page('form', [
-            'post'    => ['title' => '', 'slug' => '', 'excerpt' => '', 'body' => '', 'type' => 'post', 'status' => 'draft', 'header_id' => null, 'footer_id' => null, 'template_id' => null],
+            'post'    => ['title' => '', 'slug' => '', 'excerpt' => '', 'body' => '', 'type' => 'post', 'status' => 'draft', 'header_id' => null, 'footer_id' => null, 'template_id' => null, 'bare' => 0],
             'action'  => '/admin/cms/create',
             'error'   => null,
             'layouts' => $this->layoutsData(),
@@ -170,6 +170,7 @@ final class AdminCmsController
         $data['header_id'] = $this->layoutId($request, 'header_id', 'header');
         $data['footer_id'] = $this->layoutId($request, 'footer_id', 'footer');
         $data['template_id'] = $this->layoutId($request, 'template_id', 'template');
+        $data['bare'] = $request->input('bare') ? 1 : 0;
         return [$data, null];
     }
 

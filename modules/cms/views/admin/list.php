@@ -10,7 +10,7 @@
     <tr><th>عنوان</th><th>نوع</th><th>وضعیت</th><th>نامک</th><th>به‌روزرسانی</th><th>عملیات</th></tr>
     <?php foreach ($posts as $post): ?>
     <tr>
-      <td><?= e($post['title']) ?></td>
+      <td><?= e($post['title']) ?><?= !empty($post['bare']) ? ' <small class="muted">(بدون قالب)</small>' : '' ?></td>
       <td><?= ($post['type'] ?? 'post') === 'page' ? 'برگه' : 'نوشته' ?></td>
       <td><?= ($post['status'] ?? '') === 'published' ? 'منتشرشده' : 'پیش‌نویس' ?></td>
       <td><code dir="ltr"><?= e($post['slug']) ?></code></td>

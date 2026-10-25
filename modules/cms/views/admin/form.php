@@ -41,6 +41,9 @@
       <option value="<?= (int) $f['id'] ?>" <?= (int) ($post['footer_id'] ?? 0) === (int) $f['id'] ? 'selected' : '' ?>><?= e($f['name']) ?><?= !empty($f['is_default']) ? ' (پیش‌فرض)' : '' ?></option>
       <?php endforeach; ?>
     </select>
+    <label class="check" style="display:flex;gap:.4rem;align-items:center">
+      <input type="checkbox" name="bare" value="1" <?= !empty($post['bare']) ? 'checked' : '' ?>> بدون قالب — فقط همین محتوا نمایش داده شود (بدون هدر، فوتر، قالب و استایل سایت؛ انتخاب‌های هدر/قالب/فوتر نادیده گرفته می‌شوند)
+    </label>
     <label>متن (HTML)</label>
     <textarea name="body" id="cmsBody" rows="14" dir="ltr"><?= e($post['body']) ?></textarea>
     <p>

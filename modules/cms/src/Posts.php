@@ -43,6 +43,9 @@ final class Posts
                 $this->pdo()->exec('ALTER TABLE cms_posts ADD COLUMN ' . $col . ' INTEGER');
             }
         }
+        if (!in_array('bare', $cols, true)) {
+            $this->pdo()->exec('ALTER TABLE cms_posts ADD COLUMN bare INTEGER NOT NULL DEFAULT 0');
+        }
     }
 
     /** محتوای نمونه فقط وقتی جدول کاملاً خالی است تا فرانت از اول خالی نباشد. */
@@ -129,8 +132,8 @@ final class Posts
     {
         $now = date('Y-m-d H:i:s');
         $stmt = $this->pdo()->prepare(
-            'INSERT INTO cms_posts (slug, title, excerpt, body, type, status, header_id, footer_id, template_id, created_at, updated_at)
-             VALUES (:slug, :title, :excerpt, :body, :type, :status, :header, :footer, :template, :now, :now)'
+            'INSERT INTO cms_posts (slug, title, excerpt, body, type, status, header_id, footer_id, template_id, bare, created_at, updated_at)
+             VALUES (:slug, :title, :excerpt, :body, :type, :status, :header, :footer, :template, :bare, :now, :now)'
         );
         $stmt->execute([
             'slug'     => $data['slug'],
@@ -142,6 +145,7 @@ final class Posts
             'header'   => $data['header_id'] ?? null,
             'footer'   => $data['footer_id'] ?? null,
             'template' => $data['template_id'] ?? null,
+            'bare'     => $data['bare'] ?? 0,
             'now'      => $now,
         ]);
         return (int) $this->pdo()->lastInsertId();
@@ -152,7 +156,7 @@ final class Posts
         $stmt = $this->pdo()->prepare(
             'UPDATE cms_posts SET slug = :slug, title = :title, excerpt = :excerpt, body = :body,
              type = :type, status = :status, header_id = :header, footer_id = :footer,
-             template_id = :template, updated_at = :now WHERE id = :id'
+             template_id = :template, bare = :bare, updated_at = :now WHERE id = :id'
         );
         $stmt->execute([
             'slug'     => $data['slug'],
@@ -164,6 +168,7 @@ final class Posts
             'header'   => $data['header_id'] ?? null,
             'footer'   => $data['footer_id'] ?? null,
             'template' => $data['template_id'] ?? null,
+            'bare'     => $data['bare'] ?? 0,
             'now'      => date('Y-m-d H:i:s'),
             'id'       => $id,
         ]);

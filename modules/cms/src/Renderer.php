@@ -22,6 +22,11 @@ final class Renderer
 
     public function renderPost(array $post): string
     {
+        // محتوای «بدون قالب»: فقط خود متن، بدون هدر، فوتر، قالب و استایل سایت —
+        // برای لندینگ و محتوای مستقلی که سند HTML خودش را دارد.
+        if (!empty($post['bare'])) {
+            return (string) $post['body'];
+        }
         return $this->compose($post, (string) $post['body'], (string) $post['title']);
     }
 
