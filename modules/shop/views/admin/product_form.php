@@ -38,6 +38,7 @@
           <option value="published" <?= $product['status'] === 'published' ? 'selected' : '' ?>>منتشرشده</option>
         </select>
       </label>
+      <label><input type="checkbox" name="featured" value="1" <?= !empty($product['featured']) ? 'checked' : '' ?>> محصول ویژه (در بخش «پیشنهادهای ویژه» ویترین)</label>
       <label>ترتیب
         <input type="number" name="sort" value="<?= (int) $product['sort'] ?>">
       </label>

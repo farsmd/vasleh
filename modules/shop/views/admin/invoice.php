@@ -43,6 +43,8 @@
   </tr>
   <?php endforeach; ?>
   <tr><th colspan="5">جمع ردیف‌ها</th><td><?= number_format((int) $order['subtotal']) ?></td></tr>
+    <?php if ((int) ($order['discount'] ?? 0) > 0): ?><tr><th colspan="5">تخفیف کوپن<?= ($order['coupon_code'] ?? '') !== '' ? ' (' . e($order['coupon_code']) . ')' : '' ?></th><td>-<?= number_format((int) $order['discount']) ?></td></tr><?php endif; ?>
+    <?php if ((int) ($order['gift_fee'] ?? 0) > 0): ?><tr><th colspan="5">بسته‌بندی کادویی</th><td><?= number_format((int) ($order['gift_fee'])) ?></td></tr><?php endif; ?>
   <tr><th colspan="5">هزینه ارسال</th><td><?= number_format((int) $order['shipping']) ?></td></tr>
   <tr><th colspan="5">مالیات</th><td><?= number_format((int) $order['tax']) ?></td></tr>
   <tr><th colspan="5">مبلغ قابل پرداخت (<?= e($currency) ?>)</th><td><strong><?= number_format((int) $order['total']) ?></strong></td></tr>

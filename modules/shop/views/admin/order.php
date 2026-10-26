@@ -9,6 +9,15 @@
     <?php if (($order['note'] ?? '') !== ''): ?>
     <tr><th>یادداشت مشتری</th><td colspan="3" class="wrap"><?= e($order['note']) ?></td></tr>
     <?php endif; ?>
+    <?php if (($order['coupon_code'] ?? '') !== '' || (int) ($order['discount'] ?? 0) > 0): ?>
+    <tr><th>کوپن</th><td><?= e($order['coupon_code']) ?> (تخفیف <?= number_format((int) $order['discount']) ?>)</td><th>روش پرداخت</th><td><?= e($order['payment_method']) ?></td></tr>
+    <?php endif; ?>
+    <?php if ((int) ($order['gift_wrap'] ?? 0) === 1): ?>
+    <tr><th>بسته‌بندی کادویی</th><td>بله (<?= number_format((int) ($order['gift_fee'] ?? 0)) ?>)</td><th>پیام کادو</th><td class="wrap"><?= e($order['gift_message']) ?></td></tr>
+    <?php endif; ?>
+    <?php if (($order['delivery_slot'] ?? '') !== ''): ?>
+    <tr><th>بازه‌ی تحویل</th><td colspan="3"><?= e($order['delivery_slot']) ?></td></tr>
+    <?php endif; ?>
   </table>
 
   <h2>ردیف‌ها</h2>
@@ -24,6 +33,8 @@
     </tr>
     <?php endforeach; ?>
     <tr><th colspan="4">جمع ردیف‌ها</th><td><?= number_format((int) $order['subtotal']) ?></td></tr>
+    <?php if ((int) ($order['discount'] ?? 0) > 0): ?><tr><th colspan="4">تخفیف کوپن</th><td>-<?= number_format((int) $order['discount']) ?></td></tr><?php endif; ?>
+    <?php if ((int) ($order['gift_fee'] ?? 0) > 0): ?><tr><th colspan="4">بسته‌بندی کادویی</th><td><?= number_format((int) ($order['gift_fee']) ) ?></td></tr><?php endif; ?>
     <tr><th colspan="4">ارسال</th><td><?= number_format((int) $order['shipping']) ?></td></tr>
     <tr><th colspan="4">مالیات</th><td><?= number_format((int) $order['tax']) ?></td></tr>
     <tr><th colspan="4">قابل پرداخت (<?= e($currency) ?>)</th><td><strong><?= number_format((int) $order['total']) ?></strong></td></tr>

@@ -41,10 +41,32 @@ final class Orders
                 total INTEGER NOT NULL DEFAULT 0,
                 status TEXT NOT NULL DEFAULT \'new\',
                 payment_status TEXT NOT NULL DEFAULT \'unpaid\',
+                coupon_code TEXT NOT NULL DEFAULT \'\',
+                discount INTEGER NOT NULL DEFAULT 0,
+                gift_wrap INTEGER NOT NULL DEFAULT 0,
+                gift_fee INTEGER NOT NULL DEFAULT 0,
+                gift_message TEXT NOT NULL DEFAULT \'\',
+                delivery_slot TEXT NOT NULL DEFAULT \'\',
+                payment_method TEXT NOT NULL DEFAULT \'\',
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             )'
         );
+        // ستون‌های اضافه‌شده بعد از نصب‌های قدیمی.
+        $cols = $pdo->query('PRAGMA table_info(shop_orders)')->fetchAll(\PDO::FETCH_COLUMN, 1);
+        foreach ([
+            'coupon_code' => 'TEXT NOT NULL DEFAULT \'\'',
+            'discount' => 'INTEGER NOT NULL DEFAULT 0',
+            'gift_wrap' => 'INTEGER NOT NULL DEFAULT 0',
+            'gift_fee' => 'INTEGER NOT NULL DEFAULT 0',
+            'gift_message' => 'TEXT NOT NULL DEFAULT \'\'',
+            'delivery_slot' => 'TEXT NOT NULL DEFAULT \'\'',
+            'payment_method' => 'TEXT NOT NULL DEFAULT \'\'',
+        ] as $col => $def) {
+            if (!in_array($col, $cols, true)) {
+                $pdo->exec("ALTER TABLE shop_orders ADD COLUMN $col $def");
+            }
+        }
         $pdo->exec(
             'CREATE TABLE IF NOT EXISTS shop_order_items (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,30 +98,38 @@ final class Orders
     /**
      * ثبت سفارش تازه. $items ردیف‌هایی با کلیدهای
      * product_id, variant_id, title, options_text, unit_price, qty است.
+     * $extra (اختیاری): coupon_code, discount, gift_wrap, gift_message, delivery_slot, payment_method.
+     * مالیات روی جمعِ پس از تخفیف حساب می‌شود؛ هزینه کادوپیچ خارج از مبنای مالیات است.
      * برمی‌گرداند: [orderId, code]
      */
-    public function create(array $customer, array $items, int $shipping, int $taxPercent): array
+    public function create(array $customer, array $items, int $shipping, int $taxPercent, array $extra = []): array
     {
         $pdo = $this->pdo();
         $subtotal = 0;
         foreach ($items as $item) {
             $subtotal += (int) $item['unit_price'] * (int) $item['qty'];
         }
-        $tax = $taxPercent > 0 ? (int) round($subtotal * $taxPercent / 100) : 0;
-        $total = $subtotal + $shipping + $tax;
+        $discount = max(0, min($subtotal, (int) ($extra['discount'] ?? 0)));
+        $giftFee = (int) ($extra['gift_wrap'] ?? 0) === 1 ? max(0, (int) ($extra['gift_fee'] ?? 0)) : 0;
+        $taxBase = $subtotal - $discount;
+        $tax = $taxPercent > 0 ? (int) round($taxBase * $taxPercent / 100) : 0;
+        $total = $taxBase + $giftFee + $shipping + $tax;
         $code = $this->newCode();
         $now = date('Y-m-d H:i:s');
 
         $pdo->beginTransaction();
         try {
             $stmt = $pdo->prepare(
-                'INSERT INTO shop_orders (code, customer_name, phone, email, address, note, subtotal, shipping, tax, total, status, payment_status, created_at, updated_at)
-                 VALUES (:code, :name, :phone, :email, :addr, :note, :sub, :ship, :tax, :total, \'new\', \'unpaid\', :now, :now)'
+                'INSERT INTO shop_orders (code, customer_name, phone, email, address, note, subtotal, shipping, tax, total, status, payment_status, coupon_code, discount, gift_wrap, gift_fee, gift_message, delivery_slot, payment_method, created_at, updated_at)
+                 VALUES (:code, :name, :phone, :email, :addr, :note, :sub, :ship, :tax, :total, \'new\', \'unpaid\', :cc, :dc, :gw, :gf, :gm, :ds, :pm, :now, :now)'
             );
             $stmt->execute([
                 'code' => $code, 'name' => $customer['name'], 'phone' => $customer['phone'],
                 'email' => $customer['email'] ?? '', 'addr' => $customer['address'] ?? '', 'note' => $customer['note'] ?? '',
                 'sub' => $subtotal, 'ship' => $shipping, 'tax' => $tax, 'total' => $total, 'now' => $now,
+                'cc' => (string) ($extra['coupon_code'] ?? ''), 'dc' => $discount,
+                'gw' => (int) ($extra['gift_wrap'] ?? 0) === 1 ? 1 : 0, 'gf' => $giftFee, 'gm' => (string) ($extra['gift_message'] ?? ''),
+                'ds' => (string) ($extra['delivery_slot'] ?? ''), 'pm' => (string) ($extra['payment_method'] ?? ''),
             ]);
             $orderId = (int) $pdo->lastInsertId();
             $itemStmt = $pdo->prepare(

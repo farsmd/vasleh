@@ -47,11 +47,17 @@ final class Catalog
                 track_stock INTEGER NOT NULL DEFAULT 1,
                 status TEXT NOT NULL DEFAULT \'draft\',
                 image TEXT NOT NULL DEFAULT \'\',
+                featured INTEGER NOT NULL DEFAULT 0,
                 sort INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             )'
         );
+        // ستون‌های اضافه‌شده بعد از نصب‌های قدیمی (CREATE TABLE IF NOT EXISTS ستون نمی‌افزاید).
+        $cols = $pdo->query('PRAGMA table_info(shop_products)')->fetchAll(\PDO::FETCH_COLUMN, 1);
+        if (!in_array('featured', $cols, true)) {
+            $pdo->exec('ALTER TABLE shop_products ADD COLUMN featured INTEGER NOT NULL DEFAULT 0');
+        }
         $pdo->exec(
             'CREATE TABLE IF NOT EXISTS shop_fields (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -228,6 +234,24 @@ final class Catalog
         return $this->pdo()->query("SELECT * FROM shop_products WHERE status = 'published' ORDER BY sort, id DESC")->fetchAll(\PDO::FETCH_ASSOC);
     }
 
+    /** محصولات ویژه‌ی منتشرشده (پرچم featured از پنل). */
+    public function featuredPublished(): array
+    {
+        return $this->pdo()->query("SELECT * FROM shop_products WHERE status = 'published' AND featured = 1 ORDER BY sort, id DESC")->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    /** جستجوی زنده‌ی محصولات منتشرشده بر اساس عنوان (حداکثر ۶ نتیجه). */
+    public function searchPublished(string $q): array
+    {
+        $q = trim($q);
+        if ($q === '') {
+            return [];
+        }
+        $stmt = $this->pdo()->prepare("SELECT * FROM shop_products WHERE status = 'published' AND title LIKE :q ORDER BY sort, id DESC LIMIT 6");
+        $stmt->execute(['q' => '%' . $q . '%']);
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
     public function product(int $id): ?array
     {
         $stmt = $this->pdo()->prepare('SELECT * FROM shop_products WHERE id = :id');
@@ -259,26 +283,26 @@ final class Catalog
             $stmt = $this->pdo()->prepare(
                 'UPDATE shop_products SET category_id = :c, title = :t, slug = :s, sku = :sku, short_desc = :sd,
                  description = :d, price = :pr, sale_price = :sp, stock = :st, track_stock = :ts, status = :status,
-                 image = :img, sort = :so, updated_at = :n WHERE id = :id'
+                 image = :img, featured = :f, sort = :so, updated_at = :n WHERE id = :id'
             );
             $stmt->execute([
                 'c' => $data['category_id'], 't' => $data['title'], 's' => $data['slug'], 'sku' => $data['sku'],
                 'sd' => $data['short_desc'], 'd' => $data['description'], 'pr' => $data['price'], 'sp' => $data['sale_price'],
                 'st' => $data['stock'], 'ts' => $data['track_stock'], 'status' => $data['status'], 'img' => $data['image'],
-                'so' => $data['sort'], 'n' => $now, 'id' => $id,
+                'f' => $data['featured'] ?? 0, 'so' => $data['sort'], 'n' => $now, 'id' => $id,
             ]);
             return $id;
         }
         $stmt = $this->pdo()->prepare(
             'INSERT INTO shop_products (category_id, title, slug, sku, short_desc, description, price, sale_price, stock,
-             track_stock, status, image, sort, created_at, updated_at)
-             VALUES (:c, :t, :s, :sku, :sd, :d, :pr, :sp, :st, :ts, :status, :img, :so, :n, :n)'
+             track_stock, status, image, featured, sort, created_at, updated_at)
+             VALUES (:c, :t, :s, :sku, :sd, :d, :pr, :sp, :st, :ts, :status, :img, :f, :so, :n, :n)'
         );
         $stmt->execute([
             'c' => $data['category_id'], 't' => $data['title'], 's' => $data['slug'], 'sku' => $data['sku'],
             'sd' => $data['short_desc'], 'd' => $data['description'], 'pr' => $data['price'], 'sp' => $data['sale_price'],
             'st' => $data['stock'], 'ts' => $data['track_stock'], 'status' => $data['status'], 'img' => $data['image'],
-            'so' => $data['sort'], 'n' => $now,
+            'f' => $data['featured'] ?? 0, 'so' => $data['sort'], 'n' => $now,
         ]);
         return (int) $this->pdo()->lastInsertId();
     }

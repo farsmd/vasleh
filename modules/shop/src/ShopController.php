@@ -29,6 +29,63 @@ final class ShopController
         return $this->container->get('shop.cart');
     }
 
+    private function coupons(): Coupons
+    {
+        return $this->container->get('shop.coupons');
+    }
+
+    private function wishlist(): Wishlist
+    {
+        return $this->container->get('shop.wishlist');
+    }
+
+    /** کوپن معتبر سشن برای این جمع (نامعتبر باشد، از سشن پاک می‌شود). */
+    private function validCoupon(int $subtotal): array
+    {
+        $code = (string) $this->session()->get('shop_coupon', '');
+        if ($code === '') {
+            return [null, 0];
+        }
+        $coupon = $this->coupons()->findValid($code, $subtotal);
+        if ($coupon === null) {
+            $this->session()->set('shop_coupon', '');
+            return [null, 0];
+        }
+        return [$coupon, Coupons::discountFor($coupon, $subtotal)];
+    }
+
+    /** خطوط «کلید: برچسب» تنظیمات → فهرست [کلید، برچسب]. */
+    private static function parseKeyLines(string $raw): array
+    {
+        $out = [];
+        foreach (preg_split('/\r\n|\r|\n/', $raw) ?: [] as $line) {
+            $line = trim((string) $line);
+            if ($line === '') {
+                continue;
+            }
+            $parts = explode(':', $line, 2);
+            $key = trim($parts[0]);
+            $label = trim($parts[1] ?? $parts[0]);
+            if ($key !== '' && $label !== '') {
+                $out[] = [$key, $label];
+            }
+        }
+        return $out;
+    }
+
+    /** خطوط ساده‌ی تنظیمات (هر خط یک بازه‌ی تحویل). */
+    private static function parseLines(string $raw): array
+    {
+        $out = [];
+        foreach (preg_split('/\r\n|\r|\n/', $raw) ?: [] as $line) {
+            $line = trim((string) $line);
+            if ($line !== '') {
+                $out[] = $line;
+            }
+        }
+        return $out;
+    }
+
     private function session(): SessionManager
     {
         return $this->container->get('session');
@@ -46,28 +103,143 @@ final class ShopController
         $content = View::render('shop', 'front', $view, $data + [
             'currency' => $settings->get('currency', 'تومان'),
             'csrf' => $this->session()->csrfToken(),
-            // ویوی فهرست از قبل به $categories اشاره می‌کرد ولی هرگز دریافتش نمی‌کرد؛
-            // حالا مثل لی‌اوت، دسته‌ها به همه ویوهای عمومی می‌رسد.
             'categories' => $this->catalog()->categories(),
+            'wishlistIds' => $this->wishlist()->ids(),
         ]);
         return Response::html(View::render('shop', 'front', 'layout', [
             'title' => $title,
             'content' => $content,
             'shopTitle' => $settings->get('shop_title', 'فروشگاه'),
+            'shopAccent' => $settings->get('shop_accent', '#4f46e5'),
             'cartCount' => $this->cart()->count(),
+            'cartItems' => $this->cart()->items($this->catalog()),
+            'wishlistCount' => $this->wishlist()->count(),
             'categories' => $this->catalog()->categories(),
+            'csrf' => $this->session()->csrfToken(),
         ]), $status);
     }
 
     public function index(Request $request): Response
     {
         $catSlug = rawurldecode((string) $request->input('cat', ''));
+        $q = trim((string) $request->input('q', ''));
+        $maxPrice = max(0, (int) $request->input('max_price', 0));
+        $sort = (string) $request->input('sort', '');
+        $sort = in_array($sort, ['cheapest', 'expensive', 'newest'], true) ? $sort : '';
+        $saleOnly = $request->input('sale') === '1';
         $catalog = $this->catalog();
         $activeCat = $catSlug !== '' ? $catalog->categoryBySlug($catSlug) : null;
+        $products = $catalog->productsPublished($activeCat !== null ? (int) $activeCat['id'] : 0);
+        $products = array_values(array_filter($products, static function (array $p) use ($q, $maxPrice, $saleOnly): bool {
+            if ($q !== '' && stripos((string) $p['title'], $q) === false && stripos((string) ($p['short_desc'] ?? ''), $q) === false) {
+                return false;
+            }
+            if ($maxPrice > 0 && Catalog::effectivePrice($p) > $maxPrice) {
+                return false;
+            }
+            if ($saleOnly && (int) $p['sale_price'] <= 0) {
+                return false;
+            }
+            return true;
+        }));
+        if ($sort === 'cheapest') {
+            usort($products, static fn (array $a, array $b): int => Catalog::effectivePrice($a) <=> Catalog::effectivePrice($b));
+        } elseif ($sort === 'expensive') {
+            usort($products, static fn (array $a, array $b): int => Catalog::effectivePrice($b) <=> Catalog::effectivePrice($a));
+        }
+        $featured = $catalog->featuredPublished();
+        $catTitles = [];
+        foreach ($catalog->categories() as $c) {
+            $catTitles[(int) $c['id']] = (string) $c['title'];
+        }
         return $this->page('index', [
-            'products' => $catalog->productsPublished($activeCat !== null ? (int) $activeCat['id'] : 0),
+            'products' => $products,
+            'featured' => $featured,
+            'variantsMap' => $this->variantsMapFor(array_merge($products, $featured)),
+            'catTitles' => $catTitles,
             'activeCat' => $activeCat,
+            'filters' => ['q' => $q, 'max_price' => $maxPrice, 'sort' => $sort, 'sale' => $saleOnly],
+            'filtersActive' => $q !== '' || $maxPrice > 0 || $sort !== '' || $saleOnly || $activeCat !== null,
         ], $this->settings()->get('shop_title', 'فروشگاه'));
+    }
+
+    /** نقشه‌ی واریانت‌ها برای کارت‌ها (دکمه‌ی مشاهده سریع باید بداند محصول نوع دارد یا نه). */
+    private function variantsMapFor(array $products): array
+    {
+        $map = [];
+        foreach ($products as $p) {
+            $map[(int) $p['id']] = $this->catalog()->variantsFor((int) $p['id']);
+        }
+        return $map;
+    }
+
+    /** جستجوی زنده: JSON محصولات منتشرشده‌ی هم‌خوان. */
+    public function search(Request $request): Response
+    {
+        $out = [];
+        foreach ($this->catalog()->searchPublished((string) $request->input('q', '')) as $p) {
+            $out[] = [
+                'title' => (string) $p['title'],
+                'price' => Catalog::effectivePrice($p),
+                'image' => (string) ($p['image'] ?? ''),
+                'url' => '/shop/product/' . rawurlencode((string) $p['slug']),
+            ];
+        }
+        return Response::json($out);
+    }
+
+    public function wishlistShow(Request $request): Response
+    {
+        $products = $this->wishlist()->products($this->catalog());
+        $catTitles = [];
+        foreach ($this->catalog()->categories() as $c) {
+            $catTitles[(int) $c['id']] = (string) $c['title'];
+        }
+        return $this->page('wishlist', [
+            'products' => $products,
+            'variantsMap' => $this->variantsMapFor($products),
+            'catTitles' => $catTitles,
+            'wishReturn' => '/shop/wishlist',
+        ], 'علاقه‌مندی‌ها');
+    }
+
+    public function wishlistToggle(Request $request): Response
+    {
+        if (!$this->csrfOk($request)) {
+            return Response::forbidden('توکن امنیتی نامعتبر است');
+        }
+        $product = $this->catalog()->product((int) $request->input('product_id', 0));
+        if ($product !== null && $product['status'] === 'published') {
+            $this->wishlist()->toggle((int) $product['id']);
+        }
+        $back = (string) $request->input('return', '/shop');
+        if (!str_starts_with($back, '/shop')) {
+            $back = '/shop';
+        }
+        return Response::redirect($back);
+    }
+
+    public function couponApply(Request $request): Response
+    {
+        if (!$this->csrfOk($request)) {
+            return Response::forbidden('توکن امنیتی نامعتبر است');
+        }
+        $subtotal = $this->cart()->subtotal($this->catalog());
+        $code = trim((string) $request->input('code', ''));
+        if ($this->coupons()->findValid($code, $subtotal) !== null) {
+            $this->session()->set('shop_coupon', $code);
+            return Response::redirect('/shop/cart?msg=' . rawurlencode('کوپن اعمال شد.'));
+        }
+        return Response::redirect('/shop/cart?err=' . rawurlencode('کوپن معتبر نیست یا منقضی شده است.'));
+    }
+
+    public function couponRemove(Request $request): Response
+    {
+        if (!$this->csrfOk($request)) {
+            return Response::forbidden('توکن امنیتی نامعتبر است');
+        }
+        $this->session()->set('shop_coupon', '');
+        return Response::redirect('/shop/cart');
     }
 
     public function product(Request $request, array $params): Response
@@ -85,12 +257,26 @@ final class ShopController
                 $fields[] = ['title' => $field['title'], 'value' => $value, 'type' => $field['type']];
             }
         }
+        $related = [];
+        if ((int) $product['category_id'] > 0) {
+            foreach ($catalog->productsPublished((int) $product['category_id']) as $other) {
+                if ((int) $other['id'] !== (int) $product['id']) {
+                    $related[] = $other;
+                }
+                if (count($related) >= 4) {
+                    break;
+                }
+            }
+        }
         return $this->page('product', [
             'product' => $product,
             'fields' => $fields,
             'variants' => $catalog->variantsFor((int) $product['id']),
             'attrs' => $catalog->attributesBySlug(),
             'category' => (int) $product['category_id'] > 0 ? $catalog->category((int) $product['category_id']) : null,
+            'related' => $related,
+            'variantsMap' => $this->variantsMapFor($related),
+            'catTitles' => array_column(array_map(static fn (array $c): array => [(int) $c['id'], (string) $c['title']], $catalog->categories()), 1, 0),
             'added' => $request->input('added') !== null,
         ], (string) $product['title']);
     }
@@ -121,16 +307,22 @@ final class ShopController
         foreach ($items as $row) {
             $subtotal += $row['line_total'];
         }
-        $shipping = Cart::shippingFor($subtotal, $this->settings());
+        [$coupon, $discount] = $this->validCoupon($subtotal);
+        $shipping = Cart::shippingFor($subtotal - $discount, $this->settings());
         $taxPercent = $this->settings()->getInt('tax_percent', 0);
-        $tax = $taxPercent > 0 ? (int) round($subtotal * $taxPercent / 100) : 0;
+        $tax = $taxPercent > 0 ? (int) round(($subtotal - $discount) * $taxPercent / 100) : 0;
         return $this->page('cart', [
             'items' => $items,
             'subtotal' => $subtotal,
+            'coupon' => $coupon,
+            'discount' => $discount,
             'shipping' => $shipping,
             'tax' => $tax,
             'taxPercent' => $taxPercent,
-            'total' => $subtotal + $shipping + $tax,
+            'total' => $subtotal - $discount + $shipping + $tax,
+            'freeOver' => $this->settings()->getInt('free_shipping_over', 0),
+            'flash' => $request->input('msg'),
+            'error' => $request->input('err'),
         ], 'سبد خرید');
     }
 
@@ -170,16 +362,23 @@ final class ShopController
         foreach ($items as $row) {
             $subtotal += $row['line_total'];
         }
-        $shipping = Cart::shippingFor($subtotal, $this->settings());
+        [$coupon, $discount] = $this->validCoupon($subtotal);
+        $shipping = Cart::shippingFor($subtotal - $discount, $this->settings());
         $taxPercent = $this->settings()->getInt('tax_percent', 0);
-        $tax = $taxPercent > 0 ? (int) round($subtotal * $taxPercent / 100) : 0;
+        $tax = $taxPercent > 0 ? (int) round(($subtotal - $discount) * $taxPercent / 100) : 0;
+        $giftPrice = $this->settings()->getInt('gift_wrap_price', 0);
         return $this->page('checkout', [
             'items' => $items,
             'subtotal' => $subtotal,
+            'coupon' => $coupon,
+            'discount' => $discount,
+            'giftPrice' => $giftPrice,
+            'deliverySlots' => self::parseLines($this->settings()->get('delivery_slots', '')),
+            'paymentMethods' => self::parseKeyLines($this->settings()->get('payment_methods', '')),
             'shipping' => $shipping,
             'tax' => $tax,
             'taxPercent' => $taxPercent,
-            'total' => $subtotal + $shipping + $tax,
+            'total' => $subtotal - $discount + $shipping + $tax,
             'old' => $old,
             'error' => $error,
             'orderNote' => $this->settings()->get('order_note', ''),
@@ -199,6 +398,10 @@ final class ShopController
             'email' => trim((string) $request->input('email', '')),
             'address' => trim((string) $request->input('address', '')),
             'note' => trim((string) $request->input('note', '')),
+            'gift_wrap' => $request->input('gift_wrap') ? 1 : 0,
+            'gift_message' => trim((string) $request->input('gift_message', '')),
+            'delivery_slot' => trim((string) $request->input('delivery_slot', '')),
+            'payment_method' => trim((string) $request->input('payment_method', '')),
         ];
         $items = $cart->items($catalog);
         if ($items === []) {
@@ -225,13 +428,31 @@ final class ShopController
                 'qty' => $row['qty'],
             ];
         }
-        $shipping = Cart::shippingFor($subtotal, $this->settings());
+        [$coupon, $discount] = $this->validCoupon($subtotal);
+        $shipping = Cart::shippingFor($subtotal - $discount, $this->settings());
         $taxPercent = $this->settings()->getInt('tax_percent', 0);
-        [, $code] = $this->container->get('shop.orders')->create($old, $orderItems, $shipping, $taxPercent);
+        $giftFee = $old['gift_wrap'] === 1 ? $this->settings()->getInt('gift_wrap_price', 0) : 0;
+        $slots = self::parseLines($this->settings()->get('delivery_slots', ''));
+        $methods = self::parseKeyLines($this->settings()->get('payment_methods', ''));
+        $methodKeys = array_column($methods, 0);
+        $extra = [
+            'coupon_code' => $coupon !== null ? (string) $coupon['code'] : '',
+            'discount' => $discount,
+            'gift_wrap' => $old['gift_wrap'],
+            'gift_fee' => $giftFee,
+            'gift_message' => $old['gift_message'],
+            'delivery_slot' => in_array($old['delivery_slot'], $slots, true) ? $old['delivery_slot'] : '',
+            'payment_method' => in_array($old['payment_method'], $methodKeys, true) ? $old['payment_method'] : '',
+        ];
+        [, $code] = $this->container->get('shop.orders')->create($old, $orderItems, $shipping, $taxPercent, $extra);
+        if ($coupon !== null) {
+            $this->coupons()->markUsed((string) $coupon['code']);
+        }
         foreach ($orderItems as $item) {
             $catalog->decreaseStock($item['product_id'], $item['variant_id'], $item['qty']);
         }
         $cart->clear();
+        $this->session()->set('shop_coupon', '');
         if ($this->container->has('logger')) {
             $this->container->get('logger')->system('ثبت سفارش فروشگاه', $code, $old['phone']);
         }
@@ -245,9 +466,15 @@ final class ShopController
         if ($order === null) {
             return Response::redirect('/shop');
         }
-        return $this->page('message', [
-            'heading' => 'سفارش شما ثبت شد',
-            'text' => 'کد پیگیری سفارش: ' . $code . ' — برای دیدن وضعیت سفارش از صفحه «پیگیری سفارش» با همین کد و شماره موبایلتان استفاده کنید.',
+        $methodLabel = '';
+        foreach (self::parseKeyLines($this->settings()->get('payment_methods', '')) as [$key, $label]) {
+            if ($key === (string) ($order['payment_method'] ?? '')) {
+                $methodLabel = $label;
+            }
+        }
+        return $this->page('success', [
+            'order' => $order,
+            'methodLabel' => $methodLabel,
         ], 'سفارش ثبت شد');
     }
 

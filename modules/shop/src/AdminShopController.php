@@ -99,7 +99,7 @@ final class AdminShopController
             $variants = $product !== null ? $catalog->variantsFor((int) $product['id']) : [];
         }
         return $this->page('product_form', [
-            'product' => $product ?? ['category_id' => 0, 'title' => '', 'slug' => '', 'sku' => '', 'short_desc' => '', 'description' => '', 'price' => 0, 'sale_price' => 0, 'stock' => 0, 'track_stock' => 1, 'status' => 'draft', 'image' => '', 'sort' => 0],
+            'product' => $product ?? ['category_id' => 0, 'title' => '', 'slug' => '', 'sku' => '', 'short_desc' => '', 'description' => '', 'price' => 0, 'sale_price' => 0, 'stock' => 0, 'track_stock' => 1, 'status' => 'draft', 'image' => '', 'featured' => 0, 'sort' => 0],
             'action' => $action,
             'categories' => $catalog->categories(),
             'fields' => $catalog->fields(),
@@ -132,6 +132,7 @@ final class AdminShopController
             'track_stock' => $request->input('track_stock') ? 1 : 0,
             'status' => $request->input('status') === 'published' ? 'published' : 'draft',
             'image' => trim((string) $request->input('image', '')),
+            'featured' => $request->input('featured') ? 1 : 0,
             'sort' => (int) $request->input('sort', 0),
         ];
         $error = null;
@@ -454,6 +455,10 @@ final class AdminShopController
                 'free_shipping_over' => $s->get('free_shipping_over', '0'),
                 'tax_percent' => $s->get('tax_percent', '0'),
                 'order_note' => $s->get('order_note', ''),
+                'shop_accent' => $s->get('shop_accent', '#4f46e5'),
+                'gift_wrap_price' => $s->get('gift_wrap_price', '0'),
+                'delivery_slots' => $s->get('delivery_slots', ''),
+                'payment_methods' => $s->get('payment_methods', ''),
             ],
             'flash' => $request->input('msg'),
             'error' => $request->input('err'),
@@ -469,7 +474,64 @@ final class AdminShopController
         $s->set('free_shipping_over', (string) max(0, (int) $request->input('free_shipping_over', 0)));
         $s->set('tax_percent', (string) max(0, min(100, (int) $request->input('tax_percent', 0))));
         $s->set('order_note', trim((string) $request->input('order_note', '')));
+        $accent = trim((string) $request->input('shop_accent', '#4f46e5'));
+        $s->set('shop_accent', preg_match('/^#[0-9a-fA-F]{6}$/', $accent) ? $accent : '#4f46e5');
+        $s->set('gift_wrap_price', (string) max(0, (int) $request->input('gift_wrap_price', 0)));
+        $s->set('delivery_slots', trim((string) $request->input('delivery_slots', '')));
+        $s->set('payment_methods', trim((string) $request->input('payment_methods', '')));
         $this->log('ویرایش تنظیمات فروشگاه', 'تنظیمات');
         return $this->back('/admin/shop/settings', 'تنظیمات ذخیره شد.');
+    }
+
+    // ---------- کوپن‌های تخفیف ----------
+
+    private function couponService(): Coupons
+    {
+        return $this->container->get('shop.coupons');
+    }
+
+    public function coupons(Request $request): Response
+    {
+        return $this->page('coupons', [
+            'coupons' => $this->couponService()->all(),
+            'flash' => $request->input('msg'),
+            'error' => $request->input('err'),
+        ], 'کوپن‌های تخفیف');
+    }
+
+    public function couponSave(Request $request): Response
+    {
+        $code = trim((string) $request->input('code', ''));
+        $kind = $request->input('kind') === 'fixed' ? 'fixed' : 'percent';
+        $value = max(0, (int) $request->input('value', 0));
+        if ($kind === 'percent') {
+            $value = min(100, $value);
+        }
+        if ($code === '') {
+            return $this->back('/admin/shop/coupons', '', 'کد کوپن الزامی است.');
+        }
+        $existing = $this->couponService()->findByCode($code);
+        $id = (int) $request->input('id', 0);
+        if ($existing !== null && (int) $existing['id'] !== $id) {
+            return $this->back('/admin/shop/coupons', '', 'این کد قبلاً ثبت شده است.');
+        }
+        $this->couponService()->save([
+            'code' => $code,
+            'kind' => $kind,
+            'value' => $value,
+            'expires_at' => trim((string) $request->input('expires_at', '')),
+            'max_uses' => max(0, (int) $request->input('max_uses', 0)),
+            'active' => $request->input('active') ? 1 : 0,
+        ], $id);
+        $this->log('ذخیره کوپن', $code);
+        return $this->back('/admin/shop/coupons', 'کوپن ذخیره شد.');
+    }
+
+    public function couponDelete(Request $request, array $params): Response
+    {
+        $id = (int) ($params['id'] ?? 0);
+        $this->couponService()->delete($id);
+        $this->log('حذف کوپن', (string) $id);
+        return $this->back('/admin/shop/coupons', 'کوپن حذف شد.');
     }
 }

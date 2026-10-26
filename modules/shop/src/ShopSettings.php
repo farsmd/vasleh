@@ -34,6 +34,10 @@ final class ShopSettings
             'free_shipping_over' => '0',
             'tax_percent'      => '0',
             'order_note'       => '',
+            'shop_accent'      => '#4f46e5',
+            'gift_wrap_price'  => '0',
+            'delivery_slots'   => '',
+            'payment_methods'  => "online:پرداخت اینترنتی\ncod:پرداخت در محل",
         ];
         $stmt = $this->pdo()->prepare('INSERT OR IGNORE INTO shop_settings (name, value) VALUES (:n, :v)');
         foreach ($defaults as $name => $value) {

@@ -1,5 +1,5 @@
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-  <div class="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm max-w-2xl">
+  <div class="bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-100 dark:border-slate-800 shadow-sm max-w-2xl">
     <h1 class="font-black text-slate-900 text-xl"><?= e($heading) ?></h1>
     <p class="text-sm text-slate-600 mt-3 leading-relaxed"><?= e($text) ?></p>
     <p class="mt-6 flex flex-wrap gap-3">

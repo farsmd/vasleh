@@ -14,7 +14,7 @@
     <tr><th>عنوان</th><th>دسته</th><th>کد کالا</th><th>قیمت</th><th>قیمت فروش</th><th>موجودی</th><th>وضعیت</th><th>عملیات</th></tr>
     <?php foreach ($products as $p): ?>
     <tr>
-      <td class="wrap"><?= e($p['title']) ?></td>
+      <td class="wrap"><?= e($p['title']) ?><?php if (!empty($p['featured'])): ?> <span style="color:#d97706;font-weight:bold">★ ویژه</span><?php endif; ?></td>
       <td><?= e($catTitles[(int) $p['category_id']] ?? '—') ?></td>
       <td><code dir="ltr"><?= e($p['sku']) ?></code></td>
       <td><?= number_format((int) $p['price']) ?></td>
