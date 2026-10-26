@@ -20,7 +20,7 @@ return [
     'title'       => 'مدیریت',
     'icon'        => '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>',
     'description' => 'پنل مدیریت و مدیریت ماژول‌ها',
-    'version'     => '0.7.0',
+    'version'     => '0.8.0',
     'system'      => true,
 
     'permissions' => [
@@ -41,6 +41,7 @@ return [
         $router->get('/admin', [AdminController::class, 'index'], $module);
         $router->get('/admin/menu', [MenuOrderController::class, 'index'], $module);
         $router->post('/admin/menu/move', [MenuOrderController::class, 'move'], $module);
+        $router->post('/admin/menu/save', [MenuOrderController::class, 'save'], $module);
         $router->get('/admin/theme', [ThemeController::class, 'index'], $module);
         $router->post('/admin/theme', [ThemeController::class, 'save'], $module);
         $router->get('/admin/modules', [ModulesController::class, 'index'], $module);
@@ -53,5 +54,6 @@ return [
         $router->get('/admin/modules/edit/{slug}', [ModulesController::class, 'edit'], $module);
         $router->post('/admin/modules/edit/{slug}', [ModulesController::class, 'update'], $module);
         $router->post('/admin/modules/toggle/{slug}', [ModulesController::class, 'toggle'], $module);
+        $router->post('/admin/modules/delete/{slug}', [ModulesController::class, 'delete'], $module);
     },
 ];

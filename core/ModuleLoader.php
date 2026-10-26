@@ -260,27 +260,100 @@ final class ModuleLoader
                 $items[] = $item;
             }
         }
-        // ترتیب سفارشی آیتم‌ها از پنل (storage/menu-order.json)؛ آیتم‌های
-        // فهرست‌نشده ترتیب پیش‌فرض خود را در انتها حفظ می‌کنند.
-        $orderFile = dirname($this->stateFile) . '/menu-order.json';
-        if (is_file($orderFile)) {
-            $data = json_decode((string) file_get_contents($orderFile), true);
-            $order = is_array($data['order'] ?? null) ? array_values(array_map('strval', $data['order'])) : [];
-            if ($order !== []) {
-                $pos = array_flip($order);
-                usort($items, static fn (array $a, array $b): int => ($pos[(string) ($a['path'] ?? '')] ?? PHP_INT_MAX) <=> ($pos[(string) ($b['path'] ?? '')] ?? PHP_INT_MAX));
-            }
+        // ترتیب سفارشی گروه‌ها و آیتم‌ها از پنل (storage/menu-order.json)؛
+        // گروه و آیتم فهرست‌نشده ترتیب پیش‌فرض خود را در انتها حفظ می‌کنند.
+        // گروه یعنی ماژول صاحب آیتم، پس آیتم فقط داخل گروه خودش مرتب می‌شود.
+        $data = $this->menuOrderData();
+        $order = $data['order'];
+        $groups = $data['groups'];
+        if ($order !== [] || $groups !== []) {
+            $pos = array_flip($order);
+            $gpos = array_flip($groups);
+            usort($items, static function (array $a, array $b) use ($pos, $gpos): int {
+                $ga = $gpos[(string) ($a['module'] ?? '')] ?? PHP_INT_MAX;
+                $gb = $gpos[(string) ($b['module'] ?? '')] ?? PHP_INT_MAX;
+                if ($ga !== $gb) {
+                    return $ga <=> $gb;
+                }
+                return ($pos[(string) ($a['path'] ?? '')] ?? PHP_INT_MAX) <=> ($pos[(string) ($b['path'] ?? '')] ?? PHP_INT_MAX);
+            });
         }
         return $items;
     }
 
-    /** ذخیره ترتیب کامل آیتم‌های منو (فهرست مسیرها) به‌صورت اتمیک. */
-    public function saveMenuOrder(array $order): void
+    /** ترتیب ذخیره‌شده منو: ['order' => مسیرها، 'groups' => نامک ماژول‌ها]. */
+    public function menuOrderData(): array
+    {
+        $file = dirname($this->stateFile) . '/menu-order.json';
+        $out = ['order' => [], 'groups' => []];
+        if (!is_file($file)) {
+            return $out;
+        }
+        $data = json_decode((string) file_get_contents($file), true);
+        if (!is_array($data)) {
+            return $out;
+        }
+        if (is_array($data['order'] ?? null)) {
+            $out['order'] = array_values(array_map('strval', $data['order']));
+        }
+        if (is_array($data['groups'] ?? null)) {
+            $out['groups'] = array_values(array_map('strval', $data['groups']));
+        }
+        return $out;
+    }
+
+    /** ذخیره ترتیب کامل گروه‌ها و آیتم‌های منو به‌صورت اتمیک. */
+    public function saveMenuOrder(array $order, array $groups = []): void
     {
         $file = dirname($this->stateFile) . '/menu-order.json';
         $tmp = $file . '.tmp' . bin2hex(random_bytes(4));
-        file_put_contents($tmp, json_encode(['order' => array_values(array_map('strval', $order))], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+        file_put_contents($tmp, json_encode(['order' => array_values(array_map('strval', $order)), 'groups' => array_values(array_map('strval', $groups))], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
         rename($tmp, $file);
+    }
+
+    /**
+     * حذف کامل یک ماژول غیرسیستمی: پوشه‌اش + ردش از state و meta.
+     * ماژول سیستمی، خود admin و نامک نامعتبر هرگز حذف نمی‌شوند.
+     * جدول‌های دیتابیس ماژول عمداً باقی می‌مانند.
+     */
+    public function deleteModule(string $slug): bool
+    {
+        if (preg_match('/^[a-z0-9_-]+$/', $slug) !== 1 || $slug === 'admin') {
+            return false;
+        }
+        $definition = $this->definitions[$slug] ?? null;
+        if ($definition === null || !empty($definition['system'])) {
+            return false;
+        }
+        $dir = rtrim($this->modulesDir, '/') . '/' . $slug;
+        $real = realpath($dir);
+        $base = realpath($this->modulesDir);
+        if ($real === false || $base === false || !str_starts_with($real, $base . DIRECTORY_SEPARATOR)) {
+            return false;
+        }
+        $this->removeDir($real);
+        $this->disabled = array_values(array_filter($this->disabled, static fn (string $d): bool => $d !== $slug));
+        unset($this->metaOverrides[$slug]);
+        unset($this->definitions[$slug]);
+        file_put_contents($this->stateFile, json_encode(['disabled' => $this->disabled], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+        file_put_contents($this->metaFile, json_encode($this->metaOverrides, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+        return true;
+    }
+
+    private function removeDir(string $dir): void
+    {
+        foreach (scandir($dir) as $entry) {
+            if ($entry === '.' || $entry === '..') {
+                continue;
+            }
+            $path = $dir . DIRECTORY_SEPARATOR . $entry;
+            if (is_dir($path) && !is_link($path)) {
+                $this->removeDir($path);
+            } else {
+                unlink($path);
+            }
+        }
+        rmdir($dir);
     }
 
     /** دسترسی‌های اعلام‌شده از همه ماژول‌ها: key => label */

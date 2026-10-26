@@ -11,7 +11,7 @@ final class MenuOrderController
 {
     public function __construct(private readonly Container $container) {}
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $loader = $this->container->get('loader');
         $groups = [];
@@ -30,6 +30,7 @@ final class MenuOrderController
         $content = \Core\View::render('admin', 'admin', 'menu-order', [
             'groups' => $groups,
             'csrf' => $session?->csrfToken() ?? '',
+            'flash' => $request->input('msg'),
         ]);
         return Response::html(\Core\View::render('admin', 'admin', 'layout', [
             'title' => 'ترتیب منو',
@@ -74,7 +75,50 @@ final class MenuOrderController
         foreach ($items as $item) {
             $order[] = (string) ($item['path'] ?? '');
         }
-        $loader->saveMenuOrder($order);
+        // ترتیب گروه‌ها دست نمی‌خورد؛ فقط آیتم‌ها جابه‌جا شده‌اند.
+        $loader->saveMenuOrder($order, $loader->menuOrderData()['groups']);
         return Response::redirect('/admin/menu');
+    }
+
+    /**
+     * ذخیره ترتیب درگ‌انددراپ: groups[] نامک ماژول‌ها و order[] مسیر آیتم‌ها.
+     * فقط مقادیر شناخته‌شده پذیرفته می‌شوند؛ بقیه در انتها با ترتیب فعلی می‌مانند.
+     */
+    public function save(Request $request): Response
+    {
+        $loader = $this->container->get('loader');
+        $knownGroups = [];
+        $knownPaths = [];
+        foreach ($loader->adminMenu() as $item) {
+            $knownGroups[(string) ($item['module'] ?? '')] = true;
+            $knownPaths[(string) ($item['path'] ?? '')] = true;
+        }
+        $groups = [];
+        foreach ((array) $request->input('groups', []) as $g) {
+            $g = (string) $g;
+            if (isset($knownGroups[$g]) && !in_array($g, $groups, true)) {
+                $groups[] = $g;
+            }
+        }
+        $order = [];
+        foreach ((array) $request->input('order', []) as $p) {
+            $p = (string) $p;
+            if (isset($knownPaths[$p]) && !in_array($p, $order, true)) {
+                $order[] = $p;
+            }
+        }
+        // جاافتاده‌ها در انتها با ترتیب فعلی حفظ می‌شوند تا چیزی گم نشود.
+        foreach ($loader->adminMenu() as $item) {
+            $p = (string) ($item['path'] ?? '');
+            if (!in_array($p, $order, true)) {
+                $order[] = $p;
+            }
+            $g = (string) ($item['module'] ?? '');
+            if (!in_array($g, $groups, true)) {
+                $groups[] = $g;
+            }
+        }
+        $loader->saveMenuOrder($order, $groups);
+        return Response::redirect('/admin/menu?msg=' . urlencode('ترتیب منو ذخیره شد'));
     }
 }

@@ -36,7 +36,7 @@ final class ModulesController
     {
         $user = $this->container->has('session') ? $this->container->get('session')->user() : null;
         if (($user['role'] ?? '') !== 'owner') {
-            return Response::forbidden('نصب ماژول فقط برای مالک است');
+            return Response::forbidden('این کار فقط برای مالک است');
         }
         return null;
     }
@@ -95,6 +95,21 @@ final class ModulesController
         }
         // بازگشت فقط به داشبورد مجاز است؛ بقیه به صفحه ماژول‌ها می‌روند.
         return Response::redirect((string) $request->input('return', '') === '/admin' ? '/admin' : '/admin/modules');
+    }
+
+    /** حذف کامل ماژول غیرسیستمی (فقط مالک). جدول‌های دیتابیس باقی می‌مانند. */
+    public function delete(Request $request, array $params): Response
+    {
+        if (($denied = $this->ownerOnly()) !== null) {
+            return $denied;
+        }
+        $loader = $this->container->get('loader');
+        $slug = (string) ($params['slug'] ?? '');
+        if ($loader->deleteModule($slug)) {
+            $this->log('حذف ماژول', $slug);
+            return Response::redirect('/admin/modules?msg=' . urlencode('ماژول حذف شد'));
+        }
+        return Response::redirect('/admin/modules?msg=' . urlencode('حذف ممکن نیست (ماژول سیستمی یا نامعتبر)'));
     }
 
     public function create(Request $request): Response
