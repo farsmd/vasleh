@@ -15,6 +15,7 @@
     <td><?= number_format($row['unit_price']) ?> <?= e($currency) ?></td>
     <td>
       <form method="post" action="/shop/cart/update" style="display:flex;gap:.3rem">
+        <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
         <input type="hidden" name="key" value="<?= e($row['key']) ?>">
         <input type="number" name="qty" value="<?= (int) $row['qty'] ?>" min="0" style="width:5rem">
         <button class="btn light" type="submit">به‌روزرسانی</button>
@@ -23,6 +24,7 @@
     <td><?= number_format($row['line_total']) ?> <?= e($currency) ?></td>
     <td>
       <form method="post" action="/shop/cart/remove">
+        <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
         <input type="hidden" name="key" value="<?= e($row['key']) ?>">
         <button class="btn red" type="submit">حذف</button>
       </form>

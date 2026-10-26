@@ -3,6 +3,7 @@
 <?php if (($orderNote ?? '') !== ''): ?><div class="flash"><?= e($orderNote) ?></div><?php endif; ?>
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(18rem,1fr));gap:1rem;align-items:start">
   <form method="post" action="/shop/checkout" style="background:#fff;border:1px solid #e5e5e5;border-radius:.8rem;padding:1rem">
+    <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
     <label>نام و نام خانوادگی *
       <input type="text" name="name" required value="<?= e($old['name'] ?? '') ?>">
     </label>

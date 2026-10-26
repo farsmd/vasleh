@@ -17,6 +17,7 @@
 <?php if (($product['sku'] ?? '') !== ''): ?><p class="muted">کد کالا: <span dir="ltr"><?= e($product['sku']) ?></span></p><?php endif; ?>
 
 <form method="post" action="/shop/cart/add" style="max-width:30rem;margin:1rem 0">
+  <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
   <input type="hidden" name="product_id" value="<?= (int) $product['id'] ?>">
   <?php if ($hasVariants): ?>
   <label>انتخاب نوع (واریانت)

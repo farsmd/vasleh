@@ -7,6 +7,7 @@ use Core\Container;
 use Core\Request;
 use Core\Response;
 use Core\View;
+use Modules\Session\SessionManager;
 
 /** صفحات عمومی فروشگاه: ویترین، محصول، سبد، تسویه، پیگیری، لیست قیمت و فاکتور. */
 final class ShopController
@@ -28,11 +29,23 @@ final class ShopController
         return $this->container->get('shop.cart');
     }
 
+    private function session(): SessionManager
+    {
+        return $this->container->get('session');
+    }
+
+    /** CSRF برای POSTهای عمومی فروشگاه (هوک سشن فقط /admin را پوشش می‌دهد). */
+    private function csrfOk(Request $request): bool
+    {
+        return $this->session()->validCsrf($request->input('_csrf'));
+    }
+
     private function page(string $view, array $data, string $title, int $status = 200): Response
     {
         $settings = $this->settings();
         $content = View::render('shop', 'front', $view, $data + [
             'currency' => $settings->get('currency', 'تومان'),
+            'csrf' => $this->session()->csrfToken(),
         ]);
         return Response::html(View::render('shop', 'front', 'layout', [
             'title' => $title,
@@ -83,6 +96,9 @@ final class ShopController
 
     public function cartAdd(Request $request): Response
     {
+        if (!$this->csrfOk($request)) {
+            return Response::forbidden('توکن امنیتی نامعتبر است');
+        }
         $catalog = $this->catalog();
         $productId = (int) $request->input('product_id', 0);
         $variantId = (int) $request->input('variant_id', 0);
@@ -117,6 +133,9 @@ final class ShopController
 
     public function cartUpdate(Request $request): Response
     {
+        if (!$this->csrfOk($request)) {
+            return Response::forbidden('توکن امنیتی نامعتبر است');
+        }
         $key = (string) $request->input('key', '');
         $this->cart()->setQty($key, (int) $request->input('qty', 0));
         return Response::redirect('/shop/cart');
@@ -124,6 +143,9 @@ final class ShopController
 
     public function cartRemove(Request $request): Response
     {
+        if (!$this->csrfOk($request)) {
+            return Response::forbidden('توکن امنیتی نامعتبر است');
+        }
         $this->cart()->remove((string) $request->input('key', ''));
         return Response::redirect('/shop/cart');
     }
@@ -163,6 +185,9 @@ final class ShopController
 
     public function checkoutPlace(Request $request): Response
     {
+        if (!$this->csrfOk($request)) {
+            return Response::forbidden('توکن امنیتی نامعتبر است');
+        }
         $catalog = $this->catalog();
         $cart = $this->cart();
         $old = [
