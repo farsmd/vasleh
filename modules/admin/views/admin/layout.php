@@ -46,6 +46,9 @@ foreach (($menu ?? []) as $item) {
     }
     $groups[$slug]['items'][] = $item;
 }
+// تنظیمات قالب از پنل (storage/admin-theme.json)؛ خرابی فایل هرگز لی‌اوت را نمی‌خواباند.
+$adminTheme = \Modules\Admin\AdminTheme::load($appRoot);
+$defaultDark = ($adminTheme['default_theme'] ?? 'dark') === 'dark';
 // اعداد فارسی برای ویجت‌های وضعیت هدر (strtr با آرایه — فرم رشته‌ای چندبایتی را خراب می‌کند).
 $faDigits = static function (string $s): string {
     return strtr($s, ['0' => '۰', '1' => '۱', '2' => '۲', '3' => '۳', '4' => '۴', '5' => '۵', '6' => '۶', '7' => '۷', '8' => '۸', '9' => '۹', '.' => '٫']);
@@ -73,16 +76,23 @@ if (class_exists('IntlDateFormatter')) {
 }
 ?>
 <!doctype html>
-<html lang="fa" dir="rtl" class="dark">
+<html lang="fa" dir="rtl"<?= $defaultDark ? ' class="dark"' : '' ?>>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= e($title) ?> — مدیریت وصله</title>
-<script>try{if(localStorage.getItem('vasleh_theme')==='light'){document.documentElement.classList.remove('dark')}}catch(e){}</script>
-<link rel="stylesheet" href="<?= e($assetBase) ?>/assets/admin/admin.css">
+<script>try{var _t=localStorage.getItem('vasleh_theme');if(_t==='light'){document.documentElement.classList.remove('dark')}else if(_t==='dark'){document.documentElement.classList.add('dark')}}catch(e){}</script>
+<link rel="stylesheet" href="<?= e($assetBase) ?>/assets/admin/admin.css?v=<?= e($appVersion) ?>">
 <link rel="stylesheet" href="<?= e($assetBase) ?>/assets/taskyar/fonts/vazirmatn.css">
+<style>
+:root{--admin-accent:<?= e($adminTheme['accent']) ?>;--admin-radius:<?= (int) $adminTheme['radius'] ?>px}
+.dark{--admin-panel-bg:<?= e($adminTheme['panel_dark']) ?>;--admin-main-bg:<?= e($adminTheme['main_dark']) ?>}
+html:not(.dark){--admin-panel-bg:<?= e($adminTheme['panel_light']) ?>;--admin-main-bg:<?= e($adminTheme['main_light']) ?>}
+html{font-size:<?= (int) $adminTheme['font_size'] ?>px}
+body.admin-shell{background-color:var(--admin-main-bg)}
+</style>
 </head>
-<body class="bg-slate-950 text-slate-100 dark:bg-[#070b14] dark:text-slate-100 transition-colors duration-200 antialiased overflow-x-hidden">
+<body class="admin-shell text-slate-900 dark:text-slate-100 transition-colors duration-200 antialiased overflow-x-hidden">
 
 <div class="flex h-screen w-screen overflow-hidden">
 
@@ -115,7 +125,7 @@ if (class_exists('IntlDateFormatter')) {
     </div>
 
     <div class="flex-1 overflow-y-auto px-3 space-y-6 py-2">
-      <a href="<?= e($assetBase) ?>/admin" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm <?= $currentPath === '/admin' ? 'font-semibold bg-blue-600 text-white shadow-md shadow-blue-600/30' : 'font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all' ?>">
+      <a href="<?= e($assetBase) ?>/admin" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm <?= $currentPath === '/admin' ? 'font-semibold text-white shadow-md' : 'font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all' ?>"<?= $currentPath === '/admin' ? ' style="background:var(--admin-accent)"' : '' ?>>
         <span class="g-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg></span>
         <span>داشبورد</span>
       </a>
@@ -132,7 +142,7 @@ if (class_exists('IntlDateFormatter')) {
           <?php foreach ($g['items'] as $item): ?>
             <?php if ((string) $item['path'] === '/admin') continue; ?>
             <?php $active = $isActive((string) $item['path']); ?>
-            <a href="<?= e($item['path']) ?>" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm <?= $active ? 'font-semibold bg-blue-600 text-white shadow-md shadow-blue-600/30' : 'font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all' ?>">
+            <a href="<?= e($item['path']) ?>" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm <?= $active ? 'font-semibold text-white shadow-md' : 'font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all' ?>"<?= $active ? ' style="background:var(--admin-accent)"' : '' ?>>
               <span><?= e($item['label']) ?></span>
             </a>
           <?php endforeach; ?>
@@ -226,6 +236,6 @@ if (class_exists('IntlDateFormatter')) {
 </div>
 
 <script>var VASLEH_SPOTLIGHT = <?= json_encode($spotlight, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;</script>
-<script src="<?= e($assetBase) ?>/assets/admin/admin.js"></script>
+<script src="<?= e($assetBase) ?>/assets/admin/admin.js?v=<?= e($appVersion) ?>"></script>
 </body>
 </html>
