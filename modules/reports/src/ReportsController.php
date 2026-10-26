@@ -85,15 +85,27 @@ final class ReportsController
         if ($deny = $this->ownerOnly()) {
             return $deny;
         }
+        $range = (string) $request->input('range', '7');
+        $range = in_array($range, ['7', '30', '90'], true) ? (int) $range : 7;
+        $since = gmdate('Y-m-d', time() - ($range - 1) * 86400) . ' 00:00:00';
+        $q = trim((string) $request->input('q', ''));
+        $os = (string) $request->input('os', '');
+        $os = in_array($os, ['windows', 'macos', 'android', 'ios', 'linux'], true) ? $os : '';
         $page = max(1, (int) $request->input('page', 1));
-        $total = $this->logger()->visitsCount();
+        $total = $this->logger()->filteredVisitsCount($since, $q, $os);
         return $this->page('visits', 'گزارش بازدیدها', [
-            'stats' => $this->logger()->visitStats(),
-            'rows'  => $this->logger()->recentVisits(self::PAGE_SIZE, ($page - 1) * self::PAGE_SIZE),
-            'page'  => $page,
-            'pages' => max(1, (int) ceil($total / self::PAGE_SIZE)),
-            'flash' => $request->input('msg'),
-            'csrf'  => $this->session()->csrfToken(),
+            'stats'    => $this->logger()->visitStats(),
+            'active5'  => $this->logger()->activeIps(5),
+            'daily'    => $this->logger()->visitsByDay($range),
+            'browsers' => $this->logger()->browserShares($since),
+            'rows'     => $this->logger()->filteredVisits($since, $q, $os, self::PAGE_SIZE, ($page - 1) * self::PAGE_SIZE),
+            'page'     => $page,
+            'pages'    => max(1, (int) ceil($total / self::PAGE_SIZE)),
+            'range'    => $range,
+            'q'        => $q,
+            'os'       => $os,
+            'flash'    => $request->input('msg'),
+            'csrf'     => $this->session()->csrfToken(),
         ]);
     }
 

@@ -162,6 +162,91 @@ final class Logger
         return (int) $this->db->pdo()->query("SELECT COUNT(*) FROM reports_log WHERE kind = 'visit'")->fetchColumn();
     }
 
+    /** شمارش روزانه بازدیدهای N روز گذشته (UTC)؛ روزهای بدون بازدید صفر. */
+    public function visitsByDay(int $days): array
+    {
+        $pdo = $this->db->pdo();
+        $since = gmdate('Y-m-d', time() - ($days - 1) * 86400) . ' 00:00:00';
+        $stmt = $pdo->prepare("SELECT substr(created_at, 1, 10) AS d, COUNT(*) AS cnt FROM reports_log WHERE kind = 'visit' AND created_at >= ? GROUP BY d ORDER BY d");
+        $stmt->execute([$since]);
+        $counts = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $counts[(string) $row['d']] = (int) $row['cnt'];
+        }
+        $out = [];
+        for ($i = $days - 1; $i >= 0; $i--) {
+            $d = gmdate('Y-m-d', time() - $i * 86400);
+            $out[] = ['date' => $d, 'count' => $counts[$d] ?? 0];
+        }
+        return $out;
+    }
+
+    /** سهم مرورگرها در بازه، از روی User-Agent (ترتیب CASE مهم است: Edge پیش از Chrome، Chrome پیش از Safari). */
+    public function browserShares(?string $since): array
+    {
+        $sql = "SELECT CASE WHEN ua LIKE '%Edg%' THEN 'Edge' WHEN ua LIKE '%OPR%' OR ua LIKE '%Opera%' THEN 'Opera' WHEN ua LIKE '%Firefox%' THEN 'Firefox' WHEN ua LIKE '%Chrome%' THEN 'Chrome' WHEN ua LIKE '%Safari%' THEN 'Safari' WHEN ua LIKE '%curl%' OR ua LIKE '%bot%' OR ua LIKE '%crawler%' THEN 'ربات' ELSE 'سایر' END AS browser, COUNT(*) AS cnt FROM reports_log WHERE kind = 'visit'";
+        $params = [];
+        if ($since !== null) {
+            $sql .= ' AND created_at >= ?';
+            $params[] = $since;
+        }
+        $sql .= ' GROUP BY browser ORDER BY cnt DESC';
+        $stmt = $this->db->pdo()->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    }
+
+    /** IPهای یکتای N دقیقه گذشته. */
+    public function activeIps(int $minutes): int
+    {
+        $stmt = $this->db->pdo()->prepare("SELECT COUNT(DISTINCT ip) FROM reports_log WHERE kind = 'visit' AND ip != '' AND created_at >= ?");
+        $stmt->execute([gmdate('Y-m-d H:i:s', time() - $minutes * 60)]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    /** شرط مشترک فیلتر بازدیدها: بازه، جستجوی IP، سیستم‌عامل. */
+    private function visitFilter(?string $since, string $ip, string $os): array
+    {
+        $where = '';
+        $params = [];
+        if ($since !== null) {
+            $where .= ' AND created_at >= ?';
+            $params[] = $since;
+        }
+        if ($ip !== '') {
+            $where .= ' AND ip LIKE ?';
+            $params[] = '%' . $ip . '%';
+        }
+        $osLike = [
+            'windows' => "ua LIKE '%Windows%'",
+            'macos'   => "ua LIKE '%Mac OS%' AND ua NOT LIKE '%iPhone%' AND ua NOT LIKE '%iPad%'",
+            'android' => "ua LIKE '%Android%'",
+            'ios'     => "(ua LIKE '%iPhone%' OR ua LIKE '%iPad%')",
+            'linux'   => "ua LIKE '%Linux%'",
+        ];
+        if (isset($osLike[$os])) {
+            $where .= ' AND ' . $osLike[$os];
+        }
+        return [$where, $params];
+    }
+
+    /** فهرست بازدیدها با فیلتر بازه/IP/سیستم‌عامل. */
+    public function filteredVisits(?string $since, string $ip, string $os, int $limit, int $offset): array
+    {
+        [$where, $params] = $this->visitFilter($since, $ip, $os);
+        $stmt = $this->db->pdo()->prepare("SELECT * FROM reports_log WHERE kind = 'visit' $where ORDER BY id DESC LIMIT ? OFFSET ?");
+        $stmt->execute([...$params, $limit, $offset]);
+        return $stmt->fetchAll();
+    }
+
+    public function filteredVisitsCount(?string $since, string $ip, string $os): int
+    {
+        [$where, $params] = $this->visitFilter($since, $ip, $os);
+        $stmt = $this->db->pdo()->prepare("SELECT COUNT(*) FROM reports_log WHERE kind = 'visit' $where");
+        $stmt->execute($params);
+        return (int) $stmt->fetchColumn();
+    }
+
     /** آمار بازدید: امروز، IP یکتا، روت‌ها و IPهای پرتکرار. */
     public function visitStats(): array
     {
