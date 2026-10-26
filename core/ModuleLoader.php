@@ -28,15 +28,78 @@ final class ModuleLoader
     /** @var array<string, string> slug => خطا */
     public array $errors = [];
 
+    /**
+     * کش مایگریشن (۶٫۰): slug => نسخه‌ای که مایگریشنش با موفقیت اجرا شده.
+     * مایگریشن فقط وقتی اجرا می‌شود که ماژول تازه نصب شده باشد یا نسخه‌اش
+     * عوض شده باشد؛ در حالت پایدار، ۱۶ ماژول در هر درخواست مایگریشن نمی‌شوند.
+     * این فایل فقط کش است و هرگز نباید در پوش/همگام‌سازی/زیپ انتشار بیاید
+     * (وگرنه نصب تازه با جدول‌های نساخته، مایگریشن را رد می‌کند) — در
+     * tools/push.py و tools/sync-live.py در فهرست EXCLUDE است.
+     * @var array<string, string>
+     */
+    private array $migratedVersions = [];
+
     public function __construct(
         private readonly string $modulesDir,
         private readonly string $stateFile,
         private readonly string $metaFile,
+        private readonly string $migrationsFile = '',
     ) {
         $this->loadState();
+        $this->loadMigrated();
         $this->scan();
         $this->applyMetaOverrides();
         $this->checkDependencies();
+    }
+
+    private function loadMigrated(): void
+    {
+        if ($this->migrationsFile === '' || !is_file($this->migrationsFile)) {
+            return;
+        }
+        $data = json_decode((string) file_get_contents($this->migrationsFile), true);
+        if (!is_array($data)) {
+            return;
+        }
+        foreach ($data as $slug => $version) {
+            if (is_string($version) && $version !== '') {
+                $this->migratedVersions[(string) $slug] = $version;
+            }
+        }
+    }
+
+    /**
+     * مایگریشن این ماژول لازم است؟ نسخه خالی یعنی همیشه اجرا
+     * (محافظه‌کارانه: ماژول بدون نسخه، کش نمی‌شود).
+     */
+    public function needsMigrate(string $slug, string $version): bool
+    {
+        if ($version === '') {
+            return true;
+        }
+        return ($this->migratedVersions[$slug] ?? null) !== $version;
+    }
+
+    /**
+     * ثبت موفقیت مایگریشن؛ فقط بعد از اجرای موفق صدا زده می‌شود تا
+     * مایگریشنِ ناموفق، درخواست بعد دوباره تلاش شود. خطای نوشتن فایل،
+     * اجرای بعدی را به‌خطر نمی‌اندازد (نبودِ کش یعنی اجرای دوباره).
+     */
+    public function markMigrated(string $slug, string $version): void
+    {
+        if ($this->migrationsFile === '' || $version === '') {
+            return;
+        }
+        $this->migratedVersions[$slug] = $version;
+        try {
+            @file_put_contents(
+                $this->migrationsFile,
+                (string) json_encode($this->migratedVersions, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT),
+                LOCK_EX
+            );
+        } catch (\Throwable) {
+            // کش است؛ نبودنش فقط یعنی مایگریشن دفعه بعد دوباره اجرا می‌شود.
+        }
     }
 
     private function loadState(): void

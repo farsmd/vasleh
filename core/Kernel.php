@@ -21,6 +21,7 @@ final class Kernel
             $this->basePath . '/modules',
             $this->basePath . '/storage/modules-state.json',
             $this->basePath . '/storage/modules-meta.json',
+            $this->basePath . '/storage/migrations.json',
         );
 
         $container = new Container();
@@ -39,12 +40,20 @@ final class Kernel
 
         try {
             // ۲) مایگریشن‌های ماژول‌ها (هر ماژول جدول‌های خودش را می‌سازد)
+            // کش مایگریشن (۶٫۰): در حالت پایدار مایگریشن اجرا نمی‌شود؛ فقط
+            // نصب تازه یا تغییر نسخه ماژول، مایگریشن آن را دوباره راه می‌اندازد.
             // خطای یک ماژول فقط خودش را کنار می‌گذارد، نه کل سیستم را:
             // سرویس‌هایش هم از ظرف حذف می‌شوند تا کسی صدایشان نزند.
             foreach ($active as $slug => $definition) {
                 if (isset($definition['migrate']) && is_callable($definition['migrate'])) {
+                    $migrateVersion = (string) ($definition['version'] ?? '');
+                    if (!$loader->needsMigrate($slug, $migrateVersion)) {
+                        continue;
+                    }
                     try {
                         ($definition['migrate'])($container);
+                        // فقط موفقیت ثبت می‌شود تا مایگریشن ناموفق، دفعه بعد دوباره تلاش شود.
+                        $loader->markMigrated($slug, $migrateVersion);
                     } catch (\Throwable $error) {
                         error_log('[kernel] migrate ' . $slug . ': ' . $error->getMessage());
                         $loader->markError($slug, 'خطای مایگریشن: ' . substr($error->getMessage(), 0, 200));
