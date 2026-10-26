@@ -86,6 +86,48 @@ final class ShopController
         return $out;
     }
 
+    /** زیبال آماده است؟ ماژول فعال باشد و (حالت تست یا مرچنت ثبت‌شده). */
+    private function zibalReady(): bool
+    {
+        if (!$this->container->has('zibal.payments')) {
+            return false;
+        }
+        return $this->container->get('zibal.payments')->ready();
+    }
+
+    /** روش‌های پرداخت تسویه: تنظیمات فروشگاه + زیبال وقتی آماده است. */
+    private function paymentMethods(): array
+    {
+        $methods = self::parseKeyLines($this->settings()->get('payment_methods', ''));
+        if ($this->zibalReady()) {
+            $methods[] = ['zibal', 'پرداخت اینترنتی (زیبال)'];
+        }
+        return $methods;
+    }
+
+    /** هدایت به درگاه زیبال پس از ثبت سفارش؛ ناموفق: برگشت به سبد با خطا. */
+    private function zibalRedirect(string $code, int $totalToman): Response
+    {
+        $payments = $this->container->get('zibal.payments');
+        $client = $this->container->get('zibal.client');
+        $amountRial = $totalToman * 10;
+        if ($amountRial < 1000) {
+            return Response::redirect('/shop/cart?' . http_build_query(['err' => 'مبلغ سفارش برای پرداخت اینترنتی کافی نیست. سفارش ' . $code . ' ثبت شده و پرداخت نشده است.']));
+        }
+        $payId = $payments->createPending($code, $amountRial);
+        $host = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
+        $local = $host === 'localhost' || str_starts_with($host, '127.0.0.1') || str_starts_with($host, '192.168.') || str_starts_with($host, '10.');
+        $scheme = (!$local && (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')) || str_starts_with($host, 'atroweb.ir') ? 'https' : 'http';
+        $callback = $scheme . '://' . $host . '/zibal/callback';
+        $res = $client->request($payments->merchant(), $amountRial, $callback, 'پرداخت سفارش ' . $code, $code);
+        if (!($res['ok'] ?? false)) {
+            $payments->markFailed($payId, 'failed', (string) ($res['message'] ?? ''));
+            return Response::redirect('/shop/cart?' . http_build_query(['err' => 'اتصال به درگاه زیبال ناموفق بود (' . ($res['message'] ?? '') . ') — سفارش ' . $code . ' ثبت شده و پرداخت نشده است.']));
+        }
+        $payments->setTrack($payId, (string) $res['trackId']);
+        return Response::redirect(\Modules\Zibal\ZibalClient::startUrl((string) $res['trackId']));
+    }
+
     private function session(): SessionManager
     {
         return $this->container->get('session');
@@ -374,7 +416,7 @@ final class ShopController
             'discount' => $discount,
             'giftPrice' => $giftPrice,
             'deliverySlots' => self::parseLines($this->settings()->get('delivery_slots', '')),
-            'paymentMethods' => self::parseKeyLines($this->settings()->get('payment_methods', '')),
+            'paymentMethods' => $this->paymentMethods(),
             'shipping' => $shipping,
             'tax' => $tax,
             'taxPercent' => $taxPercent,
@@ -433,7 +475,7 @@ final class ShopController
         $taxPercent = $this->settings()->getInt('tax_percent', 0);
         $giftFee = $old['gift_wrap'] === 1 ? $this->settings()->getInt('gift_wrap_price', 0) : 0;
         $slots = self::parseLines($this->settings()->get('delivery_slots', ''));
-        $methods = self::parseKeyLines($this->settings()->get('payment_methods', ''));
+        $methods = $this->paymentMethods();
         $methodKeys = array_column($methods, 0);
         $extra = [
             'coupon_code' => $coupon !== null ? (string) $coupon['code'] : '',
@@ -456,6 +498,11 @@ final class ShopController
         if ($this->container->has('logger')) {
             $this->container->get('logger')->system('ثبت سفارش فروشگاه', $code, $old['phone']);
         }
+        if ($extra['payment_method'] === 'zibal') {
+            $tax = $taxPercent > 0 ? (int) round(($subtotal - $discount) * $taxPercent / 100) : 0;
+            $total = $subtotal - $discount + $giftFee + $shipping + $tax;
+            return $this->zibalRedirect($code, (int) $total);
+        }
         return Response::redirect('/shop/success/' . $code);
     }
 
@@ -467,7 +514,7 @@ final class ShopController
             return Response::redirect('/shop');
         }
         $methodLabel = '';
-        foreach (self::parseKeyLines($this->settings()->get('payment_methods', '')) as [$key, $label]) {
+        foreach ($this->paymentMethods() as [$key, $label]) {
             if ($key === (string) ($order['payment_method'] ?? '')) {
                 $methodLabel = $label;
             }

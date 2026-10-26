@@ -120,7 +120,7 @@
                 <span class="w-12 h-12 rounded-2xl bg-brand-600 text-white flex items-center justify-center text-xl"><i class="fa-solid fa-wallet"></i></span>
                 <span>
                   <span class="text-sm font-black text-slate-900 dark:text-white block"><?= e($mlabel) ?></span>
-                  <span class="text-xs text-slate-500 dark:text-slate-400">پس از ثبت سفارش، مدیر فروشگاه هماهنگی پرداخت را انجام می‌دهد.</span>
+                  <span class="text-xs text-slate-500 dark:text-slate-400"><?= $mkey === 'zibal' ? 'پرداخت امن از طریق درگاه زیبال.' : 'پس از ثبت سفارش، مدیر فروشگاه هماهنگی پرداخت را انجام می‌دهد.' ?></span>
                 </span>
               </span>
               <input type="radio" name="payment_method" value="<?= e($mkey) ?>" <?= ($old['payment_method'] ?? $paymentMethods[0][0]) === $mkey ? 'checked' : '' ?> class="accent-indigo-600 w-5 h-5">
