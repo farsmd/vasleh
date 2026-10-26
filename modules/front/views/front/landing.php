@@ -155,6 +155,12 @@
       </div>
 
     </div>
+
+    <?php if ($customHtml !== ''): ?>
+    <section class="custom-html" style="margin-top: 40px;">
+      <?= $customHtml ?>
+    </section>
+    <?php endif; ?>
   </div>
 
   <script>

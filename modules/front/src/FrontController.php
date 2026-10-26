@@ -48,6 +48,7 @@ final class FrontController
             'version' => $this->versionFa(),
             'leadOk' => $request->input('lead') === 'ok',
             'err' => (string) $request->input('err', ''),
+            'customHtml' => $this->landing()->defaultHtml(),
         ]);
         return Response::html($this->landing()->applyTokens($html));
     }
@@ -208,5 +209,74 @@ final class FrontController
         }
         $this->landing()->fieldDelete((int) ($params['id'] ?? 0));
         return $this->back('/admin/landing/fields', 'فیلد حذف شد.');
+    }
+
+    // ---------- فایل‌های HTML لندینگ ----------
+
+    public function htmlAdmin(Request $request): Response
+    {
+        if (($r = $this->requireOwner()) !== null) {
+            return $r;
+        }
+        $edit = null;
+        $editId = (int) $request->input('edit', 0);
+        if ($editId > 0) {
+            $edit = $this->landing()->htmlById($editId);
+        }
+        $error = match ((string) $request->input('err', '')) {
+            'name' => 'نام فایل معتبر نیست (با حرف شروع شود؛ فقط حروف، رقم و زیرخط).',
+            'title' => 'عنوان فایل را بنویسید.',
+            'exists' => 'فایلی با این نام از قبل هست.',
+            default => '',
+        };
+        return $this->page('landing_html', [
+            'files' => $this->landing()->htmlFiles(),
+            'edit' => $edit,
+            'flash' => (string) $request->input('msg', ''),
+            'error' => $error,
+        ], 'فایل‌های HTML لندینگ');
+    }
+
+    public function htmlSave(Request $request): Response
+    {
+        if (($r = $this->requireOwner()) !== null) {
+            return $r;
+        }
+        $name = trim((string) $request->input('name', ''));
+        $title = trim((string) $request->input('title', ''));
+        $content = (string) $request->input('content', '');
+        $base = '/admin/landing/html';
+        if (!Landing::validFieldName($name)) {
+            return Response::redirect($base . '?err=name');
+        }
+        if ($title === '' || strlen($title) > 300) {
+            return Response::redirect($base . '?err=title');
+        }
+        $id = (int) $request->input('id', 0);
+        $ok = $id > 0
+            ? $this->landing()->htmlUpdate($id, $name, $title, $content)
+            : $this->landing()->htmlCreate($name, $title, $content);
+        if (!$ok) {
+            return Response::redirect($base . '?err=exists');
+        }
+        return $this->back($base, $id > 0 ? 'فایل ویرایش شد.' : 'فایل ساخته شد.');
+    }
+
+    public function htmlDelete(Request $request, array $params): Response
+    {
+        if (($r = $this->requireOwner()) !== null) {
+            return $r;
+        }
+        $this->landing()->htmlDelete((int) ($params['id'] ?? 0));
+        return $this->back('/admin/landing/html', 'فایل حذف شد.');
+    }
+
+    public function htmlSetDefault(Request $request, array $params): Response
+    {
+        if (($r = $this->requireOwner()) !== null) {
+            return $r;
+        }
+        $this->landing()->htmlSetDefault((int) ($params['id'] ?? 0));
+        return $this->back('/admin/landing/html', 'فایل پیش‌فرض شد و داخل لندینگ نمایش داده می‌شود.');
     }
 }

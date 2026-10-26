@@ -94,6 +94,15 @@ final class Landing
         foreach (self::SEED_FIELDS as $name => [$title, $content]) {
             $seedField->execute(['n' => $name, 't' => $title, 'c' => $content]);
         }
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS front_html (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                title TEXT NOT NULL,
+                content TEXT NOT NULL DEFAULT \'\',
+                is_default INTEGER NOT NULL DEFAULT 0
+            )'
+        );
     }
 
     /** قیمت‌های جاری (تنظیمات، وگرنه پیش‌فرض). */
@@ -243,5 +252,69 @@ final class Landing
             static fn(array $m): string => $map[$m[1]] ?? $m[0],
             $html
         );
+    }
+
+    // ---------- فایل‌های HTML لندینگ (بخش اضافه) ----------
+
+    public function htmlFiles(): array
+    {
+        return $this->db->pdo()
+            ->query('SELECT * FROM front_html ORDER BY id')
+            ->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    public function htmlById(int $id): ?array
+    {
+        $stmt = $this->db->pdo()->prepare('SELECT * FROM front_html WHERE id = :id');
+        $stmt->execute(['id' => $id]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+        return is_array($row) ? $row : null;
+    }
+
+    /** محتوای فایل پیش‌فرض (خالی یعنی هیچ بخشی نمایش داده نمی‌شود). */
+    public function defaultHtml(): string
+    {
+        $row = $this->db->pdo()
+            ->query('SELECT content FROM front_html WHERE is_default = 1 ORDER BY id LIMIT 1')
+            ->fetch(\PDO::FETCH_ASSOC);
+        $content = is_array($row) ? trim((string) $row['content']) : '';
+        return $content;
+    }
+
+    public function htmlCreate(string $name, string $title, string $content): bool
+    {
+        try {
+            $this->db->pdo()->prepare(
+                'INSERT INTO front_html (name, title, content) VALUES (:n, :t, :c)'
+            )->execute(['n' => $name, 't' => $title, 'c' => $content]);
+        } catch (\PDOException) {
+            return false;
+        }
+        return true;
+    }
+
+    public function htmlUpdate(int $id, string $name, string $title, string $content): bool
+    {
+        try {
+            $this->db->pdo()->prepare(
+                'UPDATE front_html SET name = :n, title = :t, content = :c WHERE id = :id'
+            )->execute(['n' => $name, 't' => $title, 'c' => $content, 'id' => $id]);
+        } catch (\PDOException) {
+            return false;
+        }
+        return true;
+    }
+
+    public function htmlDelete(int $id): void
+    {
+        $this->db->pdo()->prepare('DELETE FROM front_html WHERE id = :id')->execute(['id' => $id]);
+    }
+
+    /** فقط یک پیش‌فرض: بقیه صفر می‌شوند. */
+    public function htmlSetDefault(int $id): void
+    {
+        $pdo = $this->db->pdo();
+        $pdo->exec('UPDATE front_html SET is_default = 0');
+        $pdo->prepare('UPDATE front_html SET is_default = 1 WHERE id = :id')->execute(['id' => $id]);
     }
 }
