@@ -79,11 +79,21 @@ final class AdminAccountingController
     {
         $ledger = $this->ledger();
         $month = date('Y-m');
+        $expenseByCat = array_values(array_filter(
+            $ledger->categoryTotals(),
+            static fn ($r) => $r['kind'] === 'expense' && ($r['category_title'] ?? '') !== ''
+        ));
         return $this->page('dashboard', [
             'accounts' => $ledger->accounts(),
+            'activeAccounts' => $ledger->accounts(true),
             'total' => $ledger->totalBalance(),
             'month' => $ledger->monthSummary($month),
             'monthLabel' => $month,
+            'monthly' => $ledger->monthlyRows(),
+            'expenseByCat' => $expenseByCat,
+            'incomeCats' => $ledger->categories('income'),
+            'expenseCats' => $ledger->categories('expense'),
+            'hasShop' => $this->container->has('shop.orders'),
             'recent' => $ledger->transactions([], 10),
             'flash' => $request->input('msg'),
             'error' => $request->input('err'),
