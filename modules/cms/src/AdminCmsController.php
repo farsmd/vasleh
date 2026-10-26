@@ -141,6 +141,63 @@ final class AdminCmsController
         return Response::redirect('/admin/cms?msg=' . urlencode('محتوا حذف شد'));
     }
 
+    // ---------- صفحات خطا ----------
+
+    private function errors(): ErrorPages
+    {
+        return $this->container->get('cms.errors');
+    }
+
+    public function errorsList(Request $request): Response
+    {
+        return $this->page('errors', [
+            'pages' => $this->errors()->all(),
+            'flash' => $request->input('msg'),
+            'error' => $request->input('err'),
+        ], 'صفحات خطا');
+    }
+
+    public function errorForm(Request $request, array $params): Response
+    {
+        $code = (int) ($params['code'] ?? 0);
+        $row = $code > 0 ? $this->errors()->get($code) : null;
+        return $this->page('error-form', [
+            'code' => $code,
+            'page' => $row ?? ['title' => ErrorPages::STANDARD[$code] ?? '', 'body' => ErrorPages::defaultBody($code), 'active' => 1],
+            'isNew' => $row === null,
+            'flash' => $request->input('msg'),
+            'error' => $request->input('err'),
+        ], 'ویرایش صفحه خطا');
+    }
+
+    public function errorSave(Request $request, array $params): Response
+    {
+        $code = (int) ($request->input('code', $params['code'] ?? 0));
+        $title = trim((string) $request->input('title', ''));
+        $body = trim((string) $request->input('body', ''));
+        if ($code < 100 || $code > 599 || $title === '' || $body === '') {
+            return $this->page('error-form', [
+                'code' => $code,
+                'page' => ['title' => $title, 'body' => $body, 'active' => 1],
+                'isNew' => $this->errors()->get($code) === null,
+                'error' => 'کد باید عدد سه‌رقمی (۱۰۰ تا ۵۹۹) و عنوان و بدنه نباید خالی باشند.',
+            ], 'ویرایش صفحه خطا');
+        }
+        $this->errors()->save($code, $title, $body, (string) $request->input('active', '') === '1');
+        $this->log('صفحه خطا', 'کد ' . $code);
+        return Response::redirect('/admin/cms/errors?msg=' . urlencode('صفحه خطا ذخیره شد'));
+    }
+
+    public function errorDelete(Request $request, array $params): Response
+    {
+        $code = (int) ($params['code'] ?? 0);
+        if ($code > 0) {
+            $this->errors()->delete($code);
+            $this->log('حذف صفحه خطا', 'کد ' . $code);
+        }
+        return Response::redirect('/admin/cms/errors?msg=' . urlencode('صفحه خطا به پیش‌فرض برگشت'));
+    }
+
     /** @return array{0: array<string, string>, 1: ?string} داده پاک + خطا (اگر هست) */
     private function validate(Request $request, int $selfId): array
     {

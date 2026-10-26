@@ -2,11 +2,14 @@
 declare(strict_types=1);
 
 use Core\Container;
+use Core\Request;
+use Core\Response;
 use Core\Router;
 use Modules\Cms\AdminCmsController;
 use Modules\Cms\AdminLayoutsController;
 use Modules\Cms\AdminMenusController;
 use Modules\Cms\CmsController;
+use Modules\Cms\ErrorPages;
 use Modules\Cms\Layouts;
 use Modules\Cms\Menus;
 use Modules\Cms\Posts;
@@ -24,7 +27,7 @@ return [
     'title'       => 'مدیریت محتوا',
     'icon'        => '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',
     'description' => 'مدیریت محتوای کامل سایت: نوشته و برگه، هدر/فوتر/قالب‌های قابل ساخت، منوها، تنظیمات و پوشش صفحه اصلی',
-    'version'     => '2.2.0',
+    'version'     => '2.3.0',
     'system'      => false,
     'requires'    => ['sqlite', 'session'],
 
@@ -33,6 +36,7 @@ return [
         'cms.layouts'  => static fn (Container $c): Layouts => new Layouts($c->get('db')),
         'cms.menus'    => static fn (Container $c): Menus => new Menus($c->get('db')),
         'cms.settings' => static fn (Container $c): Settings => new Settings($c->get('db')),
+        'cms.errors'   => static fn (Container $c): ErrorPages => new ErrorPages($c->get('db')),
         'cms.render'   => static fn (Container $c): Renderer => new Renderer(
             $c->get('cms.layouts'),
             $c->get('cms.menus'),
@@ -57,13 +61,37 @@ return [
         $settings = $c->get('cms.settings');
         $settings->migrate();
         $settings->seedDefaults();
+        $c->get('cms.errors')->migrate();
     },
+
+    // هوک صفحات خطا: پاسخ خطای HTML بیرون از پنل ادمین و API، اگر صفحه
+    // سفارشی فعال برای همان کد داشته باشد، با همان کد وضعیت جایگزین می‌شود.
+    'hooks' => [
+        'error_response' => static function (Response $response, Request $request, Container $c): ?Response {
+            if (!str_contains($response->headers['Content-Type'] ?? '', 'text/html')) {
+                return null;
+            }
+            if (str_starts_with($request->path, '/admin') || str_starts_with($request->path, '/api')) {
+                return null;
+            }
+            try {
+                $row = $c->get('cms.errors')->get($response->status);
+            } catch (\Throwable) {
+                return null;
+            }
+            if ($row === null || (int) $row['active'] !== 1) {
+                return null;
+            }
+            return Response::html(ErrorPages::renderShell($response->status, (string) $row['title'], (string) $row['body']), $response->status);
+        },
+    ],
 
     'admin_menu' => [
         ['label' => 'محتواها', 'path' => '/admin/cms', 'permission' => 'cms.manage'],
         ['label' => 'محتوای تازه', 'path' => '/admin/cms/create', 'permission' => 'cms.manage'],
         ['label' => 'هدر، فوتر و قالب‌ها', 'path' => '/admin/cms/layouts', 'permission' => 'cms.manage'],
         ['label' => 'منوها', 'path' => '/admin/cms/menus', 'permission' => 'cms.manage'],
+        ['label' => 'صفحات خطا', 'path' => '/admin/cms/errors', 'permission' => 'cms.manage'],
         ['label' => 'تنظیمات محتوا', 'path' => '/admin/cms/settings', 'permission' => 'cms.manage'],
     ],
 
@@ -92,6 +120,11 @@ return [
 
         $router->get('/admin/cms/settings', [AdminCmsController::class, 'settingsForm'], $module);
         $router->post('/admin/cms/settings', [AdminCmsController::class, 'settingsSave'], $module);
+
+        $router->get('/admin/cms/errors', [AdminCmsController::class, 'errorsList'], $module);
+        $router->get('/admin/cms/errors/edit/{code}', [AdminCmsController::class, 'errorForm'], $module);
+        $router->post('/admin/cms/errors/edit/{code}', [AdminCmsController::class, 'errorSave'], $module);
+        $router->post('/admin/cms/errors/delete/{code}', [AdminCmsController::class, 'errorDelete'], $module);
 
         $router->get('/admin/cms/layouts', [AdminLayoutsController::class, 'index'], $module);
         $router->get('/admin/cms/layouts/create', [AdminLayoutsController::class, 'createForm'], $module);

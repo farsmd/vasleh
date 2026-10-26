@@ -93,26 +93,59 @@ final class Kernel
                         continue;
                     }
                     if ($early instanceof Response) {
-                        return $this->secure($early);
+                        return $this->secure($early, $request, $container);
                     }
                 }
             }
 
             // ۵) سپردن درخواست به ماژول مرتبط
-            return $this->secure($router->dispatch($request, $container));
+            return $this->secure($router->dispatch($request, $container), $request, $container);
         } catch (\Throwable $error) {
             error_log('[kernel] ' . $error->getMessage());
-            return $this->secure(new Response('<h1>۵۰۰</h1><p>خطای داخلی رخ داد.</p>', 500));
+            return $this->secure(new Response('<h1>۵۰۰</h1><p>خطای داخلی رخ داد.</p>', 500), $request, $container);
         }
     }
 
-    /** هدرهای امنیتی پایه روی همه پاسخ‌ها. */
-    private function secure(Response $response): Response
+    /** هدرهای امنیتی پایه روی همه پاسخ‌ها + عبور از هوک صفحات خطا. */
+    private function secure(Response $response, Request $request, Container $container): Response
     {
+        $response = $this->applyErrorHooks($response, $request, $container);
         return $response
             ->withHeader('X-Content-Type-Options', 'nosniff')
             ->withHeader('X-Frame-Options', 'SAMEORIGIN')
             ->withHeader('Referrer-Policy', 'same-origin');
+    }
+
+    /**
+     * هوک error_response (کلی، مخصوص هیچ ماژولی نیست): هر ماژول فعال
+     * می‌تواند برای پاسخ خطا (وضعیت ۴۰۰ به بالا) بدنه جایگزین بدهد — مثلاً
+     * صفحه خطای سفارشی CMS. اولین جایگزین برنده است؛ خطای هوک، پاسخ
+     * اصلی را دست نمی‌زند و فقط لاگ می‌شود.
+     */
+    private function applyErrorHooks(Response $response, Request $request, Container $container): Response
+    {
+        if ($response->status < 400) {
+            return $response;
+        }
+        if (!$container->has('loader')) {
+            return $response;
+        }
+        foreach ($container->get('loader')->active() as $slug => $definition) {
+            $hook = $definition['hooks']['error_response'] ?? null;
+            if (!is_callable($hook)) {
+                continue;
+            }
+            try {
+                $replacement = $hook($response, $request, $container);
+            } catch (\Throwable $error) {
+                error_log('[kernel] error hook ' . $slug . ': ' . $error->getMessage());
+                continue;
+            }
+            if ($replacement instanceof Response) {
+                return $replacement;
+            }
+        }
+        return $response;
     }
 
     /** کلید برنامه برای امضای کوکی‌ها — خودکار ساخته می‌شود و از وب در دسترس نیست. */
