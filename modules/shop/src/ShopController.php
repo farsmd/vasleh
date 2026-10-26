@@ -46,6 +46,9 @@ final class ShopController
         $content = View::render('shop', 'front', $view, $data + [
             'currency' => $settings->get('currency', 'تومان'),
             'csrf' => $this->session()->csrfToken(),
+            // ویوی فهرست از قبل به $categories اشاره می‌کرد ولی هرگز دریافتش نمی‌کرد؛
+            // حالا مثل لی‌اوت، دسته‌ها به همه ویوهای عمومی می‌رسد.
+            'categories' => $this->catalog()->categories(),
         ]);
         return Response::html(View::render('shop', 'front', 'layout', [
             'title' => $title,

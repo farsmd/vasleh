@@ -1,53 +1,95 @@
 <?php use Modules\Shop\Catalog; $price = Catalog::effectivePrice($product); $hasVariants = !empty($variants); ?>
-<?php if (!empty($added)): ?><div class="flash">به سبد خرید اضافه شد. <a href="/shop/cart">مشاهده سبد</a></div><?php endif; ?>
-<?php if (!empty($category)): ?><p class="muted"><a href="/shop?cat=<?= e(rawurlencode((string) $category['slug'])) ?>"><?= e($category['title']) ?></a> / <?= e($product['title']) ?></p><?php endif; ?>
-<h1><?= e($product['title']) ?></h1>
-<?php if (($product['image'] ?? '') !== ''): ?>
-  <img src="<?= e($product['image']) ?>" alt="<?= e($product['title']) ?>" style="max-width:26rem;width:100%;border-radius:.8rem">
-<?php endif; ?>
-<?php if (($product['short_desc'] ?? '') !== ''): ?><p><?= e($product['short_desc']) ?></p><?php endif; ?>
-<div class="price" style="font-size:1.25rem">
-  <?php if ($hasVariants): ?>از <?php endif; ?>
-  <?= number_format($price) ?> <?= e($currency) ?>
-  <?php if ((int) $product['sale_price'] > 0): ?><span class="old-price"><?= number_format((int) $product['price']) ?></span><?php endif; ?>
-</div>
-<?php if ((int) $product['track_stock'] === 1): ?>
-  <p class="muted"><?= (int) $product['stock'] > 0 ? 'موجودی: ' . (int) $product['stock'] : 'ناموجود' ?></p>
-<?php endif; ?>
-<?php if (($product['sku'] ?? '') !== ''): ?><p class="muted">کد کالا: <span dir="ltr"><?= e($product['sku']) ?></span></p><?php endif; ?>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+  <nav class="flex items-center gap-2 text-xs text-slate-500 mb-6 font-medium">
+    <a href="/shop" class="hover:text-blue-600">فروشگاه</a>
+    <?php if (!empty($category)): ?>
+    <i class="fa-solid fa-angle-left text-[10px] text-slate-400"></i>
+    <a href="/shop?cat=<?= e(rawurlencode((string) $category['slug'])) ?>" class="hover:text-blue-600"><?= e($category['title']) ?></a>
+    <?php endif; ?>
+    <i class="fa-solid fa-angle-left text-[10px] text-slate-400"></i>
+    <span class="text-slate-900 font-bold"><?= e($product['title']) ?></span>
+  </nav>
 
-<form method="post" action="/shop/cart/add" style="max-width:30rem;margin:1rem 0">
-  <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
-  <input type="hidden" name="product_id" value="<?= (int) $product['id'] ?>">
-  <?php if ($hasVariants): ?>
-  <label>انتخاب نوع (واریانت)
-    <select name="variant_id" id="variant-select">
-      <?php foreach ($variants as $v): ?>
-        <option value="<?= (int) $v['id'] ?>" data-price="<?= Catalog::variantPrice($product, $v) ?>" data-stock="<?= (int) $v['stock'] ?>">
-          <?= e(Catalog::optionsText($v['options'], $attrs)) ?> — <?= number_format(Catalog::variantPrice($product, $v)) ?> <?= e($currency) ?><?= (int) $product['track_stock'] === 1 && (int) $v['stock'] < 1 ? ' (ناموجود)' : '' ?>
-        </option>
-      <?php endforeach; ?>
-    </select>
-  </label>
-  <?php endif; ?>
-  <label>تعداد
-    <input type="number" name="qty" value="1" min="1" style="max-width:8rem">
-  </label>
-  <button class="btn" type="submit">افزودن به سبد خرید</button>
-  <a class="btn light" href="/shop">بازگشت به فروشگاه</a>
-</form>
+  <?php if (!empty($added)): ?><div class="bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-2xl px-4 py-3 mb-6">به سبد خرید اضافه شد. <a href="/shop/cart" class="font-bold underline">مشاهده سبد</a></div><?php endif; ?>
 
-<?php if (!empty($fields)): ?>
-<div class="specs">
-  <h3 style="margin-top:0">مشخصات</h3>
-  <?php foreach ($fields as $f): ?>
-    <div><span class="muted"><?= e($f['title']) ?></span><span><?= $f['type'] === 'checkbox' ? ($f['value'] === '1' ? 'بله' : 'خیر') : e($f['value']) ?></span></div>
-  <?php endforeach; ?>
-</div>
-<?php endif; ?>
+  <div class="bg-white rounded-3xl p-6 sm:p-10 border border-slate-100 shadow-sm">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+      <div class="lg:col-span-5">
+        <div class="relative bg-slate-50 rounded-3xl p-8 flex items-center justify-center border border-slate-100 overflow-hidden">
+          <?php if ((int) $product['sale_price'] > 0): ?><span class="absolute top-4 right-4 bg-rose-500 text-white text-xs font-bold px-3 py-1 rounded-full">فروش ویژه</span><?php endif; ?>
+          <?php if (($product['image'] ?? '') !== ''): ?>
+            <img src="<?= e($product['image']) ?>" alt="<?= e($product['title']) ?>" class="w-full max-h-[380px] object-contain">
+          <?php else: ?>
+            <span class="w-32 h-32 rounded-3xl bg-slate-100 text-slate-300 flex items-center justify-center text-5xl"><i class="fa-regular fa-image"></i></span>
+          <?php endif; ?>
+        </div>
+      </div>
 
-<?php if (($product['description'] ?? '') !== ''): ?>
-<div style="background:var(--admin-panel-bg);border:1px solid var(--admin-border);border-radius:var(--admin-radius);padding:1rem">
-  <?= $product['description'] ?>
+      <div class="lg:col-span-7 space-y-6">
+        <div>
+          <div class="flex items-center justify-between text-xs text-slate-400 mb-2">
+            <?php if (($product['sku'] ?? '') !== ''): ?><span>کد کالا: <span dir="ltr" class="font-mono text-slate-600 font-bold"><?= e($product['sku']) ?></span></span><?php endif; ?>
+            <?php if ((int) $product['track_stock'] === 1): ?><span class="font-bold <?= (int) $product['stock'] > 0 ? 'text-emerald-600' : 'text-slate-400' ?>"><?= (int) $product['stock'] > 0 ? 'موجود (' . (int) $product['stock'] . ' عدد)' : 'ناموجود' ?></span><?php endif; ?>
+          </div>
+          <h1 class="text-2xl sm:text-3xl font-black text-slate-900 leading-tight"><?= e($product['title']) ?></h1>
+          <?php if (($product['short_desc'] ?? '') !== ''): ?><p class="text-sm text-slate-500 mt-2 leading-relaxed"><?= e($product['short_desc']) ?></p><?php endif; ?>
+        </div>
+
+        <form method="post" action="/shop/cart/add" class="bg-slate-50 p-6 rounded-3xl border border-slate-200/80 space-y-4">
+          <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
+          <input type="hidden" name="product_id" value="<?= (int) $product['id'] ?>">
+          <?php if ($hasVariants): ?>
+          <div>
+            <label class="text-xs font-bold text-slate-800 block mb-2" for="variant-select">انتخاب نوع (واریانت)</label>
+            <select name="variant_id" id="variant-select" class="w-full bg-white border border-slate-200 rounded-2xl px-3 py-2.5 text-sm outline-none focus:border-blue-500">
+              <?php foreach ($variants as $v): ?>
+              <option value="<?= (int) $v['id'] ?>" data-price="<?= Catalog::variantPrice($product, $v) ?>">
+                <?= e(Catalog::optionsText($v['options'], $attrs)) ?> — <?= number_format(Catalog::variantPrice($product, $v)) ?> <?= e($currency) ?><?= (int) $product['track_stock'] === 1 && (int) $v['stock'] < 1 ? ' (ناموجود)' : '' ?>
+              </option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <?php endif; ?>
+          <div class="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <?php if ((int) $product['sale_price'] > 0): ?><span class="text-xs text-slate-400 line-through block"><?= number_format((int) $product['price']) ?> <?= e($currency) ?></span><?php endif; ?>
+              <div id="price-box" class="text-2xl sm:text-3xl font-black text-slate-900"><?= number_format($price) ?> <span class="text-sm font-medium text-slate-500"><?= e($currency) ?></span></div>
+            </div>
+            <div class="flex items-center border border-slate-200 bg-white rounded-2xl p-1 shadow-sm">
+              <button type="button" onclick="var q=document.getElementById('qty');q.value=Math.max(1,parseInt(q.value||'1')+1)" class="w-9 h-9 rounded-xl hover:bg-slate-100 flex items-center justify-center text-slate-700 font-bold transition"><i class="fa-solid fa-plus text-xs"></i></button>
+              <input id="qty" type="number" name="qty" value="1" min="1" class="w-12 text-center font-bold text-sm text-slate-800 outline-none border-0">
+              <button type="button" onclick="var q=document.getElementById('qty');q.value=Math.max(1,parseInt(q.value||'1')-1)" class="w-9 h-9 rounded-xl hover:bg-slate-100 flex items-center justify-center text-slate-700 font-bold transition"><i class="fa-solid fa-minus text-xs"></i></button>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+            <button type="submit" class="w-full py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition duration-200">
+              <i class="fa-solid fa-bag-shopping text-base"></i><span>افزودن به سبد خرید</span>
+            </button>
+            <a href="/shop" class="w-full py-4 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm flex items-center justify-center gap-2 transition duration-200">بازگشت به فروشگاه</a>
+          </div>
+        </form>
+        <?php if ($hasVariants): ?>
+        <script>
+          (function(){var s=document.getElementById('variant-select');if(!s)return;s.addEventListener('change',function(){var o=s.options[s.selectedIndex];var p=o.getAttribute('data-price');if(p)document.getElementById('price-box').innerHTML=Number(p).toLocaleString('en-US')+' <span class="text-sm font-medium text-slate-500"><?= e($currency) ?></span>';});})();
+        </script>
+        <?php endif; ?>
+      </div>
+    </div>
+
+    <?php if (!empty($fields) || ($product['description'] ?? '') !== ''): ?>
+    <div class="mt-14 pt-8 border-t border-slate-100">
+      <?php if (!empty($fields)): ?>
+      <h3 class="text-base font-black text-slate-900 mb-4">مشخصات</h3>
+      <div class="max-w-2xl divide-y divide-slate-100 text-xs mb-8">
+        <?php foreach ($fields as $f): ?>
+        <div class="grid grid-cols-3 py-3 font-medium"><span class="text-slate-400"><?= e($f['title']) ?></span><span class="col-span-2 text-slate-800 font-bold"><?= $f['type'] === 'checkbox' ? ($f['value'] === '1' ? 'بله' : 'خیر') : e($f['value']) ?></span></div>
+        <?php endforeach; ?>
+      </div>
+      <?php endif; ?>
+      <?php if (($product['description'] ?? '') !== ''): ?>
+      <div class="text-sm text-slate-600 leading-relaxed"><?= $product['description'] ?></div>
+      <?php endif; ?>
+    </div>
+    <?php endif; ?>
+  </div>
 </div>
-<?php endif; ?>

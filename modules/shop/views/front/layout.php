@@ -1,65 +1,83 @@
-<?php
-// تم یکپارچه: متغیرهای قالب ادمین (storage/admin-theme.json) روی فروشگاه هم می‌نشیند؛
-// حالت تاریک/روشن با همان کلید localStorage ادمین خوانده می‌شود.
-$__theme = \Modules\Admin\AdminTheme::load(dirname(__DIR__, 4));
-$__dark = ($__theme['default_theme'] ?? 'dark') === 'dark';
-?>
 <!doctype html>
-<html lang="fa" dir="rtl"<?= $__dark ? ' class="dark"' : '' ?>>
+<html lang="fa" dir="rtl">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= e($title) ?> — <?= e($shopTitle) ?></title>
-<script>try{var _t=localStorage.getItem('vasleh_theme');if(_t==='light'){document.documentElement.classList.remove('dark')}else if(_t==='dark'){document.documentElement.classList.add('dark')}}catch(e){}</script>
-<link rel="stylesheet" href="/cms.css">
 <link rel="stylesheet" href="/assets/taskyar/fonts/vazirmatn.css">
+<link rel="stylesheet" href="/assets/taskyar/fa/css/all.min.css">
+<link rel="stylesheet" href="/assets/shop/shop.css">
+<?php $__shopTheme = \Modules\Admin\AdminTheme::load(dirname(__DIR__, 4)); ?>
 <style>
-  <?= \Modules\Admin\AdminTheme::varsCss($__theme) ?>
-  body{font-family:'Vazirmatn',system-ui,sans-serif;margin:0;background:var(--admin-main-bg);color:var(--admin-text)}
-  .shop-wrap{max-width:72rem;margin:0 auto;padding:1rem}
-  .shop-header{display:flex;flex-wrap:wrap;gap:1rem;align-items:center;justify-content:space-between;border-bottom:1px solid var(--admin-border);padding-bottom:.8rem;margin-bottom:1rem}
-  .shop-header .brand{font-size:1.3rem;font-weight:700}
-  .shop-nav{display:flex;flex-wrap:wrap;gap:.4rem}
-  .shop-nav a{border:1px solid var(--admin-border);background:var(--admin-panel-bg);border-radius:2rem;padding:.35rem .9rem;text-decoration:none;color:var(--admin-text)}
-  .shop-nav a:hover{filter:brightness(1.08)}
-  .cats{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:1rem}
-  .cats a{border:1px solid var(--admin-border);background:var(--admin-panel-bg);border-radius:2rem;padding:.25rem .8rem;text-decoration:none;color:var(--admin-text)}
-  .cats a.active{background:var(--admin-accent);border-color:var(--admin-accent);color:#fff}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));gap:1rem}
-  .p-card{background:var(--admin-panel-bg);border:1px solid var(--admin-border);border-radius:var(--admin-radius);padding:1rem;text-decoration:none;color:var(--admin-text);display:block}
-  .p-card img{width:100%;border-radius:.5rem;aspect-ratio:1;object-fit:cover;background:var(--admin-main-bg)}
-  .p-card h3{margin:.6rem 0 .3rem}
-  .price{font-weight:700}
-  .old-price{text-decoration:line-through;color:var(--admin-muted);font-weight:400;margin-inline-start:.4rem}
-  .btn{display:inline-block;border:1px solid var(--admin-accent);background:var(--admin-accent);color:#fff;border-radius:.5rem;padding:.5rem 1.1rem;text-decoration:none;cursor:pointer}
-  .btn.light{background:var(--admin-panel-bg);color:var(--admin-text);border-color:var(--admin-border)}
-  .btn.red{background:#b91c1c;border-color:#b91c1c}
-  table{width:100%;border-collapse:collapse;background:var(--admin-panel-bg)}
-  th,td{border:1px solid var(--admin-border);padding:.5rem .6rem;text-align:right}
-  input,select,textarea{font:inherit;padding:.5rem;border:1px solid var(--admin-border);border-radius:.5rem;width:100%;box-sizing:border-box;background:var(--admin-panel-bg);color:var(--admin-text)}
-  label{display:block;margin-bottom:.8rem}
-  .flash{background:#e8f7ee;border:1px solid #34a853;border-radius:.5rem;padding:.6rem 1rem;margin-bottom:1rem;color:#14532d}
-  .error{background:#fdecec;border:1px solid #d33;border-radius:.5rem;padding:.6rem 1rem;margin-bottom:1rem;color:#7f1d1d}
-  .muted{color:var(--admin-muted)}
-  footer{border-top:1px solid var(--admin-border);margin-top:2rem;padding-top:1rem;color:var(--admin-muted)}
-  .specs{background:var(--admin-panel-bg);border:1px solid var(--admin-border);border-radius:var(--admin-radius);padding:1rem;margin:1rem 0}
-  .specs div{display:flex;justify-content:space-between;border-bottom:1px dashed var(--admin-border);padding:.35rem 0}
-  .specs div:last-child{border-bottom:0}
+  <?= \Modules\Admin\AdminTheme::varsCss($__shopTheme) ?>
+  /* رنگ اصلی فروشگاه از همان رنگ اصلی قالب ادمین می‌آید (پیش‌فرض: همان آبی نکسوس)؛
+     قالب فروشگاه روشن می‌ماند و فقط لهجه‌ی رنگی با تنظیم ادمین هماهنگ می‌شود. */
+  .bg-blue-600{background-color:var(--admin-accent)}
+  .hover\:bg-blue-500:hover{background-color:var(--admin-accent);filter:brightness(1.08)}
+  .text-blue-600{color:var(--admin-accent)}
+  .hover\:text-blue-600:hover{color:var(--admin-accent)}
+  .bg-blue-50{background-color:color-mix(in srgb,var(--admin-accent) 8%,#fff)}
+  .border-blue-100{border-color:color-mix(in srgb,var(--admin-accent) 25%,#fff)}
+  .focus\:border-blue-500:focus{border-color:var(--admin-accent)}
 </style>
 </head>
-<body>
-<div class="shop-wrap">
-  <div class="shop-header">
-    <div class="brand"><?= e($shopTitle) ?></div>
-    <nav class="shop-nav">
-      <a href="/shop">فروشگاه</a>
-      <a href="/shop/pricelist">لیست قیمت</a>
-      <a href="/shop/track">پیگیری سفارش</a>
-      <a href="/shop/cart">سبد خرید<?= $cartCount > 0 ? ' (' . (int) $cartCount . ')' : '' ?></a>
-    </nav>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col" style="font-family:'Vazirmatn',system-ui,sans-serif">
+<header class="bg-white/95 backdrop-blur-md border-b border-slate-100 sticky top-0 z-40">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-20 gap-4">
+      <a href="/shop" class="flex items-center gap-2.5 shrink-0">
+        <span class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-700 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/25">
+          <i class="fa-solid fa-gem text-lg"></i>
+        </span>
+        <span class="text-xl font-black tracking-tight text-slate-900 leading-tight"><?= e($shopTitle) ?></span>
+      </a>
+      <nav class="flex items-center gap-2 sm:gap-3">
+        <a href="/shop" class="hidden sm:inline-block px-3 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-blue-600 hover:bg-slate-50">فروشگاه</a>
+        <a href="/shop/pricelist" class="hidden sm:inline-block px-3 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-blue-600 hover:bg-slate-50">لیست قیمت</a>
+        <a href="/shop/track" class="hidden sm:inline-block px-3 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-blue-600 hover:bg-slate-50">پیگیری سفارش</a>
+        <a href="/shop/cart" class="relative flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-blue-50 text-blue-600 hover:bg-blue-100/70 font-medium border border-blue-100">
+          <i class="fa-solid fa-bag-shopping text-lg"></i>
+          <span class="text-xs font-bold hidden sm:inline">سبد خرید</span>
+          <?php if ($cartCount > 0): ?><span class="w-5 h-5 bg-blue-600 text-white rounded-full text-xs flex items-center justify-center font-bold"><?= (int) $cartCount ?></span><?php endif; ?>
+        </a>
+      </nav>
+    </div>
+    <?php if (!empty($categories)): ?>
+    <div class="flex items-center gap-6 border-t border-slate-100 py-2.5 text-xs font-medium text-slate-600 overflow-x-auto">
+      <a href="/shop" class="flex items-center gap-2 text-slate-900 font-bold hover:text-blue-600 shrink-0">
+        <i class="fa-solid fa-bars text-blue-600"></i><span>همه‌ی کالاها</span>
+      </a>
+      <span class="w-px h-4 bg-slate-200 shrink-0"></span>
+      <?php foreach ($categories as $c): ?>
+      <a href="/shop?cat=<?= e(rawurlencode((string) $c['slug'])) ?>" class="hover:text-blue-600 shrink-0"><?= e($c['title']) ?></a>
+      <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
   </div>
-  <?= $content ?>
-  <footer><?= e($shopTitle) ?> — قدرت‌گرفته از وصله</footer>
-</div>
+</header>
+
+<main class="flex-1 pb-16">
+<?= $content ?>
+</main>
+
+<footer class="bg-slate-950 text-slate-400 text-xs border-t border-slate-800 mt-auto">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+      <div class="flex items-center gap-2.5">
+        <span class="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white"><i class="fa-solid fa-gem"></i></span>
+        <span class="text-lg font-black text-white"><?= e($shopTitle) ?></span>
+      </div>
+      <nav class="flex flex-wrap items-center gap-5">
+        <a href="/shop" class="hover:text-white">فروشگاه</a>
+        <a href="/shop/pricelist" class="hover:text-white">لیست قیمت</a>
+        <a href="/shop/track" class="hover:text-white">پیگیری سفارش</a>
+        <a href="/shop/cart" class="hover:text-white">سبد خرید</a>
+      </nav>
+    </div>
+    <div class="border-t border-slate-900 mt-8 pt-5 text-slate-500 text-[11px]">
+      <p>تمامی حقوق این فروشگاه محفوظ است.</p>
+    </div>
+  </div>
+</footer>
 </body>
 </html>
