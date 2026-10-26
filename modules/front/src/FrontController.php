@@ -132,19 +132,7 @@ final class FrontController
         return $this->back('/admin/leads', 'درخواست حذف شد.');
     }
 
-    public function landingSettings(Request $request): Response
-    {
-        if (($r = $this->requireOwner()) !== null) {
-            return $r;
-        }
-        return $this->page('landing_settings', [
-            'prices' => $this->landing()->prices(),
-            'modules' => Landing::MODULES,
-            'flash' => (string) $request->input('msg', ''),
-        ], 'تنظیمات لندینگ');
-    }
-
-    public function landingSave(Request $request): Response
+    public function pricesSave(Request $request): Response
     {
         if (($r = $this->requireOwner()) !== null) {
             return $r;
@@ -157,7 +145,7 @@ final class FrontController
             }
         }
         $this->landing()->setPrices($input);
-        return $this->back('/admin/landing', 'قیمت‌های لندینگ ذخیره شد.');
+        return $this->back('/admin/landing/fields', 'قیمت‌های لندینگ ذخیره شد.');
     }
 
     // ---------- فیلدهای محتوای لندینگ ----------
@@ -183,6 +171,8 @@ final class FrontController
             'edit' => $edit,
             'flash' => (string) $request->input('msg', ''),
             'error' => $error,
+            'prices' => $this->landing()->prices(),
+            'modules' => Landing::MODULES,
         ], 'فیلدهای لندینگ');
     }
 

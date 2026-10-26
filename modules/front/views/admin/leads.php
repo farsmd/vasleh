@@ -27,5 +27,5 @@
       </tbody>
     </table>
   <?php endif; ?>
-  <p><a class="btn gray" href="/admin/landing">تنظیمات قیمت‌های لندینگ</a></p>
+  <p><a class="btn gray" href="/admin/landing/fields">فیلدها و قیمت‌های لندینگ</a></p>
 </div>
