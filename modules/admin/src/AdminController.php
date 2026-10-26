@@ -35,10 +35,13 @@ final class AdminController
         $weekdays = ['یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه', 'شنبه'];
 
         $sales30 = ['count' => 0, 'sum' => 0];
+        $salesPrev = ['count' => 0, 'sum' => 0];
         $recentOrders = [];
         if ($c->has('shop.orders')) {
             $o = $c->get('shop.orders');
-            $sales30 = $o->salesSince(date('Y-m-d H:i:s', time() - 30 * 86400));
+            $now = date('Y-m-d H:i:s');
+            $sales30 = $o->salesBetween(date('Y-m-d H:i:s', time() - 30 * 86400), $now);
+            $salesPrev = $o->salesBetween(date('Y-m-d H:i:s', time() - 60 * 86400), date('Y-m-d H:i:s', time() - 30 * 86400));
             $recentOrders = array_slice($o->all(), 0, 5);
         }
         $prod = ['recipes' => 0, 'planned' => 0, 'running' => 0, 'done' => 0];
@@ -50,10 +53,12 @@ final class AdminController
             $inv = $c->get('inventory.stock')->stats();
         }
         $month = ['income' => 0, 'expense' => 0, 'net' => 0];
+        $monthPrev = ['income' => 0, 'expense' => 0, 'net' => 0];
         $chart = [];
         if ($c->has('accounting.ledger')) {
             $ledger = $c->get('accounting.ledger');
             $month = $ledger->monthSummary(date('Y-m'));
+            $monthPrev = $ledger->monthSummary(date('Y-m', strtotime('first day of last month')));
             $daily = $ledger->dailyTotals(date('Y-m-d', time() - 6 * 86400), $today);
             for ($i = 6; $i >= 0; $i--) {
                 $t = time() - $i * 86400;
@@ -68,13 +73,24 @@ final class AdminController
         }
         $tasks = [];
         $username = '';
+        $csrf = '';
         if ($c->has('session')) {
-            $u = $c->get('session')->user();
+            $session = $c->get('session');
+            $csrf = $session->csrfToken();
+            $u = $session->user();
             if (is_array($u)) {
                 $username = (string) ($u['username'] ?? '');
                 if ($c->has('personal.store')) {
                     $tasks = array_slice($c->get('personal.store')->tasksForRange((int) $u['id'], $today, $today), 0, 5);
                 }
+            }
+        }
+        $version = '';
+        $versionFile = $c->get('base_path') . '/version.json';
+        if (is_file($versionFile)) {
+            $parts = json_decode((string) file_get_contents($versionFile), true);
+            if (is_array($parts)) {
+                $version = (int) $parts['core'] . '.' . (int) $parts['system'] . '.' . (int) $parts['other'];
             }
         }
         $enabledCount = 0;
@@ -89,10 +105,14 @@ final class AdminController
             'loader'  => $loader,
             'enabledCount' => $enabledCount,
             'username' => $username,
+            'version' => $version,
+            'csrf' => $csrf,
             'sales30' => $sales30,
+            'salesPrev' => $salesPrev,
             'prod' => $prod,
             'inv' => $inv,
             'month' => $month,
+            'monthPrev' => $monthPrev,
             'chart' => $chart,
             'orders' => $recentOrders,
             'tasks' => $tasks,

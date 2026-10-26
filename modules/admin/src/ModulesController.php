@@ -93,7 +93,8 @@ final class ModulesController
                 $this->log($enable ? 'فعال‌کردن ماژول' : 'غیرفعال‌کردن ماژول', $slug);
             }
         }
-        return Response::redirect('/admin/modules');
+        // بازگشت فقط به داشبورد مجاز است؛ بقیه به صفحه ماژول‌ها می‌روند.
+        return Response::redirect((string) $request->input('return', '') === '/admin' ? '/admin' : '/admin/modules');
     }
 
     public function create(Request $request): Response

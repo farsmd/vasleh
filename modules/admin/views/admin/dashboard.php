@@ -1,11 +1,17 @@
 <?php
-// داشبورد مدیریت وصله — ویجت‌های شیشه‌ای با داده واقعی (بدون عدد نمایشی).
+// داشبورد مدیریت وصله — بازسازی ساختار نمونه با داده واقعی (بدون عدد نمایشی).
 $faNum = static function (int|string $n): string {
     return strtr(number_format((int) $n), ['0' => '۰', '1' => '۱', '2' => '۲', '3' => '۳', '4' => '۴', '5' => '۵', '6' => '۶', '7' => '۷', '8' => '۸', '9' => '۹', ',' => '٬']);
 };
-$faDate = static function (string $d): string {
-    return strtr(substr($d, 0, 10), ['0' => '۰', '1' => '۱', '2' => '۲', '3' => '۳', '4' => '۴', '5' => '۵', '6' => '۶', '7' => '۷', '8' => '۸', '9' => '۹', '-' => '/']);
+$delta = static function (int $cur, int $prev) use ($faNum): array {
+    if ($prev <= 0) {
+        return ['text' => $cur > 0 ? 'شروع ثبت' : 'بدون تغییر', 'up' => $cur > 0];
+    }
+    $p = (int) round(($cur - $prev) / $prev * 100);
+    $sign = $p > 0 ? '+' : ($p < 0 ? '−' : '');
+    return ['text' => $sign . $faNum(abs($p)) . '٪ نسبت به دوره قبل', 'up' => $p >= 0];
 };
+$catDot = ['work' => 'bg-blue-500', 'personal' => 'bg-emerald-500', 'study' => 'bg-amber-500', 'health' => 'bg-rose-500'];
 $modules = $modules ?? [];
 $errors = $errors ?? [];
 $enabledCount = (int) ($enabledCount ?? 0);
@@ -17,18 +23,30 @@ foreach ($modules as $slug => $m) {
     }
 }
 $sales30 = $sales30 ?? ['count' => 0, 'sum' => 0];
+$salesPrev = $salesPrev ?? ['count' => 0, 'sum' => 0];
+$salesDelta = $delta((int) $sales30['sum'], (int) $salesPrev['sum']);
 $prod = $prod ?? ['planned' => 0, 'running' => 0, 'done' => 0];
 $inv = $inv ?? ['items' => 0, 'low' => 0];
 $month = $month ?? ['income' => 0, 'expense' => 0, 'net' => 0];
+$monthPrev = $monthPrev ?? ['income' => 0, 'expense' => 0, 'net' => 0];
+$profitDelta = $delta((int) $month['net'], (int) $monthPrev['net']);
 $chart = $chart ?? [];
 $chartMax = 1;
+$chartIncome = 0;
+$chartExpense = 0;
 foreach ($chart as $day) {
     $chartMax = max($chartMax, (int) $day['income'], (int) $day['expense']);
+    $chartIncome += (int) $day['income'];
+    $chartExpense += (int) $day['expense'];
 }
 $chartHasData = $chartMax > 1;
 $orders = $orders ?? [];
 $tasks = $tasks ?? [];
 $orderStatuses = $orderStatuses ?? [];
+$latest = $orders[0] ?? null;
+$stages = ['new', 'processing', 'shipped', 'delivered'];
+$stageIdx = $latest ? array_search((string) $latest['status'], $stages, true) : false;
+$toggleSlugs = ['shop', 'inventory', 'production', 'accounting'];
 ?>
 <div class="space-y-8">
 
@@ -41,6 +59,9 @@ $orderStatuses = $orderStatuses ?? [];
             <span class="px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-400 text-xs font-bold border border-rose-500/30"><?= $faNum($errorCount) ?> ماژول خطا دارد</span>
           <?php else: ?>
             <span class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-bold border border-emerald-500/30">سیستم سالم • تمامی سرویس‌ها فعال</span>
+          <?php endif; ?>
+          <?php if (!empty($version)): ?>
+            <span class="px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 text-xs font-mono font-bold border border-blue-500/20">نسخه <?= e($version) ?></span>
           <?php endif; ?>
           <span class="text-slate-500 dark:text-slate-400 text-xs"><?= $faNum($enabledCount) ?> ماژول فعال از <?= $faNum($totalModules) ?></span>
         </div>
@@ -87,14 +108,14 @@ $orderStatuses = $orderStatuses ?? [];
         <span class="text-xs text-slate-500 dark:text-slate-400">تومان</span>
       </div>
       <div class="flex items-center justify-between text-xs">
-        <span class="text-emerald-500 dark:text-emerald-400 font-bold"><?= $faNum((int) $sales30['count']) ?> سفارش در ۳۰ روز</span>
-        <a href="/admin/shop/orders" class="text-slate-500 dark:text-slate-400 hover:text-blue-500">سفارش‌ها</a>
+        <span class="<?= $salesDelta['up'] ? 'text-emerald-500 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400' ?> font-bold"><?= e($salesDelta['text']) ?></span>
+        <a href="/admin/shop/orders" class="text-slate-500 dark:text-slate-400 hover:text-blue-500"><?= $faNum((int) $sales30['count']) ?> سفارش</a>
       </div>
     </div>
 
     <div class="glass-panel rounded-2xl p-5 glass-card-hover relative overflow-hidden">
       <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-3">
-        <span class="text-xs font-bold">خط تولید فعال</span>
+        <span class="text-xs font-bold">سفارش تولید فعال</span>
         <div class="w-9 h-9 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center border border-purple-500/20">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
         </div>
@@ -111,7 +132,7 @@ $orderStatuses = $orderStatuses ?? [];
 
     <div class="glass-panel rounded-2xl p-5 glass-card-hover relative overflow-hidden">
       <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-3">
-        <span class="text-xs font-bold">هشدار کمبود انبار</span>
+        <span class="text-xs font-bold">اقلام کم‌موجودی</span>
         <div class="w-9 h-9 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center border border-rose-500/20">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
         </div>
@@ -138,10 +159,48 @@ $orderStatuses = $orderStatuses ?? [];
         <span class="text-xs text-slate-500 dark:text-slate-400">تومان</span>
       </div>
       <div class="flex items-center justify-between text-xs">
-        <span class="text-emerald-500 dark:text-emerald-400 font-bold">درآمد <?= $faNum((int) $month['income']) ?></span>
-        <span class="text-slate-500 dark:text-slate-400">هزینه <?= $faNum((int) $month['expense']) ?></span>
+        <span class="<?= $profitDelta['up'] ? 'text-emerald-500 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400' ?> font-bold"><?= e($profitDelta['text']) ?></span>
+        <span class="text-slate-500 dark:text-slate-400">درآمد <?= $faNum((int) $month['income']) ?></span>
       </div>
     </div>
+  </div>
+
+  <div class="glass-panel rounded-2xl p-6 border border-slate-800">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+      <div>
+        <h3 class="text-base font-bold text-slate-900 dark:text-white">زنجیره زنده سفارش</h3>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">مسیر تازه‌ترین سفارش فروشگاه از ثبت تا تحویل</p>
+      </div>
+      <?php if ($latest): ?>
+        <span class="text-xs text-slate-500 dark:text-slate-400 font-mono"><?= e($latest['code']) ?> • <?= e($latest['customer_name']) ?></span>
+      <?php endif; ?>
+    </div>
+    <?php if (!$latest): ?>
+      <p class="text-xs text-slate-500 dark:text-slate-400">هنوز سفارشی ثبت نشده است.</p>
+    <?php elseif ((string) $latest['status'] === 'cancelled'): ?>
+      <p class="text-xs text-rose-500 dark:text-rose-400 font-bold">تازه‌ترین سفارش (<?= e($latest['code']) ?>) لغو شده است.</p>
+    <?php else: ?>
+      <div class="relative">
+        <div class="absolute top-4 right-0 left-0 h-1 bg-slate-200 dark:bg-slate-800 rounded-full"></div>
+        <div class="absolute top-4 right-0 h-1 bg-blue-500 rounded-full transition-all" style="width: <?= (int) round($stageIdx / 3 * 100) ?>%"></div>
+        <div class="relative flex justify-between">
+          <?php foreach ($stages as $i => $st): ?>
+          <div class="flex flex-col items-center gap-2 text-center w-20">
+            <?php if ($i < $stageIdx): ?>
+              <span class="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+              </span>
+            <?php elseif ($i === $stageIdx): ?>
+              <span class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-600/40 ring-4 ring-blue-500/20 animate-pulse font-bold text-xs"><?= $faNum($i + 1) ?></span>
+            <?php else: ?>
+              <span class="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center font-bold text-xs"><?= $faNum($i + 1) ?></span>
+            <?php endif; ?>
+            <span class="text-[11px] <?= $i === $stageIdx ? 'text-blue-500 dark:text-blue-400 font-bold' : 'text-slate-500 dark:text-slate-400' ?>"><?= e($orderStatuses[$st] ?? $st) ?></span>
+          </div>
+          <?php endforeach; ?>
+        </div>
+      </div>
+    <?php endif; ?>
   </div>
 
   <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -159,8 +218,8 @@ $orderStatuses = $orderStatuses ?? [];
           <?php foreach ($chart as $day): ?>
           <div class="flex-1 flex flex-col items-center gap-2">
             <div class="w-full flex items-end justify-center gap-1 h-48">
-              <div style="height: <?= max(2, (int) round(((int) $day['income'] / $chartMax) * 100)) ?>%;" class="w-3 sm:w-5 bg-blue-500 rounded-t-md" title="درآمد <?= $faNum((int) $day['income']) ?>"></div>
-              <div style="height: <?= max(2, (int) round(((int) $day['expense'] / $chartMax) * 100)) ?>%;" class="w-3 sm:w-5 bg-rose-500/70 rounded-t-md" title="هزینه <?= $faNum((int) $day['expense']) ?>"></div>
+              <div style="height: <?= max(2, (int) round(((int) $day['income'] / $chartMax) * 100)) ?>%;" class="w-3 sm:w-5 bg-gradient-to-t from-blue-600 to-cyan-400 rounded-t-md" title="درآمد <?= $faNum((int) $day['income']) ?>"></div>
+              <div style="height: <?= max(2, (int) round(((int) $day['expense'] / $chartMax) * 100)) ?>%;" class="w-3 sm:w-5 bg-gradient-to-t from-rose-600 to-rose-400/70 rounded-t-md" title="هزینه <?= $faNum((int) $day['expense']) ?>"></div>
             </div>
             <span class="text-[11px] text-slate-500 dark:text-slate-400"><?= e($day['day']) ?></span>
           </div>
@@ -169,11 +228,11 @@ $orderStatuses = $orderStatuses ?? [];
         <div class="flex items-center justify-center gap-6 pt-4 text-xs">
           <div class="flex items-center gap-2">
             <span class="w-3 h-3 rounded bg-blue-500"></span>
-            <span class="text-slate-600 dark:text-slate-300">درآمد</span>
+            <span class="text-slate-600 dark:text-slate-300">درآمد <?= $faNum($chartIncome) ?></span>
           </div>
           <div class="flex items-center gap-2">
             <span class="w-3 h-3 rounded bg-rose-500/70"></span>
-            <span class="text-slate-600 dark:text-slate-300">هزینه</span>
+            <span class="text-slate-600 dark:text-slate-300">هزینه <?= $faNum($chartExpense) ?></span>
           </div>
         </div>
       <?php endif; ?>
@@ -194,7 +253,7 @@ $orderStatuses = $orderStatuses ?? [];
           <div class="space-y-3">
             <?php foreach ($tasks as $t): ?>
             <div class="flex items-start gap-3 p-2.5 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80">
-              <span class="w-4 h-4 mt-0.5 rounded border border-slate-300 dark:border-slate-700 flex items-center justify-center text-[10px] <?= !empty($t['done']) ? 'bg-emerald-500 text-white border-emerald-500' : 'text-transparent' ?>">✓</span>
+              <span class="w-2.5 h-2.5 mt-1.5 rounded-full shrink-0 <?= $catDot[$t['category'] ?? ''] ?? 'bg-slate-500' ?>"></span>
               <div class="text-xs">
                 <span class="<?= !empty($t['done']) ? 'line-through text-slate-500' : 'text-slate-800 dark:text-slate-200 font-semibold' ?>"><?= e($t['title']) ?></span>
                 <span class="text-[10px] text-slate-500 dark:text-slate-400 block"><?= ($t['hour'] ?? '') === 'all-day' ? 'تمام‌روز' : e((string) ($t['hour'] ?? '')) ?></span>
@@ -214,25 +273,27 @@ $orderStatuses = $orderStatuses ?? [];
     <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
       <div>
         <h3 class="text-base font-bold text-slate-900 dark:text-white">ماژول‌های سیستم وصله</h3>
-        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">وضعیت فعال/غیرفعال؛ مدیریت از صفحه ماژول‌ها</p>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">روشن/خاموش از همین‌جا؛ بقیه ماژول‌ها در صفحه مدیریت ماژول‌ها</p>
       </div>
       <a href="/admin/modules" class="text-xs text-blue-500 hover:text-blue-400 font-bold">مدیریت ماژول‌ها</a>
     </div>
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      <?php foreach ($modules as $slug => $m): ?>
-      <a href="/admin/modules" class="p-4 rounded-xl bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 flex items-center justify-between hover:border-blue-500/50 transition-colors">
-        <div>
-          <div class="text-xs font-bold text-slate-900 dark:text-white"><?= e($m['title']) ?></div>
-          <div class="text-[10px] text-slate-500 dark:text-slate-400">نسخه <?= e($m['version']) ?> • <code><?= e($slug) ?></code></div>
+      <?php foreach ($toggleSlugs as $slug): ?>
+        <?php if (!isset($modules[$slug])) continue; ?>
+        <?php $m = $modules[$slug]; $on = $loader->isEnabled($slug); ?>
+        <div class="p-4 rounded-xl bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+          <div>
+            <div class="text-xs font-bold text-slate-900 dark:text-white"><?= e($m['title']) ?></div>
+            <div class="text-[10px] text-slate-500 dark:text-slate-400">نسخه <?= e($m['version']) ?></div>
+          </div>
+          <form method="post" action="/admin/modules/toggle/<?= e($slug) ?>" class="flex items-center gap-2 shrink-0">
+            <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
+            <input type="hidden" name="return" value="/admin">
+            <button type="submit" title="<?= $on ? 'غیرفعال‌کردن' : 'فعال‌کردن' ?>" class="relative w-11 h-6 rounded-full transition-colors <?= $on ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700' ?>">
+              <span class="absolute top-0.5 <?= $on ? 'left-0.5' : 'right-0.5' ?> w-5 h-5 rounded-full bg-white shadow"></span>
+            </button>
+          </form>
         </div>
-        <?php if (!empty($errors[$slug])): ?>
-          <span class="text-[10px] bg-rose-500/10 text-rose-500 dark:text-rose-400 px-2 py-0.5 rounded font-bold">خطا</span>
-        <?php elseif ($loader->isEnabled($slug)): ?>
-          <span class="text-[10px] bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 px-2 py-0.5 rounded font-bold">فعال</span>
-        <?php else: ?>
-          <span class="text-[10px] bg-slate-500/10 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded font-bold">غیرفعال</span>
-        <?php endif; ?>
-      </a>
       <?php endforeach; ?>
     </div>
   </div>
@@ -254,10 +315,9 @@ $orderStatuses = $orderStatuses ?? [];
             <tr>
               <th class="p-4">کد رهگیری</th>
               <th class="p-4">مشتری</th>
-              <th class="p-4">مبلغ</th>
               <th class="p-4">وضعیت سفارش</th>
               <th class="p-4">وضعیت پرداخت</th>
-              <th class="p-4">تاریخ</th>
+              <th class="p-4">مبلغ</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-200 dark:divide-slate-800/60">
@@ -265,10 +325,9 @@ $orderStatuses = $orderStatuses ?? [];
             <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
               <td class="p-4 font-mono font-bold text-cyan-600 dark:text-cyan-400"><?= e($o['code']) ?></td>
               <td class="p-4 font-semibold text-slate-900 dark:text-white"><?= e($o['customer_name']) ?></td>
-              <td class="p-4 font-bold text-slate-900 dark:text-white"><?= $faNum((int) $o['total']) ?> ت</td>
               <td class="p-4"><?= e($orderStatuses[$o['status']] ?? $o['status']) ?></td>
               <td class="p-4"><?= ($o['payment_status'] === 'paid') ? 'پرداخت شده' : 'پرداخت نشده' ?></td>
-              <td class="p-4"><?= $faDate((string) $o['created_at']) ?></td>
+              <td class="p-4 font-bold text-slate-900 dark:text-white"><?= $faNum((int) $o['total']) ?> ت</td>
             </tr>
             <?php endforeach; ?>
           </tbody>

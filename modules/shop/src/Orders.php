@@ -202,13 +202,13 @@ final class Orders
         return ['orders' => $count, 'new' => $new, 'sales' => $sum];
     }
 
-    /** فروش سفارش‌های لغونشده از تاریخ داده‌شده (Y-m-d H:i:s) به بعد. */
-    public function salesSince(string $from): array
+    /** فروش سفارش‌های لغونشده در بازه [from, to) با تاریخ Y-m-d H:i:s. */
+    public function salesBetween(string $from, string $to): array
     {
         $stmt = $this->pdo()->prepare(
-            "SELECT COUNT(*) AS n, COALESCE(SUM(total), 0) AS s FROM shop_orders WHERE status != 'cancelled' AND created_at >= :f"
+            "SELECT COUNT(*) AS n, COALESCE(SUM(total), 0) AS s FROM shop_orders WHERE status != 'cancelled' AND created_at >= :f AND created_at < :t"
         );
-        $stmt->execute(['f' => $from]);
+        $stmt->execute(['f' => $from, 't' => $to]);
         $row = $stmt->fetch(\PDO::FETCH_ASSOC) ?: [];
         return ['count' => (int) ($row['n'] ?? 0), 'sum' => (int) ($row['s'] ?? 0)];
     }

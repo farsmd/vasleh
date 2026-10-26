@@ -260,7 +260,27 @@ final class ModuleLoader
                 $items[] = $item;
             }
         }
+        // ترتیب سفارشی آیتم‌ها از پنل (storage/menu-order.json)؛ آیتم‌های
+        // فهرست‌نشده ترتیب پیش‌فرض خود را در انتها حفظ می‌کنند.
+        $orderFile = dirname($this->stateFile) . '/menu-order.json';
+        if (is_file($orderFile)) {
+            $data = json_decode((string) file_get_contents($orderFile), true);
+            $order = is_array($data['order'] ?? null) ? array_values(array_map('strval', $data['order'])) : [];
+            if ($order !== []) {
+                $pos = array_flip($order);
+                usort($items, static fn (array $a, array $b): int => ($pos[(string) ($a['path'] ?? '')] ?? PHP_INT_MAX) <=> ($pos[(string) ($b['path'] ?? '')] ?? PHP_INT_MAX));
+            }
+        }
         return $items;
+    }
+
+    /** ذخیره ترتیب کامل آیتم‌های منو (فهرست مسیرها) به‌صورت اتمیک. */
+    public function saveMenuOrder(array $order): void
+    {
+        $file = dirname($this->stateFile) . '/menu-order.json';
+        $tmp = $file . '.tmp' . bin2hex(random_bytes(4));
+        file_put_contents($tmp, json_encode(['order' => array_values(array_map('strval', $order))], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+        rename($tmp, $file);
     }
 
     /** دسترسی‌های اعلام‌شده از همه ماژول‌ها: key => label */
