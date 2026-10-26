@@ -33,6 +33,7 @@ return [
 
     'migrate' => static function (Container $c): void {
         $c->get('personal.store')->migrate();
+        $c->get('personal.store')->migrateTaskyar();
     },
 
     'admin_menu' => [
@@ -40,10 +41,13 @@ return [
     ],
 
     'routes' => static function (Router $router, Container $c, string $module): void {
-        $router->get('/me', [MeController::class, 'dashboard'], $module);
-        $router->get('/me/day', [MeController::class, 'day'], $module);
-        $router->get('/me/week', [MeController::class, 'week'], $module);
-        $router->get('/me/todos', [MeController::class, 'todos'], $module);
+        $router->get('/me', [MeController::class, 'tasks'], $module);
+        $router->get('/me/day', [MeController::class, 'dayRedirect'], $module);
+        $router->get('/me/week', [MeController::class, 'weekRedirect'], $module);
+        $router->get('/me/todos', [MeController::class, 'todosRedirect'], $module);
+        $router->post('/me/task', [MeController::class, 'taskSave'], $module);
+        $router->post('/me/task/{kind}/{id}/toggle', [MeController::class, 'taskToggleAction'], $module);
+        $router->post('/me/task/{kind}/{id}/delete', [MeController::class, 'taskDeleteAction'], $module);
         $router->post('/me/todos', [MeController::class, 'todoCreate'], $module);
         $router->post('/me/todos/{id}/toggle', [MeController::class, 'todoToggle'], $module);
         $router->post('/me/todos/{id}/delete', [MeController::class, 'todoDelete'], $module);

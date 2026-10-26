@@ -197,6 +197,227 @@ final class Personal
         return self::faWeekday($date);
     }
 
+    /** افزودن ستون‌های ناموجود (الگوی مهاجرت bare در cms). */
+    private function ensureColumns(string $table, array $columns): void
+    {
+        $pdo = $this->pdo();
+        $existing = [];
+        foreach ($pdo->query("PRAGMA table_info({$table})")->fetchAll(\PDO::FETCH_ASSOC) as $col) {
+            $existing[] = (string) $col['name'];
+        }
+        foreach ($columns as $name => $definition) {
+            if (!in_array($name, $existing, true)) {
+                $pdo->exec("ALTER TABLE {$table} ADD COLUMN {$name} {$definition}");
+            }
+        }
+    }
+
+    /** ستون‌های نمای تسک‌یار: دسته، اولویت، مدت و یادداشت + تیک رویداد. */
+    public function migrateTaskyar(): void
+    {
+        $this->ensureColumns('pl_todos', [
+            'category' => "TEXT NOT NULL DEFAULT 'personal'",
+            'priority' => "TEXT NOT NULL DEFAULT 'medium'",
+            'duration' => 'INTEGER NOT NULL DEFAULT 30',
+            'note' => "TEXT NOT NULL DEFAULT ''",
+        ]);
+        $this->ensureColumns('pl_events', [
+            'category' => "TEXT NOT NULL DEFAULT 'personal'",
+            'priority' => "TEXT NOT NULL DEFAULT 'medium'",
+            'duration' => 'INTEGER NOT NULL DEFAULT 30',
+            'done' => 'INTEGER NOT NULL DEFAULT 0',
+        ]);
+    }
+
+    /** شنبه هفته‌ای که تاریخ داده‌شده در آن است (هفته ایرانی شنبه تا جمعه). */
+    public static function weekSaturday(string $date): string
+    {
+        $uiDay = ((int) date('w', strtotime($date)) + 1) % 7; // 0=شنبه
+        return date('Y-m-d', strtotime($date . " -{$uiDay} days"));
+    }
+
+    /** شاخص روز هفته در تقویم ایرانی: 0=شنبه … 6=جمعه. */
+    public static function uiDay(string $date): int
+    {
+        return ((int) date('w', strtotime($date)) + 1) % 7;
+    }
+
+    /**
+     * تسک‌های یکپارچه در بازه تاریخی: تودوها (تمام‌روز) + رویدادها (ساعت‌دار).
+     * تودوهای بدون تاریخ هم همیشه برمی‌گردند (بخش «بدون تاریخ» در نما).
+     *
+     * @return list<array{kind:string,id:int,title:string,category:string,priority:string,date:string,day:int|null,hour:string,end:string,duration:int,note:string,done:int}>
+     */
+    public function tasksForRange(int $userId, string $from, string $to): array
+    {
+        $pdo = $this->pdo();
+        $tasks = [];
+        $stmt = $pdo->prepare(
+            'SELECT * FROM pl_todos WHERE user_id = :u AND (due_date BETWEEN :a AND :b OR due_date = \'\')
+             ORDER BY due_date, id'
+        );
+        $stmt->execute(['u' => $userId, 'a' => $from, 'b' => $to]);
+        foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $t) {
+            $date = (string) $t['due_date'];
+            $tasks[] = [
+                'kind' => 'todo', 'id' => (int) $t['id'], 'title' => (string) $t['title'],
+                'category' => (string) ($t['category'] ?? 'personal'),
+                'priority' => (string) ($t['priority'] ?? 'medium'),
+                'date' => $date, 'day' => $date === '' ? null : self::uiDay($date),
+                'hour' => 'all-day', 'end' => '',
+                'duration' => (int) ($t['duration'] ?? 30), 'note' => (string) ($t['note'] ?? ''),
+                'done' => (int) $t['done'],
+            ];
+        }
+        $stmt = $pdo->prepare(
+            'SELECT * FROM pl_events WHERE user_id = :u AND date BETWEEN :a AND :b ORDER BY date, start_time, id'
+        );
+        $stmt->execute(['u' => $userId, 'a' => $from, 'b' => $to]);
+        foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $ev) {
+            $date = (string) $ev['date'];
+            $tasks[] = [
+                'kind' => 'event', 'id' => (int) $ev['id'], 'title' => (string) $ev['title'],
+                'category' => (string) ($ev['category'] ?? 'personal'),
+                'priority' => (string) ($ev['priority'] ?? 'medium'),
+                'date' => $date, 'day' => self::uiDay($date),
+                'hour' => (string) $ev['start_time'], 'end' => (string) $ev['end_time'],
+                'duration' => (int) ($ev['duration'] ?? 30), 'note' => (string) $ev['note'],
+                'done' => (int) ($ev['done'] ?? 0),
+            ];
+        }
+        return $tasks;
+    }
+
+    public function taskByKind(int $userId, string $kind, int $id): ?array
+    {
+        $table = $kind === 'event' ? 'pl_events' : 'pl_todos';
+        $stmt = $this->pdo()->prepare("SELECT * FROM {$table} WHERE id = :id AND user_id = :u");
+        $stmt->execute(['id' => $id, 'u' => $userId]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+        if ($row === false) {
+            return null;
+        }
+        $date = (string) ($row['due_date'] ?? $row['date'] ?? '');
+        return [
+            'kind' => $kind, 'id' => (int) $row['id'], 'title' => (string) $row['title'],
+            'category' => (string) ($row['category'] ?? 'personal'),
+            'priority' => (string) ($row['priority'] ?? 'medium'),
+            'date' => $date, 'day' => $date === '' ? null : self::uiDay($date),
+            'hour' => $kind === 'event' ? (string) $row['start_time'] : 'all-day',
+            'end' => $kind === 'event' ? (string) $row['end_time'] : '',
+            'duration' => (int) ($row['duration'] ?? 30), 'note' => (string) ($row['note'] ?? ''),
+            'done' => (int) $row['done'],
+        ];
+    }
+
+    /**
+     * ساخت تسک: ساعت all-day → تودو، وگرنه رویداد (پایان = شروع + مدت).
+     *
+     * @return array{kind:string,id:int}|null
+     */
+    public function taskCreate(int $userId, array $f): ?array
+    {
+        $title = trim((string) ($f['title'] ?? ''));
+        $date = (string) ($f['date'] ?? '');
+        $hour = (string) ($f['hour'] ?? 'all-day');
+        if ($title === '' || !self::validDate($date)) {
+            return null;
+        }
+        $category = in_array($f['category'] ?? '', ['work', 'personal', 'study', 'health'], true) ? (string) $f['category'] : 'personal';
+        $priority = in_array($f['priority'] ?? '', ['high', 'medium', 'low'], true) ? (string) $f['priority'] : 'medium';
+        $duration = max(5, (int) ($f['duration'] ?? 30));
+        $note = trim((string) ($f['note'] ?? ''));
+        if ($hour === 'all-day' || $hour === '' || !self::validTime($hour)) {
+            $id = $this->todoCreate($userId, $title, $date);
+            $this->pdo()->prepare(
+                'UPDATE pl_todos SET category = :c, priority = :p, duration = :d, note = :n WHERE id = :id'
+            )->execute(['c' => $category, 'p' => $priority, 'd' => $duration, 'n' => $note, 'id' => $id]);
+            return ['kind' => 'todo', 'id' => $id];
+        }
+        $end = date('H:i', min(strtotime($date . ' ' . $hour) + $duration * 60, strtotime($date . ' 23:59')));
+        $id = $this->eventCreate($userId, $title, $date, $hour, $end, $note);
+        $this->pdo()->prepare(
+            'UPDATE pl_events SET category = :c, priority = :p, duration = :d WHERE id = :id'
+        )->execute(['c' => $category, 'p' => $priority, 'd' => $duration, 'id' => $id]);
+        return ['kind' => 'event', 'id' => $id];
+    }
+
+    /**
+     * ویرایش تسک؛ اگر نوع ساعت عوض شود (تمام‌روز ↔ ساعت‌دار) تسک تبدیل
+     * می‌شود و هویت تازه برمی‌گردد.
+     *
+     * @return array{kind:string,id:int}|null
+     */
+    public function taskUpdate(int $userId, string $kind, int $id, array $f): ?array
+    {
+        $existing = $this->taskByKind($userId, $kind, $id);
+        if ($existing === null) {
+            return null;
+        }
+        $title = trim((string) ($f['title'] ?? ''));
+        $date = (string) ($f['date'] ?? '');
+        $hour = (string) ($f['hour'] ?? 'all-day');
+        if ($title === '' || !self::validDate($date)) {
+            return null;
+        }
+        $newKind = ($hour === 'all-day' || $hour === '' || !self::validTime($hour)) ? 'todo' : 'event';
+        if ($newKind !== $kind) {
+            $this->taskDelete($userId, $kind, $id);
+            $created = $this->taskCreate($userId, $f);
+            if ($created !== null && (int) $existing['done'] === 1) {
+                $this->taskToggle($userId, $created['kind'], $created['id']);
+            }
+            return $created;
+        }
+        $category = in_array($f['category'] ?? '', ['work', 'personal', 'study', 'health'], true) ? (string) $f['category'] : 'personal';
+        $priority = in_array($f['priority'] ?? '', ['high', 'medium', 'low'], true) ? (string) $f['priority'] : 'medium';
+        $duration = max(5, (int) ($f['duration'] ?? 30));
+        $note = trim((string) ($f['note'] ?? ''));
+        $pdo = $this->pdo();
+        if ($kind === 'event') {
+            $end = date('H:i', min(strtotime($date . ' ' . $hour) + $duration * 60, strtotime($date . ' 23:59')));
+            $stmt = $pdo->prepare(
+                'UPDATE pl_events SET title = :t, date = :d, start_time = :s, end_time = :e, note = :n,
+                 category = :c, priority = :p, duration = :du WHERE id = :id AND user_id = :u'
+            );
+            $stmt->execute([
+                't' => $title, 'd' => $date, 's' => $hour, 'e' => $end, 'n' => $note,
+                'c' => $category, 'p' => $priority, 'du' => $duration, 'id' => $id, 'u' => $userId,
+            ]);
+        } else {
+            $stmt = $pdo->prepare(
+                'UPDATE pl_todos SET title = :t, due_date = :d, category = :c, priority = :p,
+                 duration = :du, note = :n WHERE id = :id AND user_id = :u'
+            );
+            $stmt->execute([
+                't' => $title, 'd' => $date, 'c' => $category, 'p' => $priority,
+                'du' => $duration, 'n' => $note, 'id' => $id, 'u' => $userId,
+            ]);
+        }
+        return $this->taskByKind($userId, $kind, $id);
+    }
+
+    public function taskToggle(int $userId, string $kind, int $id): ?int
+    {
+        $table = $kind === 'event' ? 'pl_events' : 'pl_todos';
+        $stmt = $this->pdo()->prepare("UPDATE {$table} SET done = 1 - done WHERE id = :id AND user_id = :u");
+        $stmt->execute(['id' => $id, 'u' => $userId]);
+        if ($stmt->rowCount() === 0) {
+            return null;
+        }
+        $task = $this->taskByKind($userId, $kind, $id);
+        return $task === null ? null : (int) $task['done'];
+    }
+
+    public function taskDelete(int $userId, string $kind, int $id): void
+    {
+        if ($kind === 'event') {
+            $this->eventDelete($userId, $id);
+        } else {
+            $this->todoDelete($userId, $id);
+        }
+    }
+
     // ---------- تودو ----------
 
     public function todos(int $userId): array

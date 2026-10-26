@@ -43,24 +43,6 @@ final class MeController
         return $this->session()->validCsrf($request->input('_csrf'));
     }
 
-    private function page(Request $request, string $view, array $data, string $title, string $tab): Response
-    {
-        $session = $this->session();
-        $inner = View::render('personal', 'me', $view, $data + [
-            'csrf' => $session->csrfToken(),
-            'flash' => $request->input('msg'),
-            'error' => $request->input('err'),
-        ]);
-        return Response::html(View::render('personal', 'me', 'layout', [
-            'title' => $title,
-            'content' => $inner,
-            'user' => $session->user(),
-            'tab' => $tab,
-            'flash' => $request->input('msg'),
-            'error' => $request->input('err'),
-        ]));
-    }
-
     private function back(string $path, string $msg = '', string $err = ''): Response
     {
         $q = [];
@@ -90,38 +72,10 @@ final class MeController
         ]);
     }
 
-    // ---------- داشبورد ----------
+    // ---------- تسک‌یار ----------
 
-    public function dashboard(Request $request): Response
-    {
-        if (($r = $this->requireUser()) !== null) {
-            return $r;
-        }
-        $user = $this->user();
-        $uid = (int) $user['id'];
-        $today = date('Y-m-d');
-        $store = $this->store();
-        return $this->page($request, 'dashboard', [
-            'today' => $today,
-            'today_label' => Personal::dayLabel($today) . '، ' . Personal::faWeekday($today) . ' ' . Personal::bothDates($today),
-            'events' => $store->eventsForDay($uid, $today),
-            'todos' => array_slice(array_filter(
-                $store->todos($uid),
-                static fn (array $t): bool => (int) $t['done'] === 0
-            ), 0, 20),
-            'open_todos' => count(array_filter(
-                $store->todos($uid),
-                static fn (array $t): bool => (int) $t['done'] === 0
-            )),
-            'projects' => $store->projects($uid),
-            'notes' => $store->notes($uid),
-            'shared' => $store->sharedWithMe($uid),
-        ], 'مدیریت شخصی', 'home');
-    }
-
-    // ---------- روز و هفته ----------
-
-    public function day(Request $request): Response
+    /** صفحه اصلی مدیریت شخصی با پوسته تسک‌یار و داده یکپارچه تسک‌ها. */
+    public function tasks(Request $request): Response
     {
         if (($r = $this->requireUser()) !== null) {
             return $r;
@@ -130,52 +84,142 @@ final class MeController
         if (!Personal::validDate($date)) {
             $date = date('Y-m-d');
         }
-        $uid = (int) $this->user()['id'];
-        return $this->page($request, 'day', [
+        $weekSat = Personal::weekSaturday($date);
+        $weekSun = date('Y-m-d', strtotime($weekSat . ' +6 days'));
+        $monthFirst = substr($date, 0, 7) . '-01';
+        $monthLast = date('Y-m-t', strtotime($date));
+        $from = min($weekSat, $monthFirst);
+        $to = max($weekSun, $monthLast);
+        $view = (string) $request->input('view', 'dashboard');
+        if (!in_array($view, ['dashboard', 'hourly', 'daily', 'weekly', 'monthly'], true)) {
+            $view = 'dashboard';
+        }
+        return Response::html(View::render('personal', 'me', 'taskyar', [
+            'tasks' => $this->store()->tasksForRange((int) $this->user()['id'], $from, $to),
+            'today' => date('Y-m-d'),
             'date' => $date,
-            'label' => Personal::dayLabel($date) . '، ' . Personal::faWeekday($date) . ' ' . Personal::bothDates($date),
-            'prev' => date('Y-m-d', strtotime($date . ' -1 day')),
-            'next' => date('Y-m-d', strtotime($date . ' +1 day')),
-            'events' => $this->store()->eventsForDay($uid, $date),
-            'hours' => range(0, 23),
-        ], 'روز', 'day');
+            'weekSat' => $weekSat,
+            'weekSun' => $weekSun,
+            'monthFirst' => $monthFirst,
+            'monthLast' => $monthLast,
+            'view' => $view,
+            'csrf' => $this->session()->csrfToken(),
+            'user' => $this->user(),
+            'flash' => $request->input('msg'),
+            'error' => $request->input('err'),
+        ]));
     }
 
-    public function week(Request $request): Response
+    /** پوسته تسک‌یار برای صفحه‌های فرعی (نوت، پروژه، اشتراک). */
+    private function page2(Request $request, string $view, array $data, string $title, string $tab): Response
     {
-        if (($r = $this->requireUser()) !== null) {
-            return $r;
-        }
+        $session = $this->session();
+        $inner = View::render('personal', 'me', $view, $data + [
+            'csrf' => $session->csrfToken(),
+            'flash' => $request->input('msg'),
+            'error' => $request->input('err'),
+        ]);
+        return Response::html(View::render('personal', 'me', 'taskyar_layout', [
+            'title' => $title,
+            'content' => $inner,
+            'user' => $session->user(),
+            'tab' => $tab,
+            'flash' => $request->input('msg'),
+            'error' => $request->input('err'),
+            'public' => false,
+        ]));
+    }
+
+    // ریدایرکت مسیرهای قدیمی به نمای تازه
+    public function dayRedirect(Request $request): Response
+    {
         $date = (string) $request->input('date', date('Y-m-d'));
         if (!Personal::validDate($date)) {
             $date = date('Y-m-d');
         }
-        $monday = Personal::weekMonday($date);
-        $days = [];
-        for ($i = 0; $i < 7; $i++) {
-            $days[] = date('Y-m-d', strtotime($monday . " +{$i} days"));
+        return Response::redirect('/me?date=' . $date . '&view=daily');
+    }
+
+    public function weekRedirect(Request $request): Response
+    {
+        $date = (string) $request->input('date', date('Y-m-d'));
+        if (!Personal::validDate($date)) {
+            $date = date('Y-m-d');
         }
-        return $this->page($request, 'week', [
-            'monday' => $monday,
-            'sunday' => $days[6],
-            'prev' => date('Y-m-d', strtotime($monday . ' -7 days')),
-            'next' => date('Y-m-d', strtotime($monday . ' +7 days')),
-            'days' => $days,
-            'grouped' => $this->store()->eventsForWeek((int) $this->user()['id'], $monday),
-        ], 'هفته', 'week');
+        return Response::redirect('/me?date=' . $date . '&view=weekly');
+    }
+
+    public function todosRedirect(Request $request): Response
+    {
+        return Response::redirect('/me');
+    }
+
+    // ---------- تسک یکپارچه (JSON) ----------
+
+    public function taskSave(Request $request): Response
+    {
+        if (($r = $this->requireUser()) !== null) {
+            return $r;
+        }
+        if (!$this->csrfOk($request)) {
+            return Response::forbidden('توکن امنیتی نامعتبر است');
+        }
+        $f = [
+            'title' => trim((string) $request->input('title', '')),
+            'category' => (string) $request->input('category', 'personal'),
+            'priority' => (string) $request->input('priority', 'medium'),
+            'date' => trim((string) $request->input('date', '')),
+            'hour' => trim((string) $request->input('hour', 'all-day')),
+            'duration' => (int) $request->input('duration', 30),
+            'note' => trim((string) $request->input('note', '')),
+        ];
+        $kind = (string) $request->input('kind', '');
+        $id = (int) $request->input('id', 0);
+        $task = ($kind !== '' && $id > 0)
+            ? $this->store()->taskUpdate((int) $this->user()['id'], $kind, $id, $f)
+            : $this->store()->taskCreate((int) $this->user()['id'], $f);
+        if ($task === null) {
+            return Response::json(['ok' => false, 'error' => 'عنوان و تاریخ معتبر لازم است.'], 400);
+        }
+        return Response::json(['ok' => true, 'task' => $task]);
+    }
+
+    public function taskToggleAction(Request $request, array $params): Response
+    {
+        if (($r = $this->requireUser()) !== null) {
+            return $r;
+        }
+        if (!$this->csrfOk($request)) {
+            return Response::forbidden('توکن امنیتی نامعتبر است');
+        }
+        $done = $this->store()->taskToggle(
+            (int) $this->user()['id'],
+            (string) ($params['kind'] ?? ''),
+            (int) ($params['id'] ?? 0)
+        );
+        if ($done === null) {
+            return Response::json(['ok' => false], 404);
+        }
+        return Response::json(['ok' => true, 'done' => $done]);
+    }
+
+    public function taskDeleteAction(Request $request, array $params): Response
+    {
+        if (($r = $this->requireUser()) !== null) {
+            return $r;
+        }
+        if (!$this->csrfOk($request)) {
+            return Response::forbidden('توکن امنیتی نامعتبر است');
+        }
+        $this->store()->taskDelete(
+            (int) $this->user()['id'],
+            (string) ($params['kind'] ?? ''),
+            (int) ($params['id'] ?? 0)
+        );
+        return Response::json(['ok' => true]);
     }
 
     // ---------- تودو ----------
-
-    public function todos(Request $request): Response
-    {
-        if (($r = $this->requireUser()) !== null) {
-            return $r;
-        }
-        return $this->page($request, 'todos', [
-            'todos' => $this->store()->todos((int) $this->user()['id']),
-        ], 'کارها', 'todos');
-    }
 
     public function todoCreate(Request $request): Response
     {
@@ -267,7 +311,7 @@ final class MeController
         if (($r = $this->requireUser()) !== null) {
             return $r;
         }
-        return $this->page($request, 'notes', [
+        return $this->page2($request, 'notes', [
             'notes' => $this->store()->notes((int) $this->user()['id']),
         ], 'یادداشت‌ها', 'notes');
     }
@@ -297,7 +341,7 @@ final class MeController
         if ($note === null) {
             return Response::notFound('یادداشت پیدا نشد');
         }
-        return $this->page($request, 'note', [
+        return $this->page2($request, 'note', [
             'note' => $note,
             'shareBox' => $this->shareBox('note', (int) $note['id']),
         ], 'یادداشت', 'notes');
@@ -341,7 +385,7 @@ final class MeController
         if (($r = $this->requireUser()) !== null) {
             return $r;
         }
-        return $this->page($request, 'projects', [
+        return $this->page2($request, 'projects', [
             'projects' => $this->store()->projects((int) $this->user()['id']),
         ], 'پروژه‌ها', 'projects');
     }
@@ -379,7 +423,7 @@ final class MeController
         if ($project === null) {
             return Response::notFound('پروژه پیدا نشد');
         }
-        return $this->page($request, 'project', [
+        return $this->page2($request, 'project', [
             'project' => $project,
             'needs' => $this->store()->needs((int) $project['id']),
             'shareBox' => $this->shareBox('project', (int) $project['id']),
@@ -553,7 +597,7 @@ final class MeController
         if (($r = $this->requireUser()) !== null) {
             return $r;
         }
-        return $this->page($request, 'shared', [
+        return $this->page2($request, 'shared', [
             'shared' => $this->store()->sharedWithMe((int) $this->user()['id']),
         ], 'اشتراک‌گذاشته‌شده با من', 'shared');
     }
@@ -572,7 +616,7 @@ final class MeController
         if ($item === null) {
             return Response::notFound('یافت نشد');
         }
-        return $this->page($request, 'shared_view', [
+        return $this->page2($request, 'shared_view', [
             'type' => $type,
             'type_label' => Personal::SHAREABLE[$type],
             'item' => $item,
@@ -597,9 +641,14 @@ final class MeController
             'needs' => $resolved['type'] === 'project' ? $this->store()->needs((int) $item['id']) : [],
             'owner' => $resolved['owner'],
         ]);
-        return Response::html(View::render('personal', 'me', 'layout_public', [
+        return Response::html(View::render('personal', 'me', 'taskyar_layout', [
             'title' => (string) $item['title'],
             'content' => $inner,
+            'user' => null,
+            'tab' => '',
+            'flash' => null,
+            'error' => null,
+            'public' => true,
         ]));
     }
 }
