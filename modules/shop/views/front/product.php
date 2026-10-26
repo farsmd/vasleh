@@ -17,11 +17,7 @@
       <div class="lg:col-span-5">
         <div class="relative bg-slate-50 dark:bg-slate-800/60 rounded-3xl p-8 flex items-center justify-center border border-slate-100 dark:border-slate-800 overflow-hidden">
           <?php if ((int) $product['sale_price'] > 0): ?><span class="absolute top-4 right-4 bg-rose-500 text-white text-xs font-bold px-3 py-1 rounded-full">فروش ویژه</span><?php endif; ?>
-          <?php if (($product['image'] ?? '') !== ''): ?>
-            <img src="<?= e($product['image']) ?>" alt="<?= e($product['title']) ?>" class="w-full max-h-[380px] object-contain">
-          <?php else: ?>
-            <span class="w-32 h-32 rounded-3xl bg-slate-100 text-slate-300 flex items-center justify-center text-5xl"><i class="fa-regular fa-image"></i></span>
-          <?php endif; ?>
+          <img src="<?= e(Catalog::displayImage($product)) ?>" alt="<?= e($product['title']) ?>" class="w-full max-h-[380px] object-contain">
         </div>
       </div>
 

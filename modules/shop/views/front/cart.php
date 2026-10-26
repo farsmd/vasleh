@@ -27,8 +27,7 @@
       <?php foreach ($items as $row): ?>
       <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 border border-slate-100 dark:border-slate-800 shadow-sm flex flex-wrap items-center gap-4">
         <div class="w-20 h-20 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center overflow-hidden shrink-0">
-          <?php if (($row['product']['image'] ?? '') !== ''): ?><img src="<?= e($row['product']['image']) ?>" alt="" class="object-contain h-16">
-          <?php else: ?><span class="text-slate-300 text-2xl"><i class="fa-regular fa-image"></i></span><?php endif; ?>
+          <img src="<?= e(\Modules\Shop\Catalog::displayImage($row['product'])) ?>" alt="" class="object-contain h-16">
         </div>
         <div class="flex-1 min-w-[12rem]">
           <a href="/shop/product/<?= e(rawurlencode((string) $row['product']['slug'])) ?>" class="text-sm font-bold text-slate-800 dark:text-slate-100 hover:text-brand-600"><?= e($row['product']['title']) ?></a>

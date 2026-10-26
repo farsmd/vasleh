@@ -30,8 +30,7 @@
               <?php foreach ($items as $row): ?>
               <div class="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div class="flex items-center gap-4">
-                  <?php if (($row['product']['image'] ?? '') !== ''): ?><img src="<?= e($row['product']['image']) ?>" class="w-20 h-20 object-contain rounded-2xl bg-slate-50 dark:bg-slate-800 p-2 border border-slate-100 dark:border-slate-700">
-                  <?php else: ?><span class="w-20 h-20 rounded-2xl bg-slate-50 dark:bg-slate-800 text-slate-300 flex items-center justify-center text-2xl"><i class="fa-regular fa-image"></i></span><?php endif; ?>
+                  <img src="<?= e(\Modules\Shop\Catalog::displayImage($row['product'])) ?>" class="w-20 h-20 object-contain rounded-2xl bg-slate-50 dark:bg-slate-800 p-2 border border-slate-100 dark:border-slate-700">
                   <div>
                     <h4 class="text-xs sm:text-sm font-black text-slate-900 dark:text-white mt-0.5"><?= e($row['product']['title']) ?></h4>
                     <?php if ($row['options_text'] !== ''): ?><span class="text-xs text-slate-400"><?= e($row['options_text']) ?></span><?php endif; ?>

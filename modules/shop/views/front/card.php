@@ -3,6 +3,7 @@ $p = $product;
 $price = Catalog::effectivePrice($p);
 $wished = in_array((int) $p['id'], $wishlistIds ?? [], true);
 $hasVar = !empty($variantsMap[(int) $p['id']] ?? null);
+$img = Catalog::displayImage($p);
 $catTitles = $catTitles ?? [];
 ?>
 <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 text-slate-800 dark:text-slate-100 border border-slate-100 dark:border-slate-800 shadow-soft hover:shadow-xl transition-all duration-300 flex flex-col justify-between group">
@@ -19,13 +20,12 @@ $catTitles = $catTitles ?? [];
             <i class="<?= $wished ? 'fa-solid' : 'fa-regular' ?> fa-heart text-xs"></i>
           </button>
         </form>
-        <button onclick="shopOpenQuickView(this)" data-id="<?= (int) $p['id'] ?>" data-title="<?= e($p['title']) ?>" data-price="<?= number_format($price) ?>" data-image="<?= e($p['image'] ?? '') ?>" data-url="/shop/product/<?= e(rawurlencode((string) $p['slug'])) ?>" data-variants="<?= $hasVar ? '1' : '0' ?>" class="w-8 h-8 rounded-xl bg-white/90 dark:bg-slate-900/90 text-slate-500 hover:text-brand-600 flex items-center justify-center shadow-sm transition" title="مشاهده سریع">
+        <button onclick="shopOpenQuickView(this)" data-id="<?= (int) $p['id'] ?>" data-title="<?= e($p['title']) ?>" data-price="<?= number_format($price) ?>" data-image="<?= e($img) ?>" data-url="/shop/product/<?= e(rawurlencode((string) $p['slug'])) ?>" data-variants="<?= $hasVar ? '1' : '0' ?>" class="w-8 h-8 rounded-xl bg-white/90 dark:bg-slate-900/90 text-slate-500 hover:text-brand-600 flex items-center justify-center shadow-sm transition" title="مشاهده سریع">
           <i class="fa-regular fa-eye text-xs"></i>
         </button>
       </div>
       <a href="/shop/product/<?= e(rawurlencode((string) $p['slug'])) ?>">
-        <?php if (($p['image'] ?? '') !== ''): ?><img src="<?= e($p['image']) ?>" alt="<?= e($p['title']) ?>" class="object-contain h-40 group-hover:scale-110 transition duration-300 rounded-xl">
-        <?php else: ?><span class="w-20 h-20 rounded-2xl bg-slate-100 dark:bg-slate-700 text-slate-300 flex items-center justify-center text-3xl"><i class="fa-regular fa-image"></i></span><?php endif; ?>
+        <img src="<?= e($img) ?>" alt="<?= e($p['title']) ?>" class="object-contain h-40 group-hover:scale-110 transition duration-300 rounded-xl">
       </a>
     </div>
     <div class="mt-4">

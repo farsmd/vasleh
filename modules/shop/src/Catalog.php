@@ -150,6 +150,17 @@ final class Catalog
         return $slug === '' ? $fallback . '-' . substr(md5($title . microtime()), 0, 6) : $slug;
     }
 
+    /** تصویر نمایشی محصول: تصویر واقعی اگر هست، وگرنه یکی از ۴ طرح نمایشی محلی (چرخش بر اساس شناسه). */
+    public static function displayImage(array $product): string
+    {
+        if (($product['image'] ?? '') !== '') {
+            return (string) $product['image'];
+        }
+        $id = (int) ($product['id'] ?? 0);
+        $n = $id > 0 ? (($id - 1) % 4) + 1 : 1;
+        return '/assets/shop/demo/demo-' . $n . '.svg';
+    }
+
     public static function effectivePrice(array $row): int
     {
         $sale = (int) ($row['sale_price'] ?? 0);

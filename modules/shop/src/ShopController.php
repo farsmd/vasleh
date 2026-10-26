@@ -181,7 +181,7 @@ final class ShopController
             $out[] = [
                 'title' => (string) $p['title'],
                 'price' => Catalog::effectivePrice($p),
-                'image' => (string) ($p['image'] ?? ''),
+                'image' => Catalog::displayImage($p),
                 'url' => '/shop/product/' . rawurlencode((string) $p['slug']),
             ];
         }
