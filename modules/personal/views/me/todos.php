@@ -22,7 +22,7 @@
           <input type="checkbox" <?= (int) $t['done'] === 1 ? 'checked' : '' ?> onchange="this.form.submit()">
         </form>
         <span class="<?= (int) $t['done'] === 1 ? 'done' : '' ?>"><?= e($t['title']) ?></span>
-        <?php if ($t['due_date'] !== ''): ?><span class="muted"><?= e($t['due_date']) ?></span><?php endif; ?>
+        <?php if ($t['due_date'] !== ''): ?><span class="muted"><?= \Modules\Personal\Personal::bothDates($t['due_date']) ?></span><?php endif; ?>
         <form class="inline" method="post" action="/me/todos/<?= (int) $t['id'] ?>/delete" onsubmit="return confirm('این کار حذف شود؟')">
           <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
           <button class="btn red small">حذف</button>

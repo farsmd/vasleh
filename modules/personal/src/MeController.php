@@ -103,7 +103,7 @@ final class MeController
         $store = $this->store();
         return $this->page($request, 'dashboard', [
             'today' => $today,
-            'today_label' => Personal::dayLabel($today) . ' ' . Personal::faWeekday($today),
+            'today_label' => Personal::dayLabel($today) . '، ' . Personal::faWeekday($today) . ' ' . Personal::bothDates($today),
             'events' => $store->eventsForDay($uid, $today),
             'todos' => array_slice(array_filter(
                 $store->todos($uid),
@@ -133,7 +133,7 @@ final class MeController
         $uid = (int) $this->user()['id'];
         return $this->page($request, 'day', [
             'date' => $date,
-            'label' => Personal::dayLabel($date) . '، ' . Personal::faWeekday($date) . ' ' . $date,
+            'label' => Personal::dayLabel($date) . '، ' . Personal::faWeekday($date) . ' ' . Personal::bothDates($date),
             'prev' => date('Y-m-d', strtotime($date . ' -1 day')),
             'next' => date('Y-m-d', strtotime($date . ' +1 day')),
             'events' => $this->store()->eventsForDay($uid, $date),

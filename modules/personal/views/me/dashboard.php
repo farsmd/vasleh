@@ -24,7 +24,7 @@
           <input type="checkbox" onchange="this.form.submit()">
         </form>
         <span><?= e($t['title']) ?></span>
-        <?php if ($t['due_date'] !== ''): ?><span class="muted"><?= e($t['due_date']) ?></span><?php endif; ?>
+        <?php if ($t['due_date'] !== ''): ?><span class="muted"><?= \Modules\Personal\Personal::bothDates($t['due_date']) ?></span><?php endif; ?>
       </div>
     <?php endforeach; ?>
   <?php endif; ?>
@@ -48,7 +48,7 @@
   <?php else: ?>
     <?php foreach ($projects as $p): ?>
       <p><a href="/me/projects/<?= (int) $p['id'] ?>"><?= e($p['title']) ?></a>
-      <?php if ($p['start_date'] !== ''): ?><span class="muted"> · شروع <?= e($p['start_date']) ?></span><?php endif; ?>
+      <?php if ($p['start_date'] !== ''): ?><span class="muted"> · شروع <?= \Modules\Personal\Personal::bothDates($p['start_date']) ?></span><?php endif; ?>
       <?php if ((int) $p['hours_needed'] > 0): ?><span class="muted"> · <?= (int) $p['hours_needed'] ?> ساعت</span><?php endif; ?></p>
     <?php endforeach; ?>
   <?php endif; ?>

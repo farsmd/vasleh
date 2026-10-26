@@ -1,7 +1,7 @@
 <div class="nav2">
-  <a class="btn gray" href="/me/day?date=<?= e($prev) ?>">◀ روز قبل</a>
+  <a class="btn gray" href="/me/day?date=<?= e($prev) ?>">روز قبل ▶</a>
   <a class="btn gray" href="/me/day">امروز</a>
-  <a class="btn gray" href="/me/day?date=<?= e($next) ?>">روز بعد ▶</a>
+  <a class="btn gray" href="/me/day?date=<?= e($next) ?>">روز بعد ◀</a>
 </div>
 
 <div class="card">
