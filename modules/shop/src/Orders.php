@@ -201,4 +201,15 @@ final class Orders
         $sum = (int) $pdo->query("SELECT COALESCE(SUM(total), 0) FROM shop_orders WHERE status != 'cancelled'")->fetchColumn();
         return ['orders' => $count, 'new' => $new, 'sales' => $sum];
     }
+
+    /** فروش سفارش‌های لغونشده از تاریخ داده‌شده (Y-m-d H:i:s) به بعد. */
+    public function salesSince(string $from): array
+    {
+        $stmt = $this->pdo()->prepare(
+            "SELECT COUNT(*) AS n, COALESCE(SUM(total), 0) AS s FROM shop_orders WHERE status != 'cancelled' AND created_at >= :f"
+        );
+        $stmt->execute(['f' => $from]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC) ?: [];
+        return ['count' => (int) ($row['n'] ?? 0), 'sum' => (int) ($row['s'] ?? 0)];
+    }
 }

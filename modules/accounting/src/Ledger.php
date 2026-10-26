@@ -345,6 +345,27 @@ final class Ledger
         return $out;
     }
 
+    /** جمع روزانه درآمد/هزینه در بازه (تاریخ‌ها Y-m-d): [date => ['income'=>x,'expense'=>y]]. */
+    public function dailyTotals(string $from, string $to): array
+    {
+        $stmt = $this->pdo()->prepare(
+            'SELECT substr(date, 1, 10) AS d, kind, COALESCE(SUM(amount), 0) AS s FROM acc_transactions WHERE substr(date, 1, 10) BETWEEN :a AND :b GROUP BY d, kind'
+        );
+        $stmt->execute(['a' => $from, 'b' => $to]);
+        $out = [];
+        foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
+            $d = (string) $row['d'];
+            $kind = (string) $row['kind'];
+            if (!isset($out[$d])) {
+                $out[$d] = ['income' => 0, 'expense' => 0];
+            }
+            if ($kind === 'income' || $kind === 'expense') {
+                $out[$d][$kind] = (int) $row['s'];
+            }
+        }
+        return $out;
+    }
+
     /** ردیف‌های ماهانه از قدیم به جدید. */
     public function monthlyRows(): array
     {

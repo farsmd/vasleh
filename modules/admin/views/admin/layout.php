@@ -57,11 +57,19 @@ if (is_file($dbFile)) {
 }
 $dbSize = $faDigits(number_format($dbBytes / 1048576, 1, '.', ''));
 $phpMem = $faDigits(number_format(memory_get_usage(true) / 1048576, 1, '.', ''));
+// ویجت تاریخ هرگز نباید پوسته را بخواباند: ساخت IntlDateFormatter روی بعضی
+// بیلدهای ICU خطا می‌دهد (محلی intl ندارد و این مسیر فقط روی هاست اجرا می‌شود).
+$todayDate = $faDigits(date('Y-m-d'));
 if (class_exists('IntlDateFormatter')) {
-    $fmt = new IntlDateFormatter('fa-IR@calendar=persian', IntlDateFormatter::FULL, IntlDateFormatter::NONE, 'Asia/Tehran', IntlDateFormatter::TRADITIONALLY);
-    $todayDate = (string) $fmt->format(time());
-} else {
-    $todayDate = $faDigits(date('Y-m-d'));
+    try {
+        $fmt = new IntlDateFormatter('fa-IR@calendar=persian', IntlDateFormatter::FULL, IntlDateFormatter::NONE, 'Asia/Tehran', IntlDateFormatter::TRADITIONALLY);
+        $formatted = $fmt->format(time());
+        if (is_string($formatted) && $formatted !== '') {
+            $todayDate = $formatted;
+        }
+    } catch (Throwable $e) {
+        // همان تاریخ میلادی می‌ماند.
+    }
 }
 ?>
 <!doctype html>
@@ -107,6 +115,10 @@ if (class_exists('IntlDateFormatter')) {
     </div>
 
     <div class="flex-1 overflow-y-auto px-3 space-y-6 py-2">
+      <a href="<?= e($assetBase) ?>/admin" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm <?= $currentPath === '/admin' ? 'font-semibold bg-blue-600 text-white shadow-md shadow-blue-600/30' : 'font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all' ?>">
+        <span class="g-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg></span>
+        <span>داشبورد</span>
+      </a>
       <?php foreach ($groups as $g): ?>
       <div class="menu-group<?= $g['open'] ? ' open' : '' ?>" data-group="<?= e($g['slug']) ?>">
         <button type="button" class="group-head w-full flex items-center justify-between px-3 mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 hover:text-slate-300 transition-colors" aria-expanded="<?= $g['open'] ? 'true' : 'false' ?>">
@@ -118,6 +130,7 @@ if (class_exists('IntlDateFormatter')) {
         </button>
         <div class="group-items space-y-1<?= $g['open'] ? '' : ' hidden' ?>">
           <?php foreach ($g['items'] as $item): ?>
+            <?php if ((string) $item['path'] === '/admin') continue; ?>
             <?php $active = $isActive((string) $item['path']); ?>
             <a href="<?= e($item['path']) ?>" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm <?= $active ? 'font-semibold bg-blue-600 text-white shadow-md shadow-blue-600/30' : 'font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all' ?>">
               <span><?= e($item['label']) ?></span>
