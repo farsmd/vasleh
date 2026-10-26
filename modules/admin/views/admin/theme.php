@@ -62,7 +62,7 @@
       <h3 class="text-base font-bold text-slate-900 dark:text-white mb-4">پیش‌نمایش با تنظیمات ذخیره‌شده</h3>
       <div class="flex flex-wrap items-center gap-3 text-xs">
         <span class="px-4 py-2.5 rounded-xl text-white font-bold" style="background:var(--admin-accent)">دکمه اصلی</span>
-        <span class="px-3 py-2 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300">نمونه کارت</span>
+        <span class="px-3 py-2 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300" style="border-radius:var(--admin-radius)">نمونه کارت</span>
         <span class="text-slate-500 dark:text-slate-400">گردی و رنگ این نمونه‌ها از همان متغیرهای قالب می‌آیند.</span>
       </div>
     </div>

@@ -33,24 +33,35 @@
   </form>
 </div>
 
-<div class="card">
-  <table>
-    <tr><th>حساب</th><th>نوع</th><th>اول دوره</th><th>مانده فعلی</th><th>فعال</th><th>عملیات</th></tr>
-    <?php foreach ($accounts as $a): ?>
-    <tr>
-      <td><?= e($a['title']) ?></td>
-      <td><?= e($types[$a['type']] ?? $a['type']) ?></td>
-      <td><?= number_format((int) $a['opening_balance']) ?></td>
-      <td><strong><?= number_format((int) $a['balance']) ?></strong> <?= e($currency) ?></td>
-      <td><?= (int) $a['active'] === 1 ? 'بله' : 'خیر' ?></td>
-      <td>
-        <a class="btn yellow" href="/admin/accounting/accounts?edit=<?= (int) $a['id'] ?>">ویرایش</a>
-        <form method="post" action="/admin/accounting/accounts/delete/<?= (int) $a['id'] ?>" style="display:inline" onsubmit="return confirm('این حساب حذف شود؟ (فقط حسابی که سند ندارد)')">
-          <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
-          <button class="btn red">حذف</button>
-        </form>
-      </td>
-    </tr>
-    <?php endforeach; ?>
-  </table>
+<?php if (empty($accounts)): ?>
+  <p>هنوز حسابی نیست.</p>
+<?php else: ?>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+  <?php foreach ($accounts as $a): ?>
+  <div class="p-4 rounded-xl bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 flex flex-col gap-3">
+    <div class="flex items-start justify-between gap-2">
+      <div class="min-w-0">
+        <div class="text-xs font-bold text-slate-900 dark:text-white truncate"><?= e($a['title']) ?></div>
+        <div class="text-[10px] text-slate-500 dark:text-slate-400"><?= e($types[$a['type']] ?? $a['type']) ?><?php if (!empty($a['note'])): ?> • <?= e($a['note']) ?><?php endif; ?></div>
+      </div>
+      <?php if ((int) $a['active'] === 1): ?>
+        <span class="text-[10px] bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 px-2 py-0.5 rounded font-bold shrink-0">فعال</span>
+      <?php else: ?>
+        <span class="text-[10px] bg-slate-500/10 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded font-bold shrink-0">غیرفعال</span>
+      <?php endif; ?>
+    </div>
+    <div>
+      <div class="text-base font-black text-slate-900 dark:text-white"><?= number_format((int) $a['balance']) ?> <span class="text-[11px] font-normal text-slate-500 dark:text-slate-400"><?= e($currency) ?></span></div>
+      <div class="text-[11px] text-slate-500 dark:text-slate-400">اول دوره: <?= number_format((int) $a['opening_balance']) ?></div>
+    </div>
+    <div class="flex items-center gap-2 pt-1 mt-auto">
+      <a href="/admin/accounting/accounts?edit=<?= (int) $a['id'] ?>" class="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-bold hover:border-slate-400 dark:hover:border-slate-500">ویرایش</a>
+      <form method="post" action="/admin/accounting/accounts/delete/<?= (int) $a['id'] ?>" onsubmit="return confirm('این حساب حذف شود؟ (فقط حسابی که سند ندارد)')">
+        <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
+        <button type="submit" class="px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-500 dark:text-rose-400 text-[11px] font-bold hover:bg-rose-500/20">حذف</button>
+      </form>
+    </div>
+  </div>
+  <?php endforeach; ?>
 </div>
+<?php endif; ?>

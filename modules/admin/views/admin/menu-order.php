@@ -4,6 +4,11 @@
     <p class="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
       گروه‌ها را از دستگیره‌شان بکشید و جابه‌جا کنید؛ آیتم‌ها هم فقط داخل گروه خودشان کشیده می‌شوند (گروه یعنی ماژول صاحب آیتم). با رها کردن، ترتیب همان لحظه ذخیره می‌شود. دکمه‌های بالا/پایین هم برای جابه‌جایی دقیق باقی‌اند. داشبورد همیشه نخستین گزینه سایدبار می‌ماند و اینجا فهرست نمی‌شود.
     </p>
+    <div class="flex flex-wrap items-center gap-2 mt-4">
+      <button type="button" id="menuExpandAll" class="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold hover:border-slate-400 dark:hover:border-slate-500">باز کردن همه</button>
+      <button type="button" id="menuCollapseAll" class="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold hover:border-slate-400 dark:hover:border-slate-500">بستن همه</button>
+      <span class="text-[11px] text-slate-500 dark:text-slate-400">برای دیدن آیتم‌های یک گروه، روی عنوانش بزنید؛ گروه‌های بسته جمع‌وجور می‌مانند تا جابه‌جایی گروه‌ها راحت باشد.</span>
+    </div>
   </div>
 
   <?php if (!empty($flash)): ?>
@@ -13,11 +18,17 @@
   <div id="menuGroups" class="space-y-6">
     <?php foreach ($groups as $slug => $g): ?>
     <div class="glass-panel rounded-2xl p-5 menu-group-card" data-group="<?= e($slug) ?>">
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="text-base font-bold text-slate-900 dark:text-white"><?= e($g['title']) ?> <span class="text-xs text-slate-500 dark:text-slate-400 font-normal">— <?= e($slug) ?></span></h3>
-        <span class="drag-handle cursor-grab active:cursor-grabbing px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-xs font-bold select-none" draggable="true" data-drag="group" data-group="<?= e($slug) ?>" title="بکشید تا گروه جابه‌جا شود">⠿ بکشید</span>
+      <div class="flex items-center justify-between gap-3">
+        <button type="button" class="group-toggle flex items-center gap-2 min-w-0 text-right" data-group="<?= e($slug) ?>" title="باز/بسته کردن آیتم‌های گروه">
+          <span class="group-chevron text-slate-500 dark:text-slate-400 text-xs shrink-0 transition-transform">▶</span>
+          <span class="min-w-0">
+            <span class="text-base font-bold text-slate-900 dark:text-white block truncate"><?= e($g['title']) ?> <span class="text-xs text-slate-500 dark:text-slate-400 font-normal">— <?= e($slug) ?></span></span>
+            <span class="text-[11px] text-slate-500 dark:text-slate-400 block"><?= count($g['items']) ?> آیتم</span>
+          </span>
+        </button>
+        <span class="drag-handle cursor-grab active:cursor-grabbing px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-xs font-bold select-none shrink-0" draggable="true" data-drag="group" data-group="<?= e($slug) ?>" title="بکشید تا گروه جابه‌جا شود">⠿ بکشید</span>
       </div>
-      <div class="space-y-2 menu-items" data-group="<?= e($slug) ?>">
+      <div class="space-y-2 menu-items menu-items-body hidden mt-4" data-group="<?= e($slug) ?>">
         <?php $n = count($g['items']); ?>
         <?php foreach ($g['items'] as $i => $item): ?>
         <div class="flex items-center justify-between gap-3 p-3 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 menu-item-row" data-path="<?= e($item['path']) ?>" data-group="<?= e($slug) ?>">
@@ -58,6 +69,41 @@
   var form = document.getElementById('menuOrderForm');
   var groupsEl = document.getElementById('menuGroups');
   if (!form || !groupsEl) return;
+  // باز/بسته کردن گروه‌ها (پیش‌فرض: همه بسته تا کارت‌ها جمع‌وجور بمانند و
+  // جابه‌جایی گروه‌ها راحت باشد)؛ حالت باز در localStorage مرورگر می‌ماند.
+  var openKey = 'vasleh_menu_order_open';
+  var openGroups = {};
+  try { openGroups = JSON.parse(localStorage.getItem(openKey) || '{}') || {}; } catch (e) { openGroups = {}; }
+  function saveOpen() { try { localStorage.setItem(openKey, JSON.stringify(openGroups)); } catch (e) {} }
+  function setGroupOpen(slug, open) {
+    var card = groupsEl.querySelector('.menu-group-card[data-group="' + slug + '"]');
+    if (!card) return;
+    var body = card.querySelector('.menu-items-body');
+    var chev = card.querySelector('.group-chevron');
+    if (body) body.classList.toggle('hidden', !open);
+    if (chev) chev.style.transform = open ? 'rotate(90deg)' : 'rotate(0deg)';
+    if (open) { openGroups[slug] = 1; } else { delete openGroups[slug]; }
+  }
+  groupsEl.querySelectorAll('.menu-group-card').forEach(function (card) {
+    setGroupOpen(card.getAttribute('data-group'), !!openGroups[card.getAttribute('data-group')]);
+  });
+  groupsEl.querySelectorAll('.group-toggle').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var slug = btn.getAttribute('data-group');
+      setGroupOpen(slug, !openGroups[slug]);
+      saveOpen();
+    });
+  });
+  var expandAll = document.getElementById('menuExpandAll');
+  var collapseAll = document.getElementById('menuCollapseAll');
+  if (expandAll) expandAll.addEventListener('click', function () {
+    groupsEl.querySelectorAll('.menu-group-card').forEach(function (card) { setGroupOpen(card.getAttribute('data-group'), true); });
+    saveOpen();
+  });
+  if (collapseAll) collapseAll.addEventListener('click', function () {
+    groupsEl.querySelectorAll('.menu-group-card').forEach(function (card) { setGroupOpen(card.getAttribute('data-group'), false); });
+    saveOpen();
+  });
   var dragged = null;
   function collectAndSubmit() {
     form.querySelectorAll('input[data-order-field]').forEach(function (el) { el.remove(); });

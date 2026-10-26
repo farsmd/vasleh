@@ -280,19 +280,37 @@ $toggleSlugs = ['shop', 'inventory', 'production', 'accounting'];
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <?php foreach ($toggleSlugs as $slug): ?>
         <?php if (!isset($modules[$slug])) continue; ?>
-        <?php $m = $modules[$slug]; $on = $loader->isEnabled($slug); ?>
-        <div class="p-4 rounded-xl bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
-          <div>
-            <div class="text-xs font-bold text-slate-900 dark:text-white"><?= e($m['title']) ?></div>
-            <div class="text-[10px] text-slate-500 dark:text-slate-400">نسخه <?= e($m['version']) ?></div>
+        <?php $m = $modules[$slug]; $on = $loader->isEnabled($slug); $err = $errors[$slug] ?? null; ?>
+        <div class="p-4 rounded-xl bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 flex flex-col gap-3">
+          <div class="flex items-start justify-between gap-2">
+            <div class="min-w-0">
+              <div class="text-xs font-bold text-slate-900 dark:text-white truncate"><?= e($m['title']) ?></div>
+              <div class="text-[10px] text-slate-500 dark:text-slate-400">نسخه <?= e($m['version']) ?> • <code><?= e($slug) ?></code></div>
+            </div>
+            <?php if ($err): ?>
+              <span class="text-[10px] bg-rose-500/10 text-rose-500 dark:text-rose-400 px-2 py-0.5 rounded font-bold shrink-0">خطا</span>
+            <?php elseif ($on): ?>
+              <span class="text-[10px] bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 px-2 py-0.5 rounded font-bold shrink-0">فعال</span>
+            <?php else: ?>
+              <span class="text-[10px] bg-slate-500/10 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded font-bold shrink-0">غیرفعال</span>
+            <?php endif; ?>
           </div>
-          <form method="post" action="/admin/modules/toggle/<?= e($slug) ?>" class="flex items-center gap-2 shrink-0">
-            <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
-            <input type="hidden" name="return" value="/admin">
-            <button type="submit" title="<?= $on ? 'غیرفعال‌کردن' : 'فعال‌کردن' ?>" class="relative w-11 h-6 rounded-full transition-colors <?= $on ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700' ?>">
-              <span class="absolute top-0.5 <?= $on ? 'left-0.5' : 'right-0.5' ?> w-5 h-5 rounded-full bg-white shadow"></span>
-            </button>
-          </form>
+          <?php if (!empty($m['description'])): ?>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed"><?= e($m['description']) ?></p>
+          <?php endif; ?>
+          <?php if ($err): ?>
+            <p class="text-[11px] text-rose-500 dark:text-rose-400 leading-relaxed"><?= e($err) ?></p>
+          <?php endif; ?>
+          <div class="flex items-center justify-between gap-2 pt-1 mt-auto">
+            <a href="/admin/modules" class="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-bold hover:border-slate-400 dark:hover:border-slate-500">مدیریت</a>
+            <form method="post" action="/admin/modules/toggle/<?= e($slug) ?>" class="flex items-center shrink-0">
+              <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
+              <input type="hidden" name="return" value="/admin">
+              <button type="submit" title="<?= $on ? 'غیرفعال‌کردن' : 'فعال‌کردن' ?>" class="relative w-11 h-6 rounded-full transition-colors <?= $on ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700' ?>">
+                <span class="absolute top-0.5 <?= $on ? 'left-0.5' : 'right-0.5' ?> w-5 h-5 rounded-full bg-white shadow"></span>
+              </button>
+            </form>
+          </div>
         </div>
       <?php endforeach; ?>
     </div>

@@ -25,25 +25,32 @@
   <?php if (empty($tokens)): ?>
     <p>هنوز توکنی ساخته نشده است.</p>
   <?php else: ?>
-  <table>
-    <tr><th>نام</th><th>ساخته‌شده</th><th>آخرین استفاده</th><th>وضعیت</th><th></th></tr>
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
     <?php foreach ($tokens as $t): ?>
-    <tr>
-      <td><?= e($t['name']) ?></td>
-      <td><?= e($t['created_at']) ?></td>
-      <td><?= e($t['last_used_at'] ?? '—') ?></td>
-      <td><?= ((int) $t['revoked'] === 1) ? 'لغوشده' : 'فعال' ?></td>
-      <td>
-        <?php if ((int) $t['revoked'] === 0): ?>
+    <div class="p-4 rounded-xl bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 flex flex-col gap-3">
+      <div class="flex items-start justify-between gap-2">
+        <div class="min-w-0">
+          <div class="text-xs font-bold text-slate-900 dark:text-white truncate"><?= e($t['name']) ?></div>
+          <div class="text-[10px] text-slate-500 dark:text-slate-400">ساخته‌شده: <?= e($t['created_at']) ?></div>
+        </div>
+        <?php if ((int) $t['revoked'] === 1): ?>
+          <span class="text-[10px] bg-rose-500/10 text-rose-500 dark:text-rose-400 px-2 py-0.5 rounded font-bold shrink-0">لغوشده</span>
+        <?php else: ?>
+          <span class="text-[10px] bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 px-2 py-0.5 rounded font-bold shrink-0">فعال</span>
+        <?php endif; ?>
+      </div>
+      <div class="text-[11px] text-slate-500 dark:text-slate-400">آخرین استفاده: <?= e($t['last_used_at'] ?? '—') ?></div>
+      <?php if ((int) $t['revoked'] === 0): ?>
+      <div class="flex items-center gap-2 pt-1 mt-auto">
         <form method="post" action="/admin/api/tokens/revoke/<?= (int) $t['id'] ?>" onsubmit="return confirm('این توکن لغو شود؟')">
           <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
-          <button class="btn gray">لغو</button>
+          <button type="submit" class="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-bold hover:border-slate-400 dark:hover:border-slate-500">لغو</button>
         </form>
-        <?php endif; ?>
-      </td>
-    </tr>
+      </div>
+      <?php endif; ?>
+    </div>
     <?php endforeach; ?>
-  </table>
+  </div>
   <?php endif; ?>
 </div>
 

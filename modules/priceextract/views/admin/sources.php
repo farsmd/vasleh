@@ -63,31 +63,41 @@
   <?php if (empty($sources)): ?>
     <p>هنوز منبعی نیست. آدرس API یا صفحه جدول قیمت را بالا ثبت کنید و «اجرا» را بزنید.</p>
   <?php else: ?>
-  <table>
-    <tr><th>عنوان</th><th>آدرس</th><th>نوع</th><th>آخرین اجرا</th><th>آیتم</th><th>خطا</th><th>عملیات</th></tr>
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
     <?php foreach ($sources as $s): ?>
-    <tr>
-      <td class="wrap"><?= e($s['title']) ?><?= (int) $s['active'] !== 1 ? ' <small class="muted">(غیرفعال)</small>' : '' ?></td>
-      <td class="wrap"><code dir="ltr"><?= e($s['url']) ?></code></td>
-      <td><?= e($adapters[$s['adapter']] ?? $s['adapter']) ?></td>
-      <td><?= e($s['last_run']) ?></td>
-      <td><?= (int) $s['last_count'] ?></td>
-      <td class="wrap"><?= e($s['last_error']) ?></td>
-      <td>
-        <form method="post" action="/admin/priceextract/sources/run/<?= (int) $s['id'] ?>" style="display:inline">
+    <div class="p-4 rounded-xl bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 flex flex-col gap-3">
+      <div class="flex items-start justify-between gap-2">
+        <div class="min-w-0">
+          <div class="text-xs font-bold text-slate-900 dark:text-white truncate"><?= e($s['title']) ?></div>
+          <div class="text-[10px] text-slate-500 dark:text-slate-400 truncate"><code dir="ltr"><?= e($s['url']) ?></code></div>
+        </div>
+        <?php if ((int) $s['active'] === 1): ?>
+          <span class="text-[10px] bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 px-2 py-0.5 rounded font-bold shrink-0">فعال</span>
+        <?php else: ?>
+          <span class="text-[10px] bg-slate-500/10 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded font-bold shrink-0">غیرفعال</span>
+        <?php endif; ?>
+      </div>
+      <div class="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+        <?= e($adapters[$s['adapter']] ?? $s['adapter']) ?> • آخرین اجرا: <?= e($s['last_run']) ?> • آیتم: <?= (int) $s['last_count'] ?>
+      </div>
+      <?php if (!empty($s['last_error'])): ?>
+        <p class="text-[11px] text-rose-500 dark:text-rose-400 leading-relaxed"><?= e($s['last_error']) ?></p>
+      <?php endif; ?>
+      <div class="flex flex-wrap items-center gap-2 pt-1 mt-auto">
+        <form method="post" action="/admin/priceextract/sources/run/<?= (int) $s['id'] ?>">
           <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
-          <button class="btn green">اجرا</button>
+          <button type="submit" class="px-3 py-1.5 rounded-lg bg-emerald-500 text-white text-[11px] font-bold hover:bg-emerald-600">اجرا</button>
         </form>
-        <a class="btn gray" href="/admin/priceextract/items?source=<?= (int) $s['id'] ?>">قیمت‌ها</a>
-        <a class="btn gray" href="/admin/priceextract/sources/runs/<?= (int) $s['id'] ?>">سوابق</a>
-        <a class="btn yellow" href="/admin/priceextract?edit=<?= (int) $s['id'] ?>">ویرایش</a>
-        <form method="post" action="/admin/priceextract/sources/delete/<?= (int) $s['id'] ?>" style="display:inline" onsubmit="return confirm('این منبع با همه آیتم‌هایش حذف شود؟')">
+        <a href="/admin/priceextract/items?source=<?= (int) $s['id'] ?>" class="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-bold hover:border-slate-400 dark:hover:border-slate-500">قیمت‌ها</a>
+        <a href="/admin/priceextract/sources/runs/<?= (int) $s['id'] ?>" class="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-bold hover:border-slate-400 dark:hover:border-slate-500">سوابق</a>
+        <a href="/admin/priceextract?edit=<?= (int) $s['id'] ?>" class="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-bold hover:border-slate-400 dark:hover:border-slate-500">ویرایش</a>
+        <form method="post" action="/admin/priceextract/sources/delete/<?= (int) $s['id'] ?>" onsubmit="return confirm('این منبع با همه آیتم‌هایش حذف شود؟')">
           <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
-          <button class="btn red">حذف</button>
+          <button type="submit" class="px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-500 dark:text-rose-400 text-[11px] font-bold hover:bg-rose-500/20">حذف</button>
         </form>
-      </td>
-    </tr>
+      </div>
+    </div>
     <?php endforeach; ?>
-  </table>
+  </div>
   <?php endif; ?>
 </div>
