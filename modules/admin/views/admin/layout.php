@@ -1,13 +1,14 @@
 <?php
-// لی‌اوت مدیریت وصله — بوت‌استرپ ۵ RTL (لوکال، بدون CDN) + سایدبار تیره سبک وردپرس.
+// لی‌اوت مدیریت وصله — پوسته شیشه‌ای تیره/روشن با Tailwind محلی (بدون CDN).
 // قرارداد داده مثل قبل: $title, $content, $menu, $user, $csrf
 $assetBase = rtrim(str_replace('\\', '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? ''))), '/');
 $currentPath = (string) (parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH) ?? '');
 if ($assetBase !== '' && str_starts_with($currentPath, $assetBase)) {
     $currentPath = substr($currentPath, strlen($assetBase)) ?: '/';
 }
+$appRoot = dirname(__DIR__, 4);
 $appVersion = '';
-$versionFile = dirname(__DIR__, 4) . '/version.json';
+$versionFile = $appRoot . '/version.json';
 if (is_file($versionFile)) {
     $parts = json_decode((string) file_get_contents($versionFile), true);
     if (is_array($parts)) {
@@ -24,10 +25,12 @@ $isActive = static function (string $path) use ($currentPath): bool {
     return $currentPath === $path;
 };
 // منو گروهی است: هر ماژول یک گروه بازشو با آیکون و عنوان خودش.
-// گروهی که صفحه فعلی داخل آن است، باز شروع می‌شود.
+// گروهی که صفحه فعلی داخل آن است، باز شروع می‌شود (سرور تصمیم می‌گیرد).
 $fallbackIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 9-9 9-9-9z"/></svg>';
 $groups = [];
+$spotlight = [];
 foreach (($menu ?? []) as $item) {
+    $spotlight[] = ['label' => (string) ($item['label'] ?? ''), 'path' => (string) ($item['path'] ?? '')];
     $slug = (string) ($item['module'] ?? 'misc');
     if (!isset($groups[$slug])) {
         $groups[$slug] = [
@@ -43,212 +46,173 @@ foreach (($menu ?? []) as $item) {
     }
     $groups[$slug]['items'][] = $item;
 }
+// اعداد فارسی برای ویجت‌های وضعیت هدر (strtr با آرایه — فرم رشته‌ای چندبایتی را خراب می‌کند).
+$faDigits = static function (string $s): string {
+    return strtr($s, ['0' => '۰', '1' => '۱', '2' => '۲', '3' => '۳', '4' => '۴', '5' => '۵', '6' => '۶', '7' => '۷', '8' => '۸', '9' => '۹', '.' => '٫']);
+};
+$dbBytes = 0;
+$dbFile = $appRoot . '/storage/database.sqlite';
+if (is_file($dbFile)) {
+    $dbBytes = (int) filesize($dbFile);
+}
+$dbSize = $faDigits(number_format($dbBytes / 1048576, 1, '.', ''));
+$phpMem = $faDigits(number_format(memory_get_usage(true) / 1048576, 1, '.', ''));
+if (class_exists('IntlDateFormatter')) {
+    $fmt = new IntlDateFormatter('fa-IR@calendar=persian', IntlDateFormatter::FULL, IntlDateFormatter::NONE, 'Asia/Tehran', IntlDateFormatter::TRADITIONALLY);
+    $todayDate = (string) $fmt->format(time());
+} else {
+    $todayDate = $faDigits(date('Y-m-d'));
+}
 ?>
 <!doctype html>
-<html lang="fa" dir="rtl">
+<html lang="fa" dir="rtl" class="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= e($title) ?> — مدیریت وصله</title>
-<link rel="stylesheet" href="<?= e($assetBase) ?>/assets/bootstrap/bootstrap.rtl.min.css">
-<style>
-:root{--wp-dark:#1d2327;--wp-dark-2:#2c3338;--wp-blue:#2271b1;--admin-bg:#f0f0f1}
-html,body{overflow-x:clip}
-body{font-family:Tahoma,"Segoe UI",sans-serif;background:linear-gradient(180deg,#e9edfa 0%,#f2f4f8 520px,#eafaf5 100%);background-attachment:fixed}
-.admin-shell{min-height:100vh}
-/* سایدبار شناور به سبک Velocity (دموی frontendjoe): پنل گرادیانی با گوشه گرد، جدا از لبه‌های صفحه */
-.admin-sidebar{background:linear-gradient(180deg,rgba(11,31,58,.86) 0%,rgba(29,78,216,.86) 52%,rgba(20,184,166,.86) 100%);-webkit-backdrop-filter:blur(16px) saturate(1.3);backdrop-filter:blur(16px) saturate(1.3);color:#fff;width:240px;flex:0 0 240px;display:flex;flex-direction:column}
-/* منو داخل خودش اسکرول می‌خورد: برند و بخش کاربر ثابت، ناوبری وسط اسکرول‌پذیر (با ۱۴+ ماژول، منو از قد صفحه بلندتر است) */
-.admin-sidebar nav{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.35) transparent}
-.admin-sidebar nav::-webkit-scrollbar{width:6px}
-.admin-sidebar nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.35);border-radius:3px}
-@media (min-width:992px){
-.admin-sidebar{position:sticky;top:16px;height:calc(100vh - 32px);height:calc(100dvh - 32px);max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px);margin:16px;border-radius:20px;overflow:hidden;box-shadow:0 12px 32px rgba(11,31,58,.22)}
-}
-.admin-sidebar .brand{display:flex;align-items:baseline;gap:8px;padding:16px 16px 10px;color:#fff}
-.admin-sidebar .brand strong{font-size:1.25rem}
-.admin-sidebar .brand small{color:rgba(255,255,255,.7)}
-.admin-sidebar nav{padding:8px}
-.group-head{display:flex;align-items:center;gap:10px;width:100%;background:transparent;border:0;color:rgba(255,255,255,.85);padding:9px 12px;margin-bottom:2px;border-radius:8px;font-size:.95rem;cursor:pointer;font-family:inherit;text-align:right;transition:background .15s ease,color .15s ease}
-.group-head:hover{background:rgba(255,255,255,.12);color:#fff}
-.group-head .g-icon,.site-row .g-icon{display:flex;flex:0 0 auto}
-.group-head .g-icon svg,.site-row .g-icon svg{display:block}
-.group-head .g-chev{margin-inline-start:auto;flex:0 0 auto;transition:transform .2s ease}
-.menu-group.open .group-head .g-chev{transform:rotate(180deg)}
-.group-items{display:none;padding-inline-start:20px}
-.menu-group.open .group-items{display:block}
-.group-items a{display:block;color:rgba(255,255,255,.85);text-decoration:none;padding:7px 12px;margin-bottom:2px;border-radius:8px;font-size:.92rem;transition:background .15s ease,color .15s ease}
-.group-items a:hover{background:rgba(255,255,255,.12);color:#fff}
-.group-items a.active{background:rgba(255,255,255,.2);color:#fff}
-.site-row{display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.85);text-decoration:none;padding:9px 12px;border-radius:8px;font-size:.95rem}
-.site-row:hover{background:rgba(255,255,255,.12);color:#fff}
-.rail-toggle{align-items:center;gap:10px;width:calc(100% - 16px);margin:0 8px 12px;background:transparent;border:1px solid rgba(255,255,255,.25);color:rgba(255,255,255,.9);border-radius:8px;padding:8px 12px;cursor:pointer;font-family:inherit;font-size:.9rem}
-.rail-toggle:hover{background:rgba(255,255,255,.12);color:#fff}
-@media (min-width:992px){
-.admin-shell.rail .admin-sidebar{width:56px;flex-basis:56px}
-.admin-shell.rail .g-title,.admin-shell.rail .g-chev,.admin-shell.rail .group-items,.admin-shell.rail .brand small,.admin-shell.rail .u-meta,.admin-shell.rail .site-row span:last-child,.admin-shell.rail .rail-toggle span{display:none}
-.admin-shell.rail .brand{justify-content:center;padding-inline:0}
-.admin-shell.rail .group-head,.admin-shell.rail .site-row,.admin-shell.rail .rail-toggle{justify-content:center}
-.admin-shell.rail .side-user{text-align:center}
-}
-.admin-sidebar .side-user{border-top:1px solid rgba(255,255,255,.2);margin-top:10px;padding:12px 16px;font-size:.9rem}
-.admin-sidebar .side-user form{margin-top:8px}
-.admin-sidebar .side-user button{background:rgba(255,255,255,.15);color:#fff;border:0;padding:6px 12px;border-radius:6px;cursor:pointer}
-.admin-sidebar .offcanvas-header{color:#fff;border-bottom:1px solid rgba(255,255,255,.2)}
-@media (max-width:991.98px){
-.admin-sidebar{--bs-offcanvas-width:min(70vw,300px);width:min(70vw,300px);flex-basis:auto;border-top-left-radius:20px;border-bottom-left-radius:20px;box-shadow:-12px 0 32px rgba(0,0,0,.35)}
-}
-/* بدنه */
-.admin-main{min-width:0;flex:1 1 auto}
-.admin-topbar{background:rgba(255,255,255,.72);-webkit-backdrop-filter:blur(12px) saturate(1.2);backdrop-filter:blur(12px) saturate(1.2);border-bottom:1px solid rgba(11,31,58,.08);padding:10px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:1020}
-.admin-topbar h1{font-size:1.1rem;margin:0;font-weight:700;color:#0b1f3a}
-.admin-content{padding:20px 16px;max-width:1200px;margin:0 auto}
-/* سازگاری ویوهای ماژول‌ها */
-.admin-content .card{display:block;background:rgba(255,255,255,.88);border:1px solid rgba(11,31,58,.08);border-radius:16px;padding:20px;box-shadow:0 8px 24px rgba(11,31,58,.06);margin-bottom:16px}
-.admin-content h1{font-size:1.45rem;margin-bottom:12px;color:#0b1f3a}
-.admin-content h3{font-size:1.1rem;margin:14px 0 10px}
-.admin-content table{width:100%;border-collapse:collapse;margin-bottom:8px}
-.admin-content th,.admin-content td{padding:9px 10px;border-bottom:1px solid #e5e7eb;text-align:right;vertical-align:top;white-space:nowrap}
-.admin-content td.wrap{white-space:normal;min-width:180px}
-.admin-content th{background:#eef2ff;font-weight:700;color:#0b1f3a}
-.admin-content code{background:#eef;padding:2px 6px;border-radius:6px;white-space:nowrap}
-.admin-content pre{overflow:auto;max-width:100%}
-.admin-content img,.admin-content svg,.admin-content video,.admin-content iframe{max-width:100%}
-.admin-content input:not([type=checkbox]):not([type=radio]):not([type=submit]),
-.admin-content select,.admin-content textarea{width:100%;padding:9px;border:1px solid #d1d5db;border-radius:10px;margin:4px 0 12px;box-sizing:border-box;background:#fff;font-family:inherit;transition:border-color .15s ease,box-shadow .15s ease}
-.admin-content input:not([type=checkbox]):not([type=radio]):not([type=submit]):focus,
-.admin-content select:focus,.admin-content textarea:focus{border-color:#1d4ed8;box-shadow:0 0 0 3px rgba(29,78,216,.18);outline:none}
-.admin-content .btn{display:inline-block;background:linear-gradient(135deg,#1d4ed8,#0ea5a4);color:#fff;border:0;padding:8px 16px;border-radius:10px;cursor:pointer;text-decoration:none;font-size:.95rem;line-height:1.5;box-shadow:0 4px 14px rgba(29,78,216,.25)}
-.admin-content .btn:hover{filter:brightness(1.08);color:#fff}
-.admin-content .btn.green{background:#16a34a}.admin-content .btn.green:hover{background:#15803d}
-.admin-content .btn.gray{background:#6b7280}.admin-content .btn.gray:hover{background:#4b5563}
-.admin-content .btn.yellow{background:#eab308;color:#111}.admin-content .btn.yellow:hover{background:#ca8a04}
-.admin-content .flash{background:#dcfce7;padding:10px 14px;border-radius:8px;margin-bottom:12px}
-.admin-content .error{background:#fee2e2;padding:10px 14px;border-radius:8px;margin-bottom:12px}
-.admin-content form{margin:0}
-.table-responsive{overflow-x:auto;-webkit-overflow-scrolling:touch}
-@media (max-width:575.98px){.admin-content{padding:14px 10px}.admin-content .card{padding:14px}}
-</style>
+<script>try{if(localStorage.getItem('vasleh_theme')==='light'){document.documentElement.classList.remove('dark')}}catch(e){}</script>
+<link rel="stylesheet" href="<?= e($assetBase) ?>/assets/admin/admin.css">
+<link rel="stylesheet" href="<?= e($assetBase) ?>/assets/taskyar/fonts/vazirmatn.css">
 </head>
-<body>
-<div class="admin-shell d-lg-flex">
+<body class="bg-slate-950 text-slate-100 dark:bg-[#070b14] dark:text-slate-100 transition-colors duration-200 antialiased overflow-x-hidden">
 
-  <aside class="offcanvas-lg offcanvas-start admin-sidebar" tabindex="-1" id="adminSidebar" aria-labelledby="adminSidebarLabel">
-    <div class="offcanvas-header d-lg-none">
-      <span id="adminSidebarLabel">منوی مدیریت</span>
-      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" data-bs-target="#adminSidebar" aria-label="بستن"></button>
+<div class="flex h-screen w-screen overflow-hidden">
+
+  <div id="mobileBackdrop" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 hidden transition-opacity duration-300 opacity-0 lg:hidden"></div>
+
+  <aside id="sidebar" class="fixed lg:static inset-y-0 right-0 z-50 flex flex-col w-72 lg:w-64 glass-panel border-l border-slate-800/80 transition-all duration-300 transform translate-x-full lg:translate-x-0 h-full shrink-0 select-none">
+
+    <div class="h-20 flex items-center justify-between px-5 border-b border-slate-800/60">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 via-indigo-600 to-cyan-400 p-0.5 shadow-md shadow-blue-500/20 flex items-center justify-center">
+          <div class="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
+            <svg class="w-5 h-5 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M12 2v4m0 12v4M2 12h4m12 0h4"/>
+              <rect x="6" y="6" width="12" height="12" rx="3" stroke-width="2"/>
+              <circle cx="12" cy="12" r="2" fill="currentColor"/>
+            </svg>
+          </div>
+        </div>
+        <div class="flex flex-col">
+          <div class="flex items-center gap-1.5">
+            <span class="font-black text-lg text-white dark:text-white tracking-tight">وصله</span>
+            <span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">ادمین</span>
+          </div>
+          <?php if ($appVersion !== ''): ?><span class="text-[11px] text-slate-400 -mt-0.5">نسخه <?= e($appVersion) ?></span><?php endif; ?>
+        </div>
+      </div>
+      <button id="closeSidebarBtn" class="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
     </div>
-    <div class="brand"><strong>وصله</strong><?php if ($appVersion !== ''): ?><small>نسخه <?= e($appVersion) ?></small><?php endif; ?></div>
-    <nav>
+
+    <div class="flex-1 overflow-y-auto px-3 space-y-6 py-2">
       <?php foreach ($groups as $g): ?>
       <div class="menu-group<?= $g['open'] ? ' open' : '' ?>" data-group="<?= e($g['slug']) ?>">
-        <button type="button" class="group-head" title="<?= e($g['title']) ?>" aria-expanded="<?= $g['open'] ? 'true' : 'false' ?>">
-          <span class="g-icon"><?= $g['icon'] !== '' ? $g['icon'] : $fallbackIcon ?></span>
-          <span class="g-title"><?= e($g['title']) ?></span>
-          <svg class="g-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        <button type="button" class="group-head w-full flex items-center justify-between px-3 mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 hover:text-slate-300 transition-colors" aria-expanded="<?= $g['open'] ? 'true' : 'false' ?>">
+          <span class="flex items-center gap-2">
+            <span class="g-icon"><?= $g['icon'] !== '' ? $g['icon'] : $fallbackIcon ?></span>
+            <span class="g-title"><?= e($g['title']) ?></span>
+          </span>
+          <svg class="g-chev shrink-0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
-        <div class="group-items">
+        <div class="group-items space-y-1<?= $g['open'] ? '' : ' hidden' ?>">
           <?php foreach ($g['items'] as $item): ?>
-            <a href="<?= e($item['path']) ?>" class="<?= $isActive((string) $item['path']) ? 'active' : '' ?>"><?= e($item['label']) ?></a>
+            <?php $active = $isActive((string) $item['path']); ?>
+            <a href="<?= e($item['path']) ?>" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm <?= $active ? 'font-semibold bg-blue-600 text-white shadow-md shadow-blue-600/30' : 'font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all' ?>">
+              <span><?= e($item['label']) ?></span>
+            </a>
           <?php endforeach; ?>
         </div>
       </div>
       <?php endforeach; ?>
-      <a class="site-row" title="مشاهده سایت" href="<?= e($assetBase === '' ? '/' : $assetBase . '/') ?>">
+      <a class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all" title="مشاهده سایت" href="<?= e($assetBase === '' ? '/' : $assetBase . '/') ?>">
         <span class="g-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
         <span>مشاهده سایت</span>
       </a>
-    </nav>
+    </div>
+
     <?php if (!empty($user)): ?>
-    <div class="side-user">
-      <div class="u-meta"><?= e($user['username']) ?> <small>(<?= e($user['role'] === 'owner' ? 'مالک' : 'مدیر') ?>)</small></div>
+    <div class="p-3 border-t border-slate-800/60 flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+        </div>
+        <div class="flex flex-col">
+          <span class="text-xs font-bold text-white leading-tight"><?= e($user['username']) ?></span>
+          <span class="text-[10px] text-emerald-400 font-mono">نقش: <?= e($user['role'] === 'owner' ? 'مالک' : 'مدیر') ?></span>
+        </div>
+      </div>
       <form method="post" action="<?= e($assetBase) ?>/admin/logout">
         <input type="hidden" name="_csrf" value="<?= e($csrf ?? '') ?>">
-        <button type="submit">خروج</button>
+        <button type="submit" title="خروج از حساب" class="p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800/50 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        </button>
       </form>
     </div>
     <?php endif; ?>
-    <button type="button" id="railToggle" class="rail-toggle d-none d-lg-flex" title="جمع‌کردن / بازکردن منو">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
-      <span>جمع‌کردن منو</span>
-    </button>
+
   </aside>
 
-  <div class="admin-main">
-    <header class="admin-topbar">
-      <button class="btn btn-outline-secondary btn-sm d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#adminSidebar" aria-controls="adminSidebar" aria-label="منو">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5"/></svg>
-      </button>
-      <h1><?= e($title) ?></h1>
-      <?php if (!empty($user)): ?>
-      <span class="ms-auto d-none d-sm-inline text-muted small"><?= e($user['username']) ?></span>
-      <?php endif; ?>
+  <div class="flex-1 flex flex-col h-full overflow-hidden relative">
+
+    <header class="h-20 glass-header px-4 sm:px-6 flex items-center justify-between gap-3 shrink-0 z-20">
+      <div class="flex items-center gap-3 min-w-0">
+        <button id="openSidebarBtn" class="lg:hidden p-2 rounded-xl text-slate-300 hover:bg-slate-800 transition-colors shrink-0">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <h1 class="text-base font-bold text-slate-900 dark:text-white truncate"><?= e($title) ?></h1>
+        <button id="spotlightTrigger" class="hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/60 text-slate-500 dark:text-slate-400 hover:border-blue-500/50 hover:text-slate-900 dark:hover:text-slate-200 text-xs transition-all w-52 md:w-64 justify-between shrink-0">
+          <span class="flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            <span>جستجوی سریع منو...</span>
+          </span>
+          <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-mono text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">⌘K</kbd>
+        </button>
+      </div>
+
+      <div class="hidden xl:flex items-center gap-3 text-xs shrink-0">
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>پایگاه داده: <strong class="font-mono text-slate-900 dark:text-white">SQLite</strong></span>
+          <span class="text-slate-400">•</span>
+          <span class="text-slate-500 dark:text-slate-400 font-mono"><?= e($dbSize) ?> مگابایت</span>
+        </div>
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300">
+          <svg class="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          <span>مصرف رم PHP: <strong class="font-mono text-emerald-500 dark:text-emerald-400"><?= e($phpMem) ?> مگابایت</strong></span>
+        </div>
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300">
+          <svg class="w-3.5 h-3.5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          <span><?= e($todayDate) ?></span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2.5 shrink-0">
+        <button id="themeToggleBtn" title="تغییر تم (روشن/تاریک)" class="p-2.5 rounded-xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-slate-700 transition-all">
+          <svg id="themeIconSun" class="w-4 h-4 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+          <svg id="themeIconMoon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+        </button>
+      </div>
     </header>
-    <main class="admin-content"><?= $content ?></main>
+
+    <main class="admin-content flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8"><?= $content ?></main>
   </div>
 
 </div>
-<script src="<?= e($assetBase) ?>/assets/bootstrap/bootstrap.bundle.min.js"></script>
-<script>
-// جدول‌های ویوهای ماژول‌ها را ریسپانسیو می‌کند تا روی موبایل بیرون نزنند.
-document.querySelectorAll('.admin-content table').forEach(function (t) {
-  if (t.closest('.table-responsive')) return;
-  var w = document.createElement('div');
-  w.className = 'table-responsive';
-  t.parentNode.insertBefore(w, t);
-  w.appendChild(t);
-});
 
-// منوی گروهی بازشو (آکاردئونی) + حالت جمع‌شده سایدبار در دسکتاپ؛ وضعیت در localStorage می‌ماند.
-var shell = document.querySelector('.admin-shell');
-if (shell && localStorage.getItem('vasleh-rail') === '1') shell.classList.add('rail');
-var storedGroups = null;
-try { storedGroups = JSON.parse(localStorage.getItem('vasleh-groups') || 'null'); } catch (e) {}
-if (Array.isArray(storedGroups)) {
-  document.querySelectorAll('.menu-group').forEach(function (g) {
-    var open = storedGroups.indexOf(g.dataset.group) !== -1;
-    g.classList.toggle('open', open);
-    var head = g.querySelector('.group-head');
-    if (head) head.setAttribute('aria-expanded', open ? 'true' : 'false');
-  });
-}
-function saveGroups() {
-  var open = [];
-  document.querySelectorAll('.menu-group.open').forEach(function (g) { open.push(g.dataset.group); });
-  localStorage.setItem('vasleh-groups', JSON.stringify(open));
-}
-document.querySelectorAll('.group-head').forEach(function (btn) {
-  btn.addEventListener('click', function () {
-    var group = btn.closest('.menu-group');
-    if (shell && shell.classList.contains('rail') && window.innerWidth >= 992) {
-      var first = group.querySelector('.group-items a');
-      if (first) location.href = first.href;
-      return;
-    }
-    var willOpen = !group.classList.contains('open');
-    document.querySelectorAll('.menu-group.open').forEach(function (g) {
-      g.classList.remove('open');
-      var h = g.querySelector('.group-head');
-      if (h) h.setAttribute('aria-expanded', 'false');
-    });
-    if (willOpen) group.classList.add('open');
-    btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
-    saveGroups();
-  });
-});
-var railBtn = document.getElementById('railToggle');
-if (railBtn && shell) railBtn.addEventListener('click', function () {
-  shell.classList.toggle('rail');
-  localStorage.setItem('vasleh-rail', shell.classList.contains('rail') ? '1' : '0');
-});
-// دابل‌کلیک روی سایدبار (نه روی لینک/دکمه) هم مثل دموی مرجع، منو را جمع/باز می‌کند.
-var sidebarEl = document.getElementById('adminSidebar');
-if (sidebarEl && shell) sidebarEl.addEventListener('dblclick', function (e) {
-  if (window.innerWidth < 992) return;
-  if (e.target.closest('a,button')) return;
-  shell.classList.toggle('rail');
-  localStorage.setItem('vasleh-rail', shell.classList.contains('rail') ? '1' : '0');
-});
-</script>
+<div id="spotlightModal" class="fixed inset-0 z-50 flex items-start justify-center pt-20 p-4 bg-black/70 backdrop-blur-md hidden opacity-0 transition-opacity duration-200">
+  <div class="glass-panel rounded-2xl max-w-xl w-full p-4 border border-slate-700 shadow-2xl text-right transform scale-95 transition-transform duration-200" id="spotlightCard">
+    <div class="flex items-center gap-3 pb-3 border-b border-slate-800">
+      <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      <input type="text" id="spotlightInput" placeholder="جستجوی سریع منوی مدیریت..." class="w-full bg-transparent text-sm text-slate-900 dark:text-white focus:outline-none placeholder-slate-500">
+      <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-mono text-slate-500 dark:text-slate-400">ESC</kbd>
+    </div>
+    <div class="py-3 space-y-2 text-xs max-h-80 overflow-y-auto" id="spotlightResults"></div>
+  </div>
+</div>
+
+<script>var VASLEH_SPOTLIGHT = <?= json_encode($spotlight, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;</script>
+<script src="<?= e($assetBase) ?>/assets/admin/admin.js"></script>
 </body>
 </html>
