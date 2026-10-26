@@ -47,7 +47,7 @@
 <?php endif; ?>
 
 <?php if (($product['description'] ?? '') !== ''): ?>
-<div style="background:#fff;border:1px solid #e5e5e5;border-radius:.8rem;padding:1rem">
+<div style="background:var(--admin-panel-bg);border:1px solid var(--admin-border);border-radius:var(--admin-radius);padding:1rem">
   <?= $product['description'] ?>
 </div>
 <?php endif; ?>

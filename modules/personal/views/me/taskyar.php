@@ -1,13 +1,42 @@
+<?php
+// تم یکپارچه: متغیرهای قالب ادمین روی داشبورد تسک‌یار هم می‌نشیند؛
+// حالت تاریک/روشن با همان کلید localStorage ادمین خوانده می‌شود
+// (کلید قدیمی 'theme' در صورت نبود کلید مشترک، یک‌بار مهاجرت می‌کند).
+$__theme = \Modules\Admin\AdminTheme::load(dirname(__DIR__, 4));
+$__dark = ($__theme['default_theme'] ?? 'dark') === 'dark';
+?>
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="fa" dir="rtl"<?= $__dark ? ' class="dark"' : '' ?>>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>تسک‌یار | مدیریت زمان و اهداف شخصی</title>
+    <script>try{var _v=localStorage.getItem('vasleh_theme');if(!_v){var _o=localStorage.getItem('theme');if(_o){_v=_o;localStorage.setItem('vasleh_theme',_o);}}if(_v==='light'){document.documentElement.classList.remove('dark')}else if(_v==='dark'){document.documentElement.classList.add('dark')}}catch(e){}</script>
     <link rel="stylesheet" href="/assets/taskyar/fonts/vazirmatn.css">
     <link rel="stylesheet" href="/assets/taskyar/fa/css/all.min.css">
     <link rel="stylesheet" href="/assets/taskyar/tailwind.css">
     <style>
+        <?= \Modules\Admin\AdminTheme::varsCss($__theme) ?>
+        /* تم یکپارچه: رنگ‌های تسک‌یار با متغیرهای قالب ادمین هماهنگ می‌شود */
+        .bg-white{background:var(--admin-panel-bg)}
+        .bg-slate-50{background:var(--admin-main-bg)}
+        .text-slate-800, .text-slate-900{color:var(--admin-text)}
+        .text-slate-500, .text-slate-600{color:var(--admin-muted)}
+        .border-slate-200, .border-slate-100{border-color:var(--admin-border)}
+        .bg-indigo-600, .bg-indigo-700{background:var(--admin-accent)}
+        .hover\:bg-indigo-700:hover{background:var(--admin-accent)}
+        .bg-indigo-50{background:color-mix(in srgb, var(--admin-accent) 8%, transparent)}
+        .text-indigo-600, .text-indigo-500, .text-indigo-400{color:var(--admin-accent)}
+        .ring-indigo-500{--tw-ring-color:var(--admin-accent)}
+        header.bg-white\/80{background:color-mix(in srgb, var(--admin-panel-bg) 80%, transparent)}
+        nav.bg-slate-200\/60{background:color-mix(in srgb, var(--admin-panel-bg) 60%, transparent)}
+        .dark .dark\:bg-slate-950{background:var(--admin-main-bg)}
+        .dark .dark\:bg-slate-900, .dark .dark\:bg-slate-800, .dark .dark\:bg-slate-800\/80{background:var(--admin-panel-bg)}
+        .dark .dark\:bg-slate-900\/80{background:color-mix(in srgb, var(--admin-panel-bg) 80%, transparent)}
+        .dark .dark\:text-white, .dark .dark\:text-slate-100, .dark .dark\:text-slate-200{color:var(--admin-text)}
+        .dark .dark\:text-slate-300, .dark .dark\:text-slate-400{color:var(--admin-muted)}
+        .dark .dark\:border-slate-800, .dark .dark\:border-slate-700, .dark .dark\:border-slate-700\/60{border-color:var(--admin-border)}
+        .dark .dark\:text-indigo-400{color:color-mix(in srgb, var(--admin-accent) 75%, white)}
         body { font-family: 'Vazirmatn', sans-serif; user-select: none; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: rgba(0,0,0,0.03); }
@@ -476,18 +505,14 @@
         }
 
         function initTheme() {
-            if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                document.documentElement.classList.add('dark');
-                document.getElementById('themeIcon').className = 'fa-regular fa-sun text-amber-400';
-            } else {
-                document.documentElement.classList.remove('dark');
-                document.getElementById('themeIcon').className = 'fa-regular fa-moon';
-            }
+            // حالت از اسکریپت head (کلید مشترک vasleh_theme + پیش‌فرض ادمین) آمده؛ اینجا فقط آیکون هماهنگ می‌شود.
+            const isDark = document.documentElement.classList.contains('dark');
+            document.getElementById('themeIcon').className = isDark ? 'fa-regular fa-sun text-amber-400' : 'fa-regular fa-moon';
         }
 
         function toggleTheme() {
             const isDark = document.documentElement.classList.toggle('dark');
-            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            localStorage.setItem('vasleh_theme', isDark ? 'dark' : 'light');
             document.getElementById('themeIcon').className = isDark ? 'fa-regular fa-sun text-amber-400' : 'fa-regular fa-moon';
         }
 

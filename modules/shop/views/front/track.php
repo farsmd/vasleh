@@ -1,5 +1,5 @@
 <h1>پیگیری سفارش</h1>
-<form method="post" action="/shop/track" style="max-width:26rem;background:#fff;border:1px solid #e5e5e5;border-radius:.8rem;padding:1rem">
+<form method="post" action="/shop/track" style="max-width:26rem;background:var(--admin-panel-bg);border:1px solid var(--admin-border);border-radius:var(--admin-radius);padding:1rem">
   <label>کد پیگیری
     <input type="text" name="code" dir="ltr" required value="<?= e($code) ?>" placeholder="VSL-123456">
   </label>
@@ -10,7 +10,7 @@
 </form>
 <?php if (!empty($error)): ?><div class="error" style="max-width:26rem;margin-top:1rem"><?= e($error) ?></div><?php endif; ?>
 <?php if (!empty($order)): ?>
-<div style="background:#fff;border:1px solid #e5e5e5;border-radius:.8rem;padding:1rem;margin-top:1rem">
+<div style="background:var(--admin-panel-bg);border:1px solid var(--admin-border);border-radius:var(--admin-radius);padding:1rem;margin-top:1rem">
   <h2 style="margin-top:0">سفارش <span dir="ltr"><?= e($order['code']) ?></span></h2>
   <p>وضعیت: <strong><?= e($statuses[$order['status']] ?? $order['status']) ?></strong> — پرداخت: <?= $order['payment_status'] === 'paid' ? 'پرداخت شده' : 'پرداخت نشده' ?></p>
   <p class="muted">ثبت: <?= e($order['created_at']) ?> — خریدار: <?= e($order['customer_name']) ?></p>

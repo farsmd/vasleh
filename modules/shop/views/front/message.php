@@ -1,4 +1,4 @@
-<div style="background:#fff;border:1px solid #e5e5e5;border-radius:.8rem;padding:1.5rem;max-width:34rem">
+<div style="background:var(--admin-panel-bg);border:1px solid var(--admin-border);border-radius:var(--admin-radius);padding:1.5rem;max-width:34rem">
   <h1 style="margin-top:0"><?= e($heading) ?></h1>
   <p><?= e($text) ?></p>
   <p>

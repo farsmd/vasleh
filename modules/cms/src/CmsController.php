@@ -43,10 +43,11 @@ final class CmsController
         return Response::html($this->renderer()->renderListing($this->posts()->published('post'), 'وبلاگ'));
     }
 
-    /** CSS کلی سایت — از تنظیمات ماژول خوانده و با نوع محتوای درست سرو می‌شود. */
+    /** CSS کلی سایت — متغیرهای تم ادمین اول می‌آیند تا قالب‌ها و CSS سفارشی از آن‌ها استفاده کنند. */
     public function stylesheet(Request $request): Response
     {
-        $css = $this->container->get('cms.settings')->get('site_css', '');
+        $theme = \Modules\Admin\AdminTheme::load(dirname(__DIR__, 3));
+        $css = \Modules\Admin\AdminTheme::varsCss($theme) . "\n" . $this->container->get('cms.settings')->get('site_css', '');
         return Response::html($css)->withHeader('Content-Type', 'text/css; charset=utf-8');
     }
 

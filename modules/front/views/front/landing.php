@@ -1,19 +1,27 @@
+<?php
+// تم یکپارچه: متغیرهای قالب ادمین (storage/admin-theme.json) روی لندینگ هم می‌نشیند؛
+// حالت تاریک/روشن با همان کلید localStorage ادمین خوانده می‌شود.
+$__theme = \Modules\Admin\AdminTheme::load(dirname(__DIR__, 4));
+$__dark = ($__theme['default_theme'] ?? 'dark') === 'dark';
+?>
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="fa" dir="rtl"<?= $__dark ? ' class="dark"' : '' ?>>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>وصله (Vasleh) — سیستم یکپارچه مدیریت کسب‌وکار، تولید و فروش</title>
+  <script>try{var _t=localStorage.getItem('vasleh_theme');if(_t==='light'){document.documentElement.classList.remove('dark')}else if(_t==='dark'){document.documentElement.classList.add('dark')}}catch(e){}</script>
   <link rel="stylesheet" href="/assets/landing/landing.css">
   <link rel="stylesheet" href="/assets/taskyar/fonts/vazirmatn.css">
   <style>
+    <?= \Modules\Admin\AdminTheme::varsCss($__theme) ?>
     html {
       scroll-behavior: smooth;
     }
 
     body {
-      background-color: #070b14;
-      color: #f1f5f9;
+      background-color: var(--admin-main-bg);
+      color: var(--admin-text);
       font-family: 'Vazirmatn', system-ui, sans-serif;
       overflow-x: hidden;
     }
@@ -21,23 +29,34 @@
     /* اثر پس‌زمینه شیشه‌ای و هاله نوری */
     .glass-card {
       background: rgba(17, 27, 48, 0.65);
+      background: color-mix(in srgb, var(--admin-panel-bg) 65%, transparent);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--admin-border);
     }
 
     .glass-card-hover {
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
     .glass-card-hover:hover {
-      border-color: rgba(59, 130, 246, 0.35);
+      border-color: color-mix(in srgb, var(--admin-accent) 35%, transparent);
       transform: translateY(-4px);
-      box-shadow: 0 12px 30px -10px rgba(59, 130, 246, 0.2);
+      box-shadow: 0 12px 30px -10px color-mix(in srgb, var(--admin-accent) 20%, transparent);
     }
 
     .glow-bg {
-      background: radial-gradient(circle at 50% 20%, rgba(59, 130, 246, 0.15) 0%, rgba(6, 182, 212, 0.05) 45%, transparent 70%);
+      background: radial-gradient(circle at 50% 20%, color-mix(in srgb, var(--admin-accent) 15%, transparent) 0%, rgba(6, 182, 212, 0.05) 45%, transparent 70%);
     }
+
+    /* حالت روشن: کلاس‌های تیره‌ی ثابت لندینگ با متغیرهای تم جایگزین می‌شوند */
+    html:not(.dark) [class*="text-white"]{color:var(--admin-text)}
+    html:not(.dark) [class*="text-slate-300"]{color:var(--admin-text)}
+    html:not(.dark) [class*="text-slate-400"], html:not(.dark) [class*="text-slate-500"]{color:var(--admin-muted)}
+    html:not(.dark) [class*="bg-slate-950"], html:not(.dark) [class*="bg-slate-900"]{background-color:var(--admin-panel-bg)}
+    html:not(.dark) [class*="border-slate-800"]{border-color:var(--admin-border)}
+    html:not(.dark) [class*="text-blue-400"]{color:var(--admin-accent)}
+    html:not(.dark) [class*="bg-blue-600"]{background-color:var(--admin-accent);color:#fff}
+    html:not(.dark) [class*="bg-blue-500"]{background-color:color-mix(in srgb, var(--admin-accent) 10%, transparent)}
 
     /* پنهان‌سازی اسکرول‌بار در پنل‌های افقی */
     .no-scrollbar::-webkit-scrollbar {

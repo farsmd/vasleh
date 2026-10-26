@@ -119,14 +119,19 @@ final class Renderer
     private function shell(string $title, string $header, string $main, string $footer, string $extraCss): string
     {
         $site = e($this->settings->get('site_name', 'وصله'));
-        $cssVersion = substr(md5($this->settings->get('site_css', '')), 0, 8);
+        // تم یکپارچه: نسخه CSS با تغییر تم هم عوض می‌شود تا کش مرورگر متغیرهای تازه را بگیرد.
+        $theme = \Modules\Admin\AdminTheme::load(dirname(__DIR__, 3));
+        $cssVersion = substr(md5($this->settings->get('site_css', '') . json_encode($theme)), 0, 8);
+        $darkClass = (($theme['default_theme'] ?? 'dark') === 'dark') ? ' class="dark"' : '';
         $style = $extraCss !== '' ? "\n<style>" . $extraCss . "\n</style>" : '';
         return '<!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="fa" dir="rtl"' . $darkClass . '>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>' . e($title) . ' | ' . $site . '</title>
+<script>try{var _t=localStorage.getItem(\'vasleh_theme\');if(_t===\'light\'){document.documentElement.classList.remove(\'dark\')}else if(_t===\'dark\'){document.documentElement.classList.add(\'dark\')}}catch(e){}</script>
+<link rel="stylesheet" href="/assets/taskyar/fonts/vazirmatn.css">
 <link rel="stylesheet" href="/cms.css?v=' . $cssVersion . '">' . $style . '
 </head>
 <body>

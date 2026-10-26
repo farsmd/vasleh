@@ -43,6 +43,19 @@ final class AdminTheme
         return $out;
     }
 
+    /**
+     * بلوک CSS متغیرهای تم — یک منبع واحد برای همه پوسته‌های کاربری
+     * (فرانت، فروشگاه، بخش شخصی، CSS کلی سایت). مقدارها از load() آمده‌اند
+     * و اعتبارسنجی شده‌اند، پس بدون escape در CSS نوشته می‌شوند.
+     */
+    public static function varsCss(array $theme): string
+    {
+        $t = array_merge(self::DEFAULTS, $theme);
+        return ':root{--admin-accent:' . $t['accent'] . ';--admin-panel-bg:' . $t['panel_light'] . ';--admin-main-bg:' . $t['main_light'] . ';--admin-radius:' . (int) $t['radius'] . 'px;--admin-text:#0f172a;--admin-muted:#475569;--admin-border:#e2e8f0;--admin-font-size:' . (int) $t['font_size'] . 'px}'
+            . '.dark{--admin-panel-bg:' . $t['panel_dark'] . ';--admin-main-bg:' . $t['main_dark'] . ';--admin-text:#f1f5f9;--admin-muted:#94a3b8;--admin-border:rgba(255,255,255,.12)}'
+            . 'html{font-size:var(--admin-font-size)}';
+    }
+
     /** ورودی فرم را روی تنظیمات فعلی سوار می‌کند و اتمیک ذخیره می‌کند. */
     public static function save(string $basePath, array $input): array
     {
