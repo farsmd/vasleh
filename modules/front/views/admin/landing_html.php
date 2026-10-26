@@ -51,9 +51,15 @@
     <label>نام فایل (با حرف شروع شود؛ فقط حروف، رقم و زیرخط)
       <input type="text" name="name" dir="ltr" required value="<?= e($edit['name'] ?? '') ?>" placeholder="مثلاً intro">
     </label>
-    <label>محتوای HTML (ویرایشگر حرفه‌ای؛ Ctrl+S ذخیره می‌کند)
-      <textarea name="content" id="htmlEditor" rows="10" dir="ltr" style="text-align: left;"><?= e($edit['content'] ?? '') ?></textarea>
-    </label>
+    <label>محتوای HTML (ویرایشگر حرفه‌ای؛ Ctrl+S ذخیره می‌کند)</label>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px;">
+      <button type="button" class="btn gray" id="copyCodeBtn">کپی کد</button>
+      <span>اندازه فونت:</span>
+      <button type="button" class="btn gray" id="fontMinusBtn">−</button>
+      <span id="fontSizeLabel" dir="ltr">13.5px</span>
+      <button type="button" class="btn gray" id="fontPlusBtn">+</button>
+    </div>
+    <textarea name="content" id="htmlEditor" rows="10" dir="ltr" style="text-align: left;"><?= e($edit['content'] ?? '') ?></textarea>
     <p>
       <button class="btn green"><?= !empty($edit) ? 'ذخیره ویرایش' : 'ساخت فایل' ?></button>
       <?php if (!empty($edit)): ?><a class="btn gray" href="/admin/landing/html">انصراف</a><?php endif; ?>
@@ -69,6 +75,7 @@
 <script src="/assets/codemirror/mode/htmlmixed.js"></script>
 <script src="/assets/codemirror/addon/matchbrackets.js"></script>
 <script src="/assets/codemirror/addon/active-line.js"></script>
+<script src="/assets/codemirror/editor-tools.js"></script>
 <script>
 var htmlEditor = CodeMirror.fromTextArea(document.getElementById('htmlEditor'), {
   mode: 'htmlmixed',
@@ -83,4 +90,5 @@ var htmlEditor = CodeMirror.fromTextArea(document.getElementById('htmlEditor'), 
     'Cmd-S': function () { htmlEditor.save(); document.getElementById('htmlForm').submit(); }
   }
 });
+vaslehEditorTools(htmlEditor);
 </script>

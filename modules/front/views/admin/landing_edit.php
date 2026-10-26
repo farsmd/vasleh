@@ -13,6 +13,13 @@
   <form method="post" action="/admin/landing/edit" id="landingEditForm">
     <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
     <input type="hidden" name="action" value="save">
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px;">
+      <button type="button" class="btn gray" id="copyCodeBtn">کپی کد</button>
+      <span>اندازه فونت:</span>
+      <button type="button" class="btn gray" id="fontMinusBtn">−</button>
+      <span id="fontSizeLabel" dir="ltr">13.5px</span>
+      <button type="button" class="btn gray" id="fontPlusBtn">+</button>
+    </div>
     <textarea name="content" id="landingEditor" dir="ltr" style="text-align: left;"><?= e($content) ?></textarea>
     <p><button class="btn green">ذخیره (Ctrl+S)</button></p>
   </form>
@@ -52,6 +59,7 @@
 <script src="/assets/codemirror/mode/php.js"></script>
 <script src="/assets/codemirror/addon/matchbrackets.js"></script>
 <script src="/assets/codemirror/addon/active-line.js"></script>
+<script src="/assets/codemirror/editor-tools.js"></script>
 <script>
 var landingEditor = CodeMirror.fromTextArea(document.getElementById('landingEditor'), {
   mode: 'php',
@@ -66,4 +74,5 @@ var landingEditor = CodeMirror.fromTextArea(document.getElementById('landingEdit
     'Cmd-S': function () { landingEditor.save(); document.getElementById('landingEditForm').submit(); }
   }
 });
+vaslehEditorTools(landingEditor);
 </script>

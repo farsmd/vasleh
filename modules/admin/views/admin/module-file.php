@@ -34,6 +34,13 @@ $cmMode = $modeMap[$ext] ?? 'null';
     <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
     <input type="hidden" name="path" value="<?= e($path) ?>">
     <input type="hidden" name="action" value="save">
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px;">
+      <button type="button" class="btn gray" id="copyCodeBtn">کپی کد</button>
+      <span>اندازه فونت:</span>
+      <button type="button" class="btn gray" id="fontMinusBtn">−</button>
+      <span id="fontSizeLabel" dir="ltr">13.5px</span>
+      <button type="button" class="btn gray" id="fontPlusBtn">+</button>
+    </div>
     <textarea name="content" id="codeEditor" dir="ltr"><?= e($content) ?></textarea>
     <p style="margin-top:12px">
       <button class="btn green">ذخیره فایل</button>
@@ -77,6 +84,7 @@ $cmMode = $modeMap[$ext] ?? 'null';
 <script src="<?= e($assetBase) ?>/assets/codemirror/mode/php.js"></script>
 <script src="<?= e($assetBase) ?>/assets/codemirror/addon/matchbrackets.js"></script>
 <script src="<?= e($assetBase) ?>/assets/codemirror/addon/active-line.js"></script>
+<script src="<?= e($assetBase) ?>/assets/codemirror/editor-tools.js"></script>
 <script>
 var cmMode = <?= $cmMode === 'json' ? "{name: 'javascript', json: true}" : ($cmMode === 'null' ? 'null' : "'" . $cmMode . "'") ?>;
 var editor = CodeMirror.fromTextArea(document.getElementById('codeEditor'), {
@@ -92,4 +100,5 @@ var editor = CodeMirror.fromTextArea(document.getElementById('codeEditor'), {
     'Cmd-S': function () { document.getElementById('editorForm').submit(); }
   }
 });
+vaslehEditorTools(editor);
 </script>
