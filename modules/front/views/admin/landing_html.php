@@ -1,3 +1,9 @@
+<link rel="stylesheet" href="/assets/codemirror/codemirror.css">
+<link rel="stylesheet" href="/assets/codemirror/theme/material-darker.css">
+<style>
+.CodeMirror{height:50vh;direction:ltr;text-align:left;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13.5px;border-radius:10px}
+</style>
+
 <div class="card">
   <h1>فایل‌های HTML لندینگ</h1>
   <?php if (!empty($flash)): ?><div class="flash"><?= e($flash) ?></div><?php endif; ?>
@@ -36,7 +42,7 @@
 
 <div class="card">
   <h1><?= !empty($edit) ? 'ویرایش فایل' : 'افزودن فایل' ?></h1>
-  <form method="post" action="/admin/landing/html/save">
+  <form method="post" action="/admin/landing/html/save" id="htmlForm">
     <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
     <input type="hidden" name="id" value="<?= (int) ($edit['id'] ?? 0) ?>">
     <label>عنوان
@@ -45,8 +51,8 @@
     <label>نام فایل (با حرف شروع شود؛ فقط حروف، رقم و زیرخط)
       <input type="text" name="name" dir="ltr" required value="<?= e($edit['name'] ?? '') ?>" placeholder="مثلاً intro">
     </label>
-    <label>محتوای HTML
-      <textarea name="content" rows="10" dir="ltr" style="text-align: left;"><?= e($edit['content'] ?? '') ?></textarea>
+    <label>محتوای HTML (ویرایشگر حرفه‌ای؛ Ctrl+S ذخیره می‌کند)
+      <textarea name="content" id="htmlEditor" rows="10" dir="ltr" style="text-align: left;"><?= e($edit['content'] ?? '') ?></textarea>
     </label>
     <p>
       <button class="btn green"><?= !empty($edit) ? 'ذخیره ویرایش' : 'ساخت فایل' ?></button>
@@ -54,3 +60,27 @@
     </p>
   </form>
 </div>
+
+<script src="/assets/codemirror/codemirror.js"></script>
+<script src="/assets/codemirror/mode/xml.js"></script>
+<script src="/assets/codemirror/mode/css.js"></script>
+<script src="/assets/codemirror/mode/javascript.js"></script>
+<script src="/assets/codemirror/mode/clike.js"></script>
+<script src="/assets/codemirror/mode/htmlmixed.js"></script>
+<script src="/assets/codemirror/addon/matchbrackets.js"></script>
+<script src="/assets/codemirror/addon/active-line.js"></script>
+<script>
+var htmlEditor = CodeMirror.fromTextArea(document.getElementById('htmlEditor'), {
+  mode: 'htmlmixed',
+  theme: 'material-darker',
+  lineNumbers: true,
+  matchBrackets: true,
+  styleActiveLine: true,
+  indentUnit: 4,
+  tabSize: 4,
+  extraKeys: {
+    'Ctrl-S': function () { htmlEditor.save(); document.getElementById('htmlForm').submit(); },
+    'Cmd-S': function () { htmlEditor.save(); document.getElementById('htmlForm').submit(); }
+  }
+});
+</script>

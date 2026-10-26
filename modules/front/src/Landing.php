@@ -94,6 +94,19 @@ final class Landing
         foreach (self::SEED_FIELDS as $name => [$title, $content]) {
             $seedField->execute(['n' => $name, 't' => $title, 'c' => $content]);
         }
+        // قیمت‌ها هم ردیف‌های همین فهرست‌اند (نام price_*). مقدار اولیه از
+        // front_settings قدیمی (اگر دستی تغییر کرده بود) وگرنه پیش‌فرض؛
+        // INSERT OR IGNORE یعنی ویرایش بعدی کاربر همیشه برنده است.
+        $settings = $pdo->query('SELECT key, value FROM front_settings')->fetchAll(\PDO::FETCH_KEY_PAIR);
+        $priceTitles = ['base' => 'قیمت پایه'];
+        foreach (self::MODULES as $slug => $m) {
+            $priceTitles[$slug] = 'قیمت ' . $m['title'];
+        }
+        foreach (self::DEFAULTS as $key => $price) {
+            $value = $settings['price_' . $key] ?? null;
+            $value = is_numeric($value) && (int) $value >= 0 ? (string) (int) $value : (string) $price;
+            $seedField->execute(['n' => 'price_' . $key, 't' => $priceTitles[$key], 'c' => $value]);
+        }
         $pdo->exec(
             'CREATE TABLE IF NOT EXISTS front_html (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -105,32 +118,16 @@ final class Landing
         );
     }
 
-    /** قیمت‌های جاری (تنظیمات، وگرنه پیش‌فرض). */
+    /** قیمت‌های جاری از ردیف‌های price_* همین فهرست (وگرنه پیش‌فرض). */
     public function prices(): array
     {
-        $rows = $this->db->pdo()->query('SELECT key, value FROM front_settings')->fetchAll(\PDO::FETCH_KEY_PAIR);
+        $map = $this->fieldMap();
         $out = [];
         foreach (self::DEFAULTS as $key => $default) {
-            $raw = $rows['price_' . $key] ?? null;
+            $raw = $map['price_' . $key] ?? null;
             $out[$key] = is_numeric($raw) && (int) $raw >= 0 ? (int) $raw : $default;
         }
         return $out;
-    }
-
-    /** ذخیره قیمت‌ها (فقط کلیدهای شناخته‌شده، عدد صحیح نامنفی). */
-    public function setPrices(array $input): void
-    {
-        $stmt = $this->db->pdo()->prepare(
-            'INSERT INTO front_settings (key, value) VALUES (:k, :v)
-             ON CONFLICT(key) DO UPDATE SET value = excluded.value'
-        );
-        foreach (self::DEFAULTS as $key => $default) {
-            if (!isset($input[$key])) {
-                continue;
-            }
-            $value = (int) $input[$key];
-            $stmt->execute(['k' => 'price_' . $key, 'v' => (string) max(0, $value)]);
-        }
     }
 
     /** عدد با ارقام فارسی و جداکننده هزارگان: ۱۹۹٬۰۰۰ */

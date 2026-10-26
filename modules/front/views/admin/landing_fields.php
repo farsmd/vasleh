@@ -4,6 +4,7 @@
   <?php if (!empty($error)): ?><div class="error"><?= e($error) ?></div><?php endif; ?>
   <p>هر فیلد یک «عنوان» (برای نمایش در همین فهرست)، یک «نام» (نام توکن) و یک «محتوا» دارد. در قالب لندینگ با <code dir="ltr">{{نام}}</code> به فیلد ارجاع بدهید؛ محتوا موقع نمایش جایگزین می‌شود. محتوا خام رندر می‌شود (HTML هم مجاز است) چون فقط مالک به این صفحه دسترسی دارد.</p>
   <p>فیلد تازه‌ای که می‌سازید تا وقتی توکنش در قالب نباشد نمایش داده نمی‌شود؛ توکن را با ویرایشگر فایل ماژول‌ها در <code>modules/front/views/front/landing.php</code> به قالب اضافه کنید.</p>
+  <p>قیمت‌ها هم ردیف‌های همین فهرست‌اند (نام‌های <code dir="ltr">price_*</code> با برچسب «قیمت»)؛ محتوایشان باید عدد باشد و مستقیم روی ماشین‌حساب لندینگ اثر می‌گذارد. حذف یک قیمت، قیمت پیش‌فرض را برمی‌گرداند.</p>
   <?php if (empty($fields)): ?>
     <p>هنوز فیلدی نیست.</p>
   <?php else: ?>
@@ -12,7 +13,7 @@
       <tbody>
         <?php foreach ($fields as $f): ?>
           <tr>
-            <td><?= e($f['title']) ?></td>
+            <td><?= e($f['title']) ?><?= str_starts_with((string) $f['name'], 'price_') ? ' <span class="btn green">قیمت</span>' : '' ?></td>
             <td dir="ltr" style="text-align: right;"><?= e('{{' . $f['name'] . '}}') ?></td>
             <td class="wrap"><?= e((string) $f['content']) ?></td>
             <td>
@@ -27,23 +28,6 @@
       </tbody>
     </table>
   <?php endif; ?>
-</div>
-
-<div class="card">
-  <h1>قیمت‌های لندینگ</h1>
-  <p>قیمت‌های صفحه اصلی (تومان/ماه). تغییرها بلافاصله روی لندینگ اعمال می‌شوند.</p>
-  <form method="post" action="/admin/landing/fields/prices">
-    <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
-    <label>اشتراک پایه
-      <input type="number" name="price_base" min="0" required value="<?= (int) $prices['base'] ?>">
-    </label>
-    <?php foreach ($modules as $slug => $m): ?>
-      <label><?= e($m['title']) ?>
-        <input type="number" name="price_<?= e($slug) ?>" min="0" required value="<?= (int) $prices[$slug] ?>">
-      </label>
-    <?php endforeach; ?>
-    <p><button class="btn green">ذخیره قیمت‌ها</button></p>
-  </form>
 </div>
 
 <div class="card">

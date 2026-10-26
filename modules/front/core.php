@@ -16,7 +16,7 @@ return [
     'title'       => 'فرانت‌اند',
     'icon'        => '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
     'description' => 'نمای عمومی سایت',
-    'version'     => '0.5.0',
+    'version'     => '0.6.0',
     'system'      => true,
     'requires'    => ['sqlite', 'session'],
 
@@ -37,6 +37,7 @@ return [
         ['label' => 'درخواست‌های آزمایشی', 'path' => '/admin/leads', 'permission' => 'leads.view'],
         ['label' => 'فیلدهای لندینگ', 'path' => '/admin/landing/fields', 'permission' => 'landing.manage'],
         ['label' => 'فایل‌های HTML لندینگ', 'path' => '/admin/landing/html', 'permission' => 'landing.manage'],
+        ['label' => 'ویرایش صفحه لندینگ', 'path' => '/admin/landing/edit', 'permission' => 'landing.manage'],
     ],
 
     'routes' => static function (Router $router, Container $c, string $module): void {
@@ -47,7 +48,9 @@ return [
         $router->get('/admin/landing/fields', [FrontController::class, 'fieldsAdmin'], $module);
         $router->post('/admin/landing/fields/save', [FrontController::class, 'fieldSave'], $module);
         $router->post('/admin/landing/fields/{id}/delete', [FrontController::class, 'fieldDelete'], $module);
-        $router->post('/admin/landing/fields/prices', [FrontController::class, 'pricesSave'], $module);
+
+        $router->get('/admin/landing/edit', [FrontController::class, 'landingEdit'], $module);
+        $router->post('/admin/landing/edit', [FrontController::class, 'landingSave'], $module);
         $router->get('/admin/landing/html', [FrontController::class, 'htmlAdmin'], $module);
         $router->post('/admin/landing/html/save', [FrontController::class, 'htmlSave'], $module);
         $router->post('/admin/landing/html/{id}/delete', [FrontController::class, 'htmlDelete'], $module);

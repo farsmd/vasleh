@@ -133,22 +133,6 @@ final class FrontController
         return $this->back('/admin/leads', 'درخواست حذف شد.');
     }
 
-    public function pricesSave(Request $request): Response
-    {
-        if (($r = $this->requireOwner()) !== null) {
-            return $r;
-        }
-        $input = [];
-        foreach (array_keys(Landing::DEFAULTS) as $key) {
-            $raw = $request->input('price_' . $key);
-            if ($raw !== null && $raw !== '') {
-                $input[$key] = (int) $raw;
-            }
-        }
-        $this->landing()->setPrices($input);
-        return $this->back('/admin/landing/fields', 'قیمت‌های لندینگ ذخیره شد.');
-    }
-
     // ---------- فیلدهای محتوای لندینگ ----------
 
     public function fieldsAdmin(Request $request): Response
@@ -165,6 +149,7 @@ final class FrontController
             'name' => 'نام فیلد معتبر نیست (با حرف شروع شود؛ فقط حروف، رقم و زیرخط).',
             'title' => 'عنوان فیلد را بنویسید.',
             'exists' => 'فیلدی با این نام از قبل هست.',
+            'price' => 'محتوای فیلد قیمت باید عدد صحیح باشد (تومان).',
             default => '',
         };
         return $this->page('landing_fields', [
@@ -172,8 +157,6 @@ final class FrontController
             'edit' => $edit,
             'flash' => (string) $request->input('msg', ''),
             'error' => $error,
-            'prices' => $this->landing()->prices(),
-            'modules' => Landing::MODULES,
         ], 'فیلدهای لندینگ');
     }
 
@@ -192,6 +175,10 @@ final class FrontController
         if ($title === '' || strlen($title) > 300) {
             return Response::redirect($base . '?err=title');
         }
+        // ردیف‌های قیمت (نام price_*) محتوای عددی می‌خواهند تا ماشین‌حساب خراب نشود.
+        if (str_starts_with($name, 'price_') && !preg_match('/^\d+$/', trim($content))) {
+            return Response::redirect($base . '?err=price');
+        }
         $id = (int) $request->input('id', 0);
         $ok = $id > 0
             ? $this->landing()->fieldUpdate($id, $name, $title, $content)
@@ -209,6 +196,98 @@ final class FrontController
         }
         $this->landing()->fieldDelete((int) ($params['id'] ?? 0));
         return $this->back('/admin/landing/fields', 'فیلد حذف شد.');
+    }
+
+    // ---------- ویرایش قالب صفحه لندینگ ----------
+
+    private const MAX_TEMPLATE_BYTES = 524288; // ۵۱۲ کیلوبایت، مثل ویرایشگر فایل ماژول‌ها
+
+    /** مسیر قالب لندینگ + کلید بکاپ (مشترک با ویرایشگر فایل ماژول‌ها). */
+    private function landingTemplate(): ?array
+    {
+        $module = $this->container->get('loader')->get('front');
+        if ($module === null || empty($module['dir'])) {
+            return null;
+        }
+        $abs = (string) $module['dir'] . '/views/front/landing.php';
+        if (!is_file($abs)) {
+            return null;
+        }
+        return [
+            'abs' => $abs,
+            'dir' => (string) $this->container->get('base_path') . '/storage/backups/files/front',
+            'key' => 'views__front__landing.php',
+        ];
+    }
+
+    private function templateBackups(array $tpl): array
+    {
+        $out = [];
+        foreach (glob($tpl['dir'] . '/' . $tpl['key'] . '.*.bak') ?: [] as $f) {
+            $out[] = [
+                'name' => basename($f),
+                'time' => date('Y-m-d H:i:s', (int) filemtime($f)),
+                'size' => (int) filesize($f),
+            ];
+        }
+        usort($out, static fn (array $a, array $b): int => strcmp($b['name'], $a['name']));
+        return array_slice($out, 0, 10);
+    }
+
+    private function templateBackup(array $tpl): void
+    {
+        if (!is_dir($tpl['dir'])) {
+            mkdir($tpl['dir'], 0775, true);
+        }
+        copy($tpl['abs'], $tpl['dir'] . '/' . $tpl['key'] . '.' . date('Ymd-His') . '-' . bin2hex(random_bytes(2)) . '.bak');
+    }
+
+    public function landingEdit(Request $request): Response
+    {
+        if (($r = $this->requireOwner()) !== null) {
+            return $r;
+        }
+        $tpl = $this->landingTemplate();
+        if ($tpl === null || filesize($tpl['abs']) > self::MAX_TEMPLATE_BYTES) {
+            return Response::notFound('قالب لندینگ پیدا نشد یا بزرگ‌تر از ۵۱۲ کیلوبایت است');
+        }
+        return $this->page('landing_edit', [
+            'content' => (string) file_get_contents($tpl['abs']),
+            'backups' => $this->templateBackups($tpl),
+            'flash' => (string) $request->input('msg', ''),
+            'error' => (string) $request->input('err', ''),
+        ], 'ویرایش صفحه لندینگ');
+    }
+
+    public function landingSave(Request $request): Response
+    {
+        if (($r = $this->requireOwner()) !== null) {
+            return $r;
+        }
+        $tpl = $this->landingTemplate();
+        if ($tpl === null) {
+            return Response::notFound('قالب لندینگ پیدا نشد');
+        }
+        $back = '/admin/landing/edit';
+        if ((string) $request->input('action', 'save') === 'restore') {
+            $name = basename((string) $request->input('backup', ''));
+            $src = $tpl['dir'] . '/' . $name;
+            if (!str_starts_with($name, $tpl['key'] . '.') || !str_ends_with($name, '.bak') || !is_file($src)) {
+                return Response::redirect($back . '?err=' . urlencode('بکاپ پیدا نشد'));
+            }
+            $this->templateBackup($tpl);
+            copy($src, $tpl['abs']);
+            return $this->back($back, 'قالب از بکاپ بازیابی شد.');
+        }
+        $content = (string) $request->input('content', '');
+        if (strlen($content) > self::MAX_TEMPLATE_BYTES) {
+            return Response::redirect($back . '?err=' . urlencode('محتوا بزرگ‌تر از ۵۱۲ کیلوبایت است'));
+        }
+        $this->templateBackup($tpl);
+        $tmp = $tpl['abs'] . '.tmp-' . bin2hex(random_bytes(3));
+        file_put_contents($tmp, $content);
+        rename($tmp, $tpl['abs']);
+        return $this->back($back, 'ذخیره شد — قبل از ذخیره بکاپ گرفته شد.');
     }
 
     // ---------- فایل‌های HTML لندینگ ----------
