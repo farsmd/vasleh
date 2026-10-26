@@ -123,7 +123,7 @@
                   <span class="text-xs text-slate-500 dark:text-slate-400"><?= $mkey === 'zibal' ? 'پرداخت امن از طریق درگاه زیبال.' : 'پس از ثبت سفارش، مدیر فروشگاه هماهنگی پرداخت را انجام می‌دهد.' ?></span>
                 </span>
               </span>
-              <input type="radio" name="payment_method" value="<?= e($mkey) ?>" <?= ($old['payment_method'] ?? $paymentMethods[0][0]) === $mkey ? 'checked' : '' ?> class="accent-indigo-600 w-5 h-5">
+              <input type="radio" name="payment_method" value="<?= e($mkey) ?>" <?= ($old['payment_method'] ?? '') === $mkey ? 'checked' : '' ?> class="accent-indigo-600 w-5 h-5">
             </label>
             <?php endforeach; endif; ?>
           </div>
@@ -215,6 +215,12 @@ function toggleGiftWrap(){
   document.getElementById('summary-total').textContent = (coBaseTotal + (on ? coGiftPrice : 0)).toLocaleString('en-US');
 }
 document.getElementById('checkout-form').addEventListener('submit', function(e){
-  if (coStep < 3) { e.preventDefault(); goCheckoutStep(coStep + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  if (coStep < 3) { e.preventDefault(); goCheckoutStep(coStep + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+  var radios = document.querySelectorAll('input[name="payment_method"]');
+  if (radios.length > 0) {
+    var chosen = false;
+    radios.forEach(function(r){ if (r.checked) chosen = true; });
+    if (!chosen) { e.preventDefault(); alert('روش پرداخت را انتخاب کنید.'); }
+  }
 });
 </script>

@@ -477,6 +477,9 @@ final class ShopController
         $slots = self::parseLines($this->settings()->get('delivery_slots', ''));
         $methods = $this->paymentMethods();
         $methodKeys = array_column($methods, 0);
+        if ($methodKeys !== [] && !in_array($old['payment_method'], $methodKeys, true)) {
+            return $this->checkoutPage($old, 'روش پرداخت را انتخاب کنید.');
+        }
         $extra = [
             'coupon_code' => $coupon !== null ? (string) $coupon['code'] : '',
             'discount' => $discount,
