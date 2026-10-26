@@ -56,6 +56,9 @@ $accent = preg_match('/^#[0-9a-fA-F]{6}$/', (string) ($shopAccent ?? '')) ? (str
         <button onclick="shopToggleTheme()" class="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-amber-400 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center transition" title="تغییر حالت شب و روز">
           <i id="shop-theme-icon" class="fa-solid fa-moon text-sm"></i>
         </button>
+        <a href="<?= !empty($customer) ? '/shop/account/orders' : '/shop/account' ?>" class="relative w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-brand-600 flex items-center justify-center transition" title="<?= !empty($customer) ? 'حساب من' : 'ورود / ثبت‌نام' ?>">
+          <i class="fa-regular fa-user text-base"></i>
+        </a>
         <a href="/shop/wishlist" class="relative w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-rose-500 flex items-center justify-center transition" title="علاقه‌مندی‌ها">
           <i class="fa-regular fa-heart text-base"></i>
           <?php if ($wishlistCount > 0): ?><span class="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white rounded-full text-[10px] flex items-center justify-center font-bold"><?= (int) $wishlistCount ?></span><?php endif; ?>

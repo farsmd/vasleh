@@ -62,6 +62,7 @@ final class Orders
             'gift_message' => 'TEXT NOT NULL DEFAULT \'\'',
             'delivery_slot' => 'TEXT NOT NULL DEFAULT \'\'',
             'payment_method' => 'TEXT NOT NULL DEFAULT \'\'',
+            'customer_id' => 'INTEGER NOT NULL DEFAULT 0',
         ] as $col => $def) {
             if (!in_array($col, $cols, true)) {
                 $pdo->exec("ALTER TABLE shop_orders ADD COLUMN $col $def");
@@ -120,8 +121,8 @@ final class Orders
         $pdo->beginTransaction();
         try {
             $stmt = $pdo->prepare(
-                'INSERT INTO shop_orders (code, customer_name, phone, email, address, note, subtotal, shipping, tax, total, status, payment_status, coupon_code, discount, gift_wrap, gift_fee, gift_message, delivery_slot, payment_method, created_at, updated_at)
-                 VALUES (:code, :name, :phone, :email, :addr, :note, :sub, :ship, :tax, :total, \'new\', \'unpaid\', :cc, :dc, :gw, :gf, :gm, :ds, :pm, :now, :now)'
+                'INSERT INTO shop_orders (code, customer_name, phone, email, address, note, subtotal, shipping, tax, total, status, payment_status, coupon_code, discount, gift_wrap, gift_fee, gift_message, delivery_slot, payment_method, customer_id, created_at, updated_at)
+                 VALUES (:code, :name, :phone, :email, :addr, :note, :sub, :ship, :tax, :total, \'new\', \'unpaid\', :cc, :dc, :gw, :gf, :gm, :ds, :pm, :cid, :now, :now)'
             );
             $stmt->execute([
                 'code' => $code, 'name' => $customer['name'], 'phone' => $customer['phone'],
@@ -130,6 +131,7 @@ final class Orders
                 'cc' => (string) ($extra['coupon_code'] ?? ''), 'dc' => $discount,
                 'gw' => (int) ($extra['gift_wrap'] ?? 0) === 1 ? 1 : 0, 'gf' => $giftFee, 'gm' => (string) ($extra['gift_message'] ?? ''),
                 'ds' => (string) ($extra['delivery_slot'] ?? ''), 'pm' => (string) ($extra['payment_method'] ?? ''),
+                'cid' => (int) ($extra['customer_id'] ?? 0),
             ]);
             $orderId = (int) $pdo->lastInsertId();
             $itemStmt = $pdo->prepare(
@@ -151,6 +153,14 @@ final class Orders
             throw $e;
         }
         return [$orderId, $code];
+    }
+
+    /** سفارش‌های یک مشتری، از تازه به قدیم. */
+    public function byCustomer(int $customerId): array
+    {
+        $stmt = $this->pdo()->prepare('SELECT * FROM shop_orders WHERE customer_id = :c ORDER BY id DESC LIMIT 100');
+        $stmt->execute(['c' => $customerId]);
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
     public function all(?string $status = null): array

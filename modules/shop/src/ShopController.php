@@ -39,6 +39,23 @@ final class ShopController
         return $this->container->get('shop.wishlist');
     }
 
+    private function customers(): Customers
+    {
+        return $this->container->get('shop.customers');
+    }
+
+    /** مشتری واردشده فروشگاه (سشن جدا از کاربر ادمین) یا null. */
+    private function customer(): ?array
+    {
+        $id = (int) $this->session()->get('shop_customer_id', 0);
+        return $id > 0 ? $this->customers()->find($id) : null;
+    }
+
+    private function requireCustomer(): ?array
+    {
+        return $this->customer();
+    }
+
     /** کوپن معتبر سشن برای این جمع (نامعتبر باشد، از سشن پاک می‌شود). */
     private function validCoupon(int $subtotal): array
     {
@@ -153,6 +170,7 @@ final class ShopController
             'content' => $content,
             'shopTitle' => $settings->get('shop_title', 'فروشگاه'),
             'shopAccent' => $settings->get('shop_accent', '#4f46e5'),
+            'customer' => $this->customer(),
             'cartCount' => $this->cart()->count(),
             'cartItems' => $this->cart()->items($this->catalog()),
             'wishlistCount' => $this->wishlist()->count(),
@@ -394,7 +412,11 @@ final class ShopController
         if ($this->cart()->count() === 0) {
             return Response::redirect('/shop/cart');
         }
-        return $this->checkoutPage([], null);
+        $old = [];
+        if (($c = $this->customer()) !== null) {
+            $old = ['name' => (string) $c['name'], 'phone' => (string) $c['phone'], 'address' => (string) $c['address']];
+        }
+        return $this->checkoutPage($old, null);
     }
 
     private function checkoutPage(array $old, ?string $error): Response
@@ -480,7 +502,9 @@ final class ShopController
         if ($methodKeys !== [] && !in_array($old['payment_method'], $methodKeys, true)) {
             return $this->checkoutPage($old, 'روش پرداخت را انتخاب کنید.');
         }
+        $customer = $this->customer();
         $extra = [
+            'customer_id' => $customer !== null ? (int) $customer['id'] : 0,
             'coupon_code' => $coupon !== null ? (string) $coupon['code'] : '',
             'discount' => $discount,
             'gift_wrap' => $old['gift_wrap'],
@@ -507,6 +531,139 @@ final class ShopController
             return $this->zibalRedirect($code, (int) $total);
         }
         return Response::redirect('/shop/success/' . $code);
+    }
+
+    // ---------- ناحیه کاربری فروشگاه ----------
+
+    public function account(Request $request): Response
+    {
+        if ($this->customer() !== null) {
+            return Response::redirect('/shop/account/orders');
+        }
+        return $this->page('account', [
+            'error' => $request->input('err'),
+            'flash' => $request->input('msg'),
+            'old' => [],
+        ], 'حساب من');
+    }
+
+    public function accountRegister(Request $request): Response
+    {
+        if (!$this->csrfOk($request)) {
+            return Response::forbidden('توکن امنیتی نامعتبر است');
+        }
+        if ($this->customer() !== null) {
+            return Response::redirect('/shop/account/orders');
+        }
+        [$customer, $error] = $this->customers()->register(
+            (string) $request->input('name', ''),
+            (string) $request->input('phone', ''),
+            (string) $request->input('password', '')
+        );
+        if ($error !== null) {
+            return $this->page('account', [
+                'error' => $error, 'flash' => null,
+                'old' => ['name' => (string) $request->input('name', ''), 'phone' => (string) $request->input('phone', '')],
+            ], 'حساب من');
+        }
+        $this->session()->set('shop_customer_id', (int) $customer['id']);
+        return Response::redirect('/shop/account/orders');
+    }
+
+    public function accountLogin(Request $request): Response
+    {
+        if (!$this->csrfOk($request)) {
+            return Response::forbidden('توکن امنیتی نامعتبر است');
+        }
+        if ($this->customer() !== null) {
+            return Response::redirect('/shop/account/orders');
+        }
+        $customer = $this->customers()->verify(
+            (string) $request->input('phone', ''),
+            (string) $request->input('password', '')
+        );
+        if ($customer === null) {
+            return $this->page('account', [
+                'error' => 'شماره موبایل یا رمز عبور درست نیست.', 'flash' => null,
+                'old' => ['phone' => (string) $request->input('phone', '')],
+            ], 'حساب من');
+        }
+        $this->session()->set('shop_customer_id', (int) $customer['id']);
+        return Response::redirect('/shop/account/orders');
+    }
+
+    public function accountLogout(Request $request): Response
+    {
+        if (!$this->csrfOk($request)) {
+            return Response::forbidden('توکن امنیتی نامعتبر است');
+        }
+        $this->session()->set('shop_customer_id', 0);
+        return Response::redirect('/shop/account');
+    }
+
+    public function accountOrders(Request $request): Response
+    {
+        $customer = $this->requireCustomer();
+        if ($customer === null) {
+            return Response::redirect('/shop/account');
+        }
+        return $this->page('account_orders', [
+            'customer' => $customer,
+            'orders' => $this->container->get('shop.orders')->byCustomer((int) $customer['id']),
+            'flash' => $request->input('msg'),
+            'error' => $request->input('err'),
+        ], 'سفارش‌های من');
+    }
+
+    public function accountOrderDetail(Request $request, array $params): Response
+    {
+        $customer = $this->requireCustomer();
+        if ($customer === null) {
+            return Response::redirect('/shop/account');
+        }
+        $code = (string) ($params['code'] ?? '');
+        $orders = $this->container->get('shop.orders');
+        $order = $orders->findByCode($code);
+        if ($order === null || (int) ($order['customer_id'] ?? 0) !== (int) $customer['id']) {
+            return Response::redirect('/shop/account/orders');
+        }
+        return $this->page('account_order', [
+            'customer' => $customer,
+            'order' => $order,
+            'items' => $orders->items((int) $order['id']),
+        ], 'سفارش ' . $code);
+    }
+
+    public function accountProfile(Request $request): Response
+    {
+        $customer = $this->requireCustomer();
+        if ($customer === null) {
+            return Response::redirect('/shop/account');
+        }
+        return $this->page('profile', [
+            'customer' => $customer,
+            'flash' => $request->input('msg'),
+            'error' => $request->input('err'),
+        ], 'ویرایش حساب');
+    }
+
+    public function accountProfileSave(Request $request): Response
+    {
+        if (!$this->csrfOk($request)) {
+            return Response::forbidden('توکن امنیتی نامعتبر است');
+        }
+        $customer = $this->requireCustomer();
+        if ($customer === null) {
+            return Response::redirect('/shop/account');
+        }
+        $name = trim((string) $request->input('name', ''));
+        if ($name === '') {
+            return $this->page('profile', [
+                'customer' => $customer, 'flash' => null, 'error' => 'نام الزامی است.',
+            ], 'ویرایش حساب');
+        }
+        $this->customers()->updateProfile((int) $customer['id'], $name, (string) $request->input('address', ''));
+        return Response::redirect('/shop/account/profile?msg=' . rawurlencode('حساب به‌روز شد.'));
     }
 
     public function success(Request $request, array $params): Response
