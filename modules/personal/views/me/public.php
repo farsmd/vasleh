@@ -13,7 +13,7 @@
         <?php else: ?>
             <div class="space-y-2">
             <?php foreach ($needs as $n): ?>
-                <p class="text-sm <?= (int) $n['done'] === 1 ? 'line-through text-slate-400' : '' ?>"><?= (int) $n['done'] === 1 ? '✓ ' : '' ?><?= e($n['title']) ?></p>
+                <p class="text-sm <?= (int) $n['done'] === 1 ? 'line-through text-slate-400' : '' ?>"><?= (int) $n['done'] === 1 ? '<i class="fa-solid fa-check text-emerald-500"></i> ' : '' ?><?= e($n['title']) ?></p>
             <?php endforeach; ?>
             </div>
         <?php endif; ?>

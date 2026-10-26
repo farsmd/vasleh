@@ -98,10 +98,10 @@
                 </div>
                 <select id="categoryFilter" onchange="renderCurrentView()" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-600 dark:text-slate-300">
                     <option value="all">همه دسته‌ها</option>
-                    <option value="work">💼 کاری</option>
-                    <option value="personal">🏠 شخصی</option>
-                    <option value="study">📚 یادگیری</option>
-                    <option value="health">🏃 سلامت</option>
+                    <option value="work">کاری</option>
+                    <option value="personal">شخصی</option>
+                    <option value="study">یادگیری</option>
+                    <option value="health">سلامت</option>
                 </select>
             </div>
         </div>
@@ -317,18 +317,18 @@
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">دسته‌بندی</label>
                         <select id="taskCategory" class="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-white">
-                            <option value="work">💼 کاری</option>
-                            <option value="personal">🏠 شخصی</option>
-                            <option value="study">📚 یادگیری و مطالعه</option>
-                            <option value="health">🏃 سلامت و ورزش</option>
+                            <option value="work">کاری</option>
+                            <option value="personal">شخصی</option>
+                            <option value="study">یادگیری و مطالعه</option>
+                            <option value="health">سلامت و ورزش</option>
                         </select>
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">سطح اولویت</label>
                         <select id="taskPriority" class="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-white">
-                            <option value="high">🔴 بالا و فوری</option>
-                            <option value="medium" selected>🟡 متوسط</option>
-                            <option value="low">🟢 پایین و روتین</option>
+                            <option value="high">بالا و فوری</option>
+                            <option value="medium" selected>متوسط</option>
+                            <option value="low">پایین و روتین</option>
                         </select>
                     </div>
                 </div>
@@ -554,7 +554,7 @@
             const filtered = getFilteredTasks().filter(t => !t.done);
             filtered.sort((a, b) => (a.priority === 'high' ? -1 : 1));
             if (filtered.length === 0) {
-                list.innerHTML = '<div class="text-center py-10 text-slate-400 text-xs">تبریک! هیچ تسک انجام‌نشده‌ای برای نمایش وجود ندارد. 🎉</div>';
+                list.innerHTML = '<div class="text-center py-10 text-slate-400 text-xs"><i class="fa-solid fa-circle-check text-emerald-500"></i> تبریک! هیچ تسک انجام‌نشده‌ای برای نمایش وجود ندارد.</div>';
                 return;
             }
             list.innerHTML = filtered.slice(0, 5).map(task => createTaskCardHTML(task)).join('');
