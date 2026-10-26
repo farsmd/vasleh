@@ -16,7 +16,7 @@ return [
     'title'       => 'فرانت‌اند',
     'icon'        => '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
     'description' => 'نمای عمومی سایت',
-    'version'     => '0.2.0',
+    'version'     => '0.3.0',
     'system'      => true,
     'requires'    => ['sqlite', 'session'],
 
@@ -36,6 +36,7 @@ return [
     'admin_menu' => [
         ['label' => 'درخواست‌های آزمایشی', 'path' => '/admin/leads', 'permission' => 'leads.view'],
         ['label' => 'تنظیمات لندینگ', 'path' => '/admin/landing', 'permission' => 'landing.manage'],
+        ['label' => 'فیلدهای لندینگ', 'path' => '/admin/landing/fields', 'permission' => 'landing.manage'],
     ],
 
     'routes' => static function (Router $router, Container $c, string $module): void {
@@ -45,5 +46,8 @@ return [
         $router->post('/admin/leads/{id}/delete', [FrontController::class, 'leadDelete'], $module);
         $router->get('/admin/landing', [FrontController::class, 'landingSettings'], $module);
         $router->post('/admin/landing', [FrontController::class, 'landingSave'], $module);
+        $router->get('/admin/landing/fields', [FrontController::class, 'fieldsAdmin'], $module);
+        $router->post('/admin/landing/fields/save', [FrontController::class, 'fieldSave'], $module);
+        $router->post('/admin/landing/fields/{id}/delete', [FrontController::class, 'fieldDelete'], $module);
     },
 ];

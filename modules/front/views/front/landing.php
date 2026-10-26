@@ -64,17 +64,17 @@
   <div class="container">
     <header>
       <div class="badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg> نرم‌افزار وصله نسخه <?= e($version) ?></div>
-      <h1>مدیریت کامل کسب‌وکار، <span>به اندازه نیاز شما</span></h1>
-      <p>بدون نیاز به سرور گران‌قیمت یا دانش فنی. اشتراک پایه را بردارید و فقط هزینه ماژول‌هایی را بپردازید که به آن‌ها نیاز دارید.</p>
+      <h1>{{hero_title}} <span>{{hero_highlight}}</span></h1>
+      <p>{{hero_subtitle}}</p>
     </header>
 
     <?php if ($leadOk): ?>
-      <div class="banner ok">درخواست شما ثبت شد؛ برای فعال‌سازی نسخه آزمایشی به‌زودی با شما تماس می‌گیریم.</div>
+      <div class="banner ok">{{success_msg}}</div>
     <?php endif; ?>
     <?php if ($err === 'phone'): ?>
-      <div class="banner err">شماره تماس معتبر نیست؛ مثل 09123456789 وارد کنید.</div>
+      <div class="banner err">{{err_phone}}</div>
     <?php elseif ($err === 'name'): ?>
-      <div class="banner err">نام را بنویسید.</div>
+      <div class="banner err">{{err_name}}</div>
     <?php endif; ?>
 
     <div class="pricing-grid">
@@ -82,10 +82,10 @@
       <!-- ستون ۱: پلن پایه -->
       <div class="card">
         <div class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border-color: rgba(16, 185, 129, 0.3);">
-          درخواست ۱۵ روز تست رایگان
+          {{trial_badge}}
         </div>
-        <div class="card-title">اشتراک پایه سیستم</div>
-        <p class="card-desc">زیرساخت اختصاصی، هسته سبک و ابزارهای روزمره کسب‌وکار</p>
+        <div class="card-title">{{base_title}}</div>
+        <p class="card-desc">{{base_desc}}</p>
 
         <div style="margin-bottom: 24px;">
           <span style="font-size: 2rem; font-weight: 800;"><?= \Modules\Front\Landing::faNum((int) $prices['base']) ?></span>
@@ -93,24 +93,24 @@
         </div>
 
         <ul class="base-features">
-          <li><span class="check-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span> اجرا روی هاست اشتراکی، بدون نیاز به سرور اختصاصی</li>
-          <li><span class="check-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span> ماژول مدیریت شخصی و وظایف (Personal)</li>
-          <li><span class="check-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span> پنل ادمین فارسی با تم شیشه‌ای</li>
-          <li><span class="check-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span> ماژول پشتیبان‌گیری خودکار و بازیابی ایمن</li>
-          <li><span class="check-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span> ماژول گزارش‌ها و آمار بازدیدکنندگان</li>
-          <li><span class="check-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span> وبلاگ و مدیریت محتوا (CMS پایه)</li>
+          <li><span class="check-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span> {{feat_1}}</li>
+          <li><span class="check-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span> {{feat_2}}</li>
+          <li><span class="check-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span> {{feat_3}}</li>
+          <li><span class="check-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span> {{feat_4}}</li>
+          <li><span class="check-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span> {{feat_5}}</li>
+          <li><span class="check-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span> {{feat_6}}</li>
         </ul>
 
         <div class="note">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.4 1 2.3h6c0-.9.4-1.8 1-2.3A7 7 0 0 0 12 2z"/></svg>
-          <span>در دوره آزمایشی مبلغی پرداخت نمی‌کنید؛ فعال‌سازی بعد از بررسی درخواست انجام می‌شود.</span>
+          <span>{{trial_note}}</span>
         </div>
       </div>
 
       <!-- ستون ۲: ماژول‌های انتخابی و ماشین‌حساب -->
       <div class="card">
-        <div class="card-title">ماژول‌های مورد نیاز را انتخاب کنید</div>
-        <p class="card-desc">قابلیت‌ها را به دلخواه روشن یا خاموش کنید؛ هزینه بر اساس مصرف شماست.</p>
+        <div class="card-title">{{modules_title}}</div>
+        <p class="card-desc">{{modules_desc}}</p>
 
         <form id="orderForm" action="/lead" method="POST">
           <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
@@ -148,8 +148,8 @@
             <input type="tel" name="phone" required placeholder="شماره تماس (مثل 09123456789)" class="lead-field" style="direction: rtl; text-align: right;">
           </div>
 
-          <button type="submit" class="btn-submit">ثبت درخواست تست رایگان</button>
-          <div class="trial-notice">بدون نیاز به کارت بانکی برای تست • لغو در هر زمان</div>
+          <button type="submit" class="btn-submit">{{cta_button}}</button>
+          <div class="trial-notice">{{trial_notice}}</div>
         </form>
 
       </div>

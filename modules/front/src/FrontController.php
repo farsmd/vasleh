@@ -41,14 +41,15 @@ final class FrontController
 
     public function home(Request $request): Response
     {
-        return Response::html(View::render('front', 'front', 'landing', [
+        $html = View::render('front', 'front', 'landing', [
             'prices' => $this->landing()->prices(),
             'modules' => Landing::MODULES,
             'csrf' => $this->session()->csrfToken(),
             'version' => $this->versionFa(),
             'leadOk' => $request->input('lead') === 'ok',
             'err' => (string) $request->input('err', ''),
-        ]));
+        ]);
+        return Response::html($this->landing()->applyTokens($html));
     }
 
     public function leadSubmit(Request $request): Response
@@ -157,5 +158,65 @@ final class FrontController
         }
         $this->landing()->setPrices($input);
         return $this->back('/admin/landing', 'قیمت‌های لندینگ ذخیره شد.');
+    }
+
+    // ---------- فیلدهای محتوای لندینگ ----------
+
+    public function fieldsAdmin(Request $request): Response
+    {
+        if (($r = $this->requireOwner()) !== null) {
+            return $r;
+        }
+        $edit = null;
+        $editId = (int) $request->input('edit', 0);
+        if ($editId > 0) {
+            $edit = $this->landing()->fieldById($editId);
+        }
+        $error = match ((string) $request->input('err', '')) {
+            'name' => 'نام فیلد معتبر نیست (با حرف شروع شود؛ فقط حروف، رقم و زیرخط).',
+            'title' => 'عنوان فیلد را بنویسید.',
+            'exists' => 'فیلدی با این نام از قبل هست.',
+            default => '',
+        };
+        return $this->page('landing_fields', [
+            'fields' => $this->landing()->fields(),
+            'edit' => $edit,
+            'flash' => (string) $request->input('msg', ''),
+            'error' => $error,
+        ], 'فیلدهای لندینگ');
+    }
+
+    public function fieldSave(Request $request): Response
+    {
+        if (($r = $this->requireOwner()) !== null) {
+            return $r;
+        }
+        $name = trim((string) $request->input('name', ''));
+        $title = trim((string) $request->input('title', ''));
+        $content = (string) $request->input('content', '');
+        $base = '/admin/landing/fields';
+        if (!Landing::validFieldName($name)) {
+            return Response::redirect($base . '?err=name');
+        }
+        if ($title === '' || strlen($title) > 300) {
+            return Response::redirect($base . '?err=title');
+        }
+        $id = (int) $request->input('id', 0);
+        $ok = $id > 0
+            ? $this->landing()->fieldUpdate($id, $name, $title, $content)
+            : $this->landing()->fieldCreate($name, $title, $content);
+        if (!$ok) {
+            return Response::redirect($base . '?err=exists');
+        }
+        return $this->back($base, $id > 0 ? 'فیلد ویرایش شد.' : 'فیلد ساخته شد.');
+    }
+
+    public function fieldDelete(Request $request, array $params): Response
+    {
+        if (($r = $this->requireOwner()) !== null) {
+            return $r;
+        }
+        $this->landing()->fieldDelete((int) ($params['id'] ?? 0));
+        return $this->back('/admin/landing/fields', 'فیلد حذف شد.');
     }
 }
