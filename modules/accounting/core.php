@@ -18,7 +18,7 @@ return [
     'title'       => 'حسابداری',
     'icon'        => '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="11" x2="8.01" y2="11"/><line x1="12" y1="11" x2="12.01" y2="11"/><line x1="16" y1="11" x2="16.01" y2="11"/><line x1="8" y1="15" x2="8.01" y2="15"/><line x1="12" y1="15" x2="12.01" y2="15"/><line x1="16" y1="15" x2="16.01" y2="15"/><line x1="8" y1="19" x2="8.01" y2="19"/><line x1="12" y1="19" x2="12.01" y2="19"/><line x1="16" y1="19" x2="16.01" y2="19"/></svg>',
     'description' => 'حسابداری: حساب‌های پولی، اسناد درآمد و هزینه، انتقال بین حساب‌ها و گزارش‌های مالی',
-    'version'     => '1.1.0',
+    'version'     => '1.2.0',
     'system'      => false,
     'requires'    => ['sqlite', 'session'],
 
@@ -44,6 +44,7 @@ return [
         ['label' => 'دسته‌ها', 'path' => '/admin/accounting/categories', 'permission' => 'accounting.manage'],
         ['label' => 'انتقال بین حساب‌ها', 'path' => '/admin/accounting/transfers', 'permission' => 'accounting.manage'],
         ['label' => 'گزارش‌ها', 'path' => '/admin/accounting/reports', 'permission' => 'accounting.manage'],
+        ['label' => 'سود سفارش‌ها', 'path' => '/admin/accounting/profit', 'permission' => 'accounting.manage'],
     ],
 
     'routes' => static function (Router $router, Container $c, string $module): void {
@@ -55,6 +56,9 @@ return [
         $router->post('/admin/accounting/transactions/edit/{id}', [AdminAccountingController::class, 'transactionUpdate'], $module);
         $router->post('/admin/accounting/transactions/delete/{id}', [AdminAccountingController::class, 'transactionDelete'], $module);
         $router->post('/admin/accounting/import-shop', [AdminAccountingController::class, 'importShop'], $module);
+        $router->post('/admin/accounting/import-inventory', [AdminAccountingController::class, 'importInventory'], $module);
+        $router->get('/admin/accounting/transactions/export', [AdminAccountingController::class, 'export'], $module);
+        $router->get('/admin/accounting/profit', [AdminAccountingController::class, 'profit'], $module);
         $router->get('/admin/accounting/accounts', [AdminAccountingController::class, 'accounts'], $module);
         $router->post('/admin/accounting/accounts/save', [AdminAccountingController::class, 'accountSave'], $module);
         $router->post('/admin/accounting/accounts/delete/{id}', [AdminAccountingController::class, 'accountDelete'], $module);

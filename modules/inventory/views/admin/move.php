@@ -40,6 +40,9 @@
       <label>یادداشت
         <input type="text" name="note">
       </label>
+      <label>قیمت واحد (تومان؛ برای ورود خرید — ۰ یعنی بدون قیمت)
+        <input type="number" name="unit_price" min="0" step="any" value="0">
+      </label>
     </div>
     <p><button class="btn green">ثبت گردش</button></p>
   </form>

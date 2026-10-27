@@ -55,6 +55,24 @@
   </form>
   <?php endif; ?>
 
+  <?php if (!empty($hasInventory)): ?>
+  <form method="post" action="/admin/accounting/import-inventory" style="border:1px dashed #bbb;border-radius:.5rem;padding:.8rem;margin-bottom:1rem">
+    <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
+    <strong>وارد کردن خریدهای انبار:</strong>
+    ورودهای قیمت‌دار انبار که هنوز سند ندارند، به‌عنوان هزینهٔ دسته «خرید مواد» ثبت می‌شوند (هر حرکت با مرجع INVMOV-شماره‌اش، بدون تکرار).
+    <label>به حساب
+      <select name="account_id">
+        <?php foreach ($accounts as $a): if ((int) $a['active'] !== 1) continue; ?>
+          <option value="<?= (int) $a['id'] ?>"><?= e($a['title']) ?></option>
+        <?php endforeach; ?>
+      </select>
+    </label>
+    <button class="btn green">وارد کردن</button>
+  </form>
+  <?php endif; ?>
+
+  <p><a class="btn gray" href="/admin/accounting/transactions/export?<?= http_build_query(array_filter(['kind' => $filters['kind'], 'account' => $filters['account_id'], 'category' => $filters['category_id'], 'month' => $filters['month'], 'q' => $filters['q']])) ?>">خروجی CSV همین فیلتر</a></p>
+
   <?php if (empty($rows)): ?>
     <p>سندی با این فیلتر نیست.</p>
   <?php else: ?>

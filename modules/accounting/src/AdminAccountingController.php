@@ -7,6 +7,7 @@ use Core\Container;
 use Core\Request;
 use Core\Response;
 use Core\View;
+use Modules\Inventory\Stock;
 
 /** پنل حسابداری: داشبورد، اسناد، حساب‌ها، دسته‌ها، انتقال‌ها و گزارش‌ها. */
 final class AdminAccountingController
@@ -102,24 +103,72 @@ final class AdminAccountingController
 
     // ---------- اسناد ----------
 
-    public function transactions(Request $request): Response
+    private function filtersFrom(Request $request): array
     {
-        $filters = [
+        return [
             'kind' => (string) $request->input('kind', ''),
             'account_id' => (int) $request->input('account', 0),
             'category_id' => (int) $request->input('category', 0),
             'month' => (string) $request->input('month', ''),
             'q' => trim((string) $request->input('q', '')),
         ];
+    }
+
+    public function transactions(Request $request): Response
+    {
+        $filters = $this->filtersFrom($request);
         return $this->page('transactions', [
             'rows' => $this->ledger()->transactions($filters),
             'accounts' => $this->ledger()->accounts(),
             'categories' => $this->ledger()->categories(),
             'filters' => $filters,
             'hasShop' => $this->container->has('shop.orders'),
+            'hasInventory' => $this->container->has('inventory.stock'),
             'flash' => $request->input('msg'),
             'error' => $request->input('err'),
         ], 'اسناد حسابداری');
+    }
+
+    /** خروجی CSV اسناد با همان فیلترهای فهرست. */
+    public function export(Request $request): Response
+    {
+        $rows = $this->ledger()->transactions($this->filtersFrom($request), 5000);
+        $csv = "\xEF\xBB\xBF" . "تاریخ,حساب,دسته,نوع,مبلغ,طرف,مرجع,توضیح\n";
+        foreach ($rows as $t) {
+            $cells = [
+                (string) $t['date'], (string) ($t['account_title'] ?? ''), (string) ($t['category_title'] ?? ''),
+                $t['kind'] === 'income' ? 'درآمد' : 'هزینه', (string) (int) $t['amount'],
+                (string) $t['party'], (string) $t['ref'], (string) $t['description'],
+            ];
+            $csv .= implode(',', array_map(static function (string $v): string {
+                return str_contains($v, ',') || str_contains($v, '"') || str_contains($v, "\n")
+                    ? '"' . str_replace('"', '""', $v) . '"'
+                    : $v;
+            }, $cells)) . "\n";
+        }
+        return Response::html($csv)
+            ->withHeader('Content-Type', 'text/csv; charset=utf-8')
+            ->withHeader('Content-Disposition', 'attachment; filename="vasleh-transactions-' . date('Y-m-d') . '.csv"');
+    }
+
+    /** سود سفارش‌های فروشگاه: فروش منهای قیمت تمام‌شده ثبت‌شده. */
+    public function profit(Request $request): Response
+    {
+        $rows = $this->ledger()->orderProfits();
+        $totals = ['revenue' => 0, 'discount' => 0, 'cost' => 0, 'profit' => 0];
+        foreach ($rows as $r) {
+            $totals['revenue'] += (int) $r['subtotal'];
+            $totals['discount'] += (int) $r['discount'];
+            $totals['cost'] += (int) $r['cost'];
+            $totals['profit'] += (int) $r['profit'];
+        }
+        return $this->page('profit', [
+            'rows' => $rows,
+            'totals' => $totals,
+            'hasShop' => $this->container->has('shop.orders'),
+            'flash' => $request->input('msg'),
+            'error' => $request->input('err'),
+        ], 'سود سفارش‌ها');
     }
 
     public function transactionCreateForm(Request $request): Response
@@ -255,6 +304,63 @@ final class AdminAccountingController
         }
         $this->log('وارد کردن فروش فروشگاه', $imported . ' سند');
         return $this->back('/admin/accounting/transactions', $imported > 0 ? $imported . ' فروش فروشگاه به‌عنوان درآمد ثبت شد.' : 'فروش تازه‌ای برای وارد کردن نبود.');
+    }
+
+    /** وارد کردن ورودهای قیمت‌دار انبار به‌عنوان هزینه خرید (با مرجع INVMOV-<id>، بدون تکرار). */
+    public function importInventory(Request $request): Response
+    {
+        if (!$this->container->has('inventory.stock')) {
+            return $this->back('/admin/accounting/transactions', '', 'ماژول انبار فعال نیست.');
+        }
+        $accountId = (int) $request->input('account_id', 0);
+        if ($this->ledger()->account($accountId) === null) {
+            return $this->back('/admin/accounting/transactions', '', 'حساب مقصد را انتخاب کنید.');
+        }
+        $buyCat = null;
+        foreach ($this->ledger()->categories('expense') as $cat) {
+            if ($cat['title'] === 'خرید مواد') {
+                $buyCat = $cat;
+                break;
+            }
+        }
+        if ($buyCat === null) {
+            $cats = $this->ledger()->categories('expense');
+            $buyCat = $cats[0] ?? null;
+        }
+        $stock = $this->container->get('inventory.stock');
+        $imported = 0;
+        foreach ($stock->movements(0, 0, 1000) as $m) {
+            if ($m['type'] !== 'in' || (float) ($m['unit_price'] ?? 0) <= 0) {
+                continue;
+            }
+            $ref = 'INVMOV-' . (int) $m['id'];
+            if ($this->ledger()->transactionByRef($ref) !== null) {
+                continue;
+            }
+            $qty = (float) $m['qty'];
+            $amount = (int) round($qty * (float) $m['unit_price']);
+            if ($amount <= 0) {
+                continue;
+            }
+            $desc = 'خرید انبار — ' . $m['item_title'] . ' × ' . Stock::fmt($qty) . ' ' . $m['item_unit'];
+            if (trim((string) $m['ref']) !== '') {
+                $desc .= ' (مرجع: ' . trim((string) $m['ref']) . ')';
+            }
+            $this->ledger()->transactionSave([
+                'account_id' => $accountId,
+                'category_id' => (int) ($buyCat['id'] ?? 0),
+                'kind' => 'expense',
+                'amount' => $amount,
+                'date' => substr((string) $m['created_at'], 0, 10),
+                'ref' => $ref,
+                'party' => '',
+                'description' => $desc,
+                'actor' => $this->actor(),
+            ]);
+            $imported++;
+        }
+        $this->log('وارد کردن خرید انبار', $imported . ' سند');
+        return $this->back('/admin/accounting/transactions', $imported > 0 ? $imported . ' خرید انبار به‌عنوان هزینه ثبت شد.' : 'خرید قیمت‌داری برای وارد کردن نبود.');
     }
 
     // ---------- حساب‌ها ----------

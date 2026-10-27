@@ -72,12 +72,17 @@ final class Stock
                 type TEXT NOT NULL,
                 qty REAL NOT NULL,
                 balance_after REAL NOT NULL DEFAULT 0,
+                unit_price REAL NOT NULL DEFAULT 0,
                 ref TEXT NOT NULL DEFAULT \'\',
                 note TEXT NOT NULL DEFAULT \'\',
                 actor TEXT NOT NULL DEFAULT \'\',
                 created_at TEXT NOT NULL
             )'
         );
+        $moveCols = $pdo->query('PRAGMA table_info(inv_movements)')->fetchAll(\PDO::FETCH_COLUMN, 1);
+        if (!in_array('unit_price', $moveCols, true)) {
+            $pdo->exec('ALTER TABLE inv_movements ADD COLUMN unit_price REAL NOT NULL DEFAULT 0');
+        }
     }
 
     public function seedIfEmpty(): void
@@ -247,7 +252,7 @@ final class Stock
         )->fetchAll(\PDO::FETCH_ASSOC);
     }
 
-    private function applyDelta(int $itemId, int $warehouseId, float $delta, string $type, string $ref, string $note, string $actor): float
+    private function applyDelta(int $itemId, int $warehouseId, float $delta, string $type, string $ref, string $note, string $actor, float $unitPrice = 0.0): float
     {
         $pdo = $this->pdo();
         $new = $this->qty($itemId, $warehouseId) + $delta;
@@ -257,17 +262,17 @@ final class Stock
         );
         $stmt->execute(['w' => $warehouseId, 'i' => $itemId, 'q' => $new]);
         $pdo->prepare(
-            'INSERT INTO inv_movements (item_id, warehouse_id, type, qty, balance_after, ref, note, actor, created_at)
-             VALUES (:i, :w, :t, :q, :b, :r, :n, :a, :now)'
+            'INSERT INTO inv_movements (item_id, warehouse_id, type, qty, balance_after, unit_price, ref, note, actor, created_at)
+             VALUES (:i, :w, :t, :q, :b, :up, :r, :n, :a, :now)'
         )->execute([
             'i' => $itemId, 'w' => $warehouseId, 't' => $type, 'q' => $delta,
-            'b' => $new, 'r' => $ref, 'n' => $note, 'a' => $actor, 'now' => date('Y-m-d H:i:s'),
+            'b' => $new, 'up' => $unitPrice, 'r' => $ref, 'n' => $note, 'a' => $actor, 'now' => date('Y-m-d H:i:s'),
         ]);
         return $new;
     }
 
     /** @return array{ok: bool, error: ?string, balance: float} */
-    public function move(string $type, int $itemId, int $warehouseId, float $qty, string $ref = '', string $note = '', string $actor = ''): array
+    public function move(string $type, int $itemId, int $warehouseId, float $qty, string $ref = '', string $note = '', string $actor = '', float $unitPrice = 0.0): array
     {
         if ($this->item($itemId) === null || $this->warehouse($warehouseId) === null) {
             return ['ok' => false, 'error' => 'کالا یا انبار یافت نشد.', 'balance' => 0.0];
@@ -276,7 +281,7 @@ final class Stock
             if ($qty <= 0) {
                 return ['ok' => false, 'error' => 'مقدار ورود باید بزرگ‌تر از صفر باشد.', 'balance' => $this->qty($itemId, $warehouseId)];
             }
-            return ['ok' => true, 'error' => null, 'balance' => $this->applyDelta($itemId, $warehouseId, $qty, 'in', $ref, $note, $actor)];
+            return ['ok' => true, 'error' => null, 'balance' => $this->applyDelta($itemId, $warehouseId, $qty, 'in', $ref, $note, $actor, $unitPrice)];
         }
         if ($type === 'out') {
             if ($qty <= 0) {
@@ -285,12 +290,12 @@ final class Stock
             if ($this->qty($itemId, $warehouseId) < $qty) {
                 return ['ok' => false, 'error' => 'موجودی این انبار کافی نیست.', 'balance' => $this->qty($itemId, $warehouseId)];
             }
-            return ['ok' => true, 'error' => null, 'balance' => $this->applyDelta($itemId, $warehouseId, -$qty, 'out', $ref, $note, $actor)];
+            return ['ok' => true, 'error' => null, 'balance' => $this->applyDelta($itemId, $warehouseId, -$qty, 'out', $ref, $note, $actor, $unitPrice)];
         }
         if ($type === 'adjust') {
             // در اصلاح، qty موجودی درستِ نهایی است (شمارش واقعی).
             $current = $this->qty($itemId, $warehouseId);
-            return ['ok' => true, 'error' => null, 'balance' => $this->applyDelta($itemId, $warehouseId, $qty - $current, 'adjust', $ref, $note, $actor)];
+            return ['ok' => true, 'error' => null, 'balance' => $this->applyDelta($itemId, $warehouseId, $qty - $current, 'adjust', $ref, $note, $actor, $unitPrice)];
         }
         return ['ok' => false, 'error' => 'نوع حرکت نامعتبر است.', 'balance' => 0.0];
     }

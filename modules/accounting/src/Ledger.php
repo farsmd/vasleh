@@ -288,6 +288,23 @@ final class Ledger
         return $row === false ? null : $row;
     }
 
+    /** سود سفارش‌های فروشگاه (بدون لغوشده‌ها)؛ [] اگر جدول‌های فروشگاه نیستند. */
+    public function orderProfits(): array
+    {
+        $tables = $this->pdo()->query("SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('shop_orders', 'shop_order_items')")->fetchAll(\PDO::FETCH_COLUMN);
+        if (count($tables) < 2) {
+            return [];
+        }
+        return $this->pdo()->query(
+            "SELECT o.id, o.code, o.customer_name, o.subtotal, o.discount, o.total, o.created_at,
+                    COALESCE(SUM(i.cost_price * i.qty), 0) AS cost,
+                    COALESCE(SUM((i.unit_price - i.cost_price) * i.qty), 0) AS profit
+             FROM shop_orders o LEFT JOIN shop_order_items i ON i.order_id = o.id
+             WHERE o.status != 'cancelled'
+             GROUP BY o.id ORDER BY o.created_at DESC, o.id DESC"
+        )->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
     // ---------- انتقال بین حساب‌ها ----------
 
     public function transfers(int $limit = 100): array

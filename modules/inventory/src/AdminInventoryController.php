@@ -218,7 +218,8 @@ final class AdminInventoryController
             (float) $request->input('qty', 0),
             trim((string) $request->input('ref', '')),
             trim((string) $request->input('note', '')),
-            $this->actor()
+            $this->actor(),
+            max(0.0, (float) $request->input('unit_price', 0))
         );
         if (!$result['ok']) {
             return $this->back('/admin/inventory/move', '', (string) $result['error']);
