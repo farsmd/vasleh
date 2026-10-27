@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 use Core\Container;
 use Core\Router;
+use Modules\Shop\AdminCustomersController;
 use Modules\Shop\AdminOrdersController;
 use Modules\Shop\AdminShopController;
 use Modules\Shop\Cart;
@@ -26,7 +27,7 @@ return [
     'title'       => 'فروشگاه',
     'icon'        => '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1.5-5h15L21 9"/><path d="M4 9h16v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M9 21V13h6v8"/></svg>',
     'description' => 'فروشگاه کامل: محصولات، فیلدهای سفارشی، ویژگی و واریانت، دسته‌بندی، سبد خرید، لیست قیمت، سفارش و پیگیری، فاکتور فروش',
-    'version'     => '1.3.3',
+    'version'     => '1.3.4',
     'system'      => false,
     'requires'    => ['sqlite', 'session'],
 
@@ -65,6 +66,7 @@ return [
         ['label' => 'فیلدهای محصول', 'path' => '/admin/shop/fields', 'permission' => 'shop.manage'],
         ['label' => 'ویژگی‌ها و واریانت', 'path' => '/admin/shop/attributes', 'permission' => 'shop.manage'],
         ['label' => 'سفارش‌ها', 'path' => '/admin/shop/orders', 'permission' => 'shop.manage'],
+        ['label' => 'مشتریان', 'path' => '/admin/shop/customers', 'permission' => 'shop.manage'],
         ['label' => 'کوپن‌ها', 'path' => '/admin/shop/coupons', 'permission' => 'shop.manage'],
         ['label' => 'قالب‌های فروشگاه', 'path' => '/admin/shop/templates', 'permission' => 'shop.manage'],
         ['label' => 'لیست قیمت', 'path' => '/admin/shop/pricelist', 'permission' => 'shop.manage'],
@@ -82,6 +84,7 @@ return [
         $router->get('/shop/checkout', [ShopController::class, 'checkoutForm'], $module);
         $router->post('/shop/checkout', [ShopController::class, 'checkoutPlace'], $module);
         $router->get('/shop/search', [ShopController::class, 'search'], $module);
+        $router->get('/shop/image/{name}', [ShopController::class, 'image'], $module);
         $router->get('/shop/wishlist', [ShopController::class, 'wishlistShow'], $module);
         $router->post('/shop/wishlist/toggle', [ShopController::class, 'wishlistToggle'], $module);
         $router->post('/shop/coupon/apply', [ShopController::class, 'couponApply'], $module);
@@ -142,6 +145,7 @@ return [
         $router->post('/admin/shop/coupons/delete/{id}', [AdminShopController::class, 'couponDelete'], $module);
 
         // پنل — سفارش‌ها و فاکتور
+        $router->get('/admin/shop/customers', [AdminCustomersController::class, 'index'], $module);
         $router->get('/admin/shop/orders', [AdminOrdersController::class, 'index'], $module);
         $router->get('/admin/shop/orders/{id}', [AdminOrdersController::class, 'detail'], $module);
         $router->post('/admin/shop/orders/{id}/status', [AdminOrdersController::class, 'statusSave'], $module);

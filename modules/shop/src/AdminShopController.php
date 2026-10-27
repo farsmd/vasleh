@@ -64,10 +64,20 @@ final class AdminShopController
     public function products(Request $request): Response
     {
         $catalog = $this->catalog();
+        $products = $catalog->productsAdmin();
+        $threshold = $this->settings()->getInt('low_stock_threshold', 5);
+        $lowCount = 0;
+        foreach ($products as $p) {
+            if ((int) $p['track_stock'] === 1 && (int) $p['stock'] <= $threshold) {
+                $lowCount++;
+            }
+        }
         return $this->page('products', [
-            'products' => $catalog->productsAdmin(),
+            'products' => $products,
             'categories' => $catalog->categories(),
             'currency' => $this->settings()->get('currency', 'تومان'),
+            'lowThreshold' => $threshold,
+            'lowCount' => $lowCount,
             'flash' => $request->input('msg'),
             'error' => $request->input('err'),
         ], 'محصولات فروشگاه');
@@ -99,7 +109,7 @@ final class AdminShopController
             $variants = $product !== null ? $catalog->variantsFor((int) $product['id']) : [];
         }
         return $this->page('product_form', [
-            'product' => $product ?? ['category_id' => 0, 'title' => '', 'slug' => '', 'sku' => '', 'short_desc' => '', 'description' => '', 'price' => 0, 'sale_price' => 0, 'stock' => 0, 'track_stock' => 1, 'status' => 'draft', 'image' => '', 'featured' => 0, 'sort' => 0],
+            'product' => $product ?? ['category_id' => 0, 'title' => '', 'slug' => '', 'sku' => '', 'short_desc' => '', 'description' => '', 'price' => 0, 'sale_price' => 0, 'cost_price' => 0, 'stock' => 0, 'track_stock' => 1, 'status' => 'draft', 'image' => '', 'featured' => 0, 'sort' => 0],
             'action' => $action,
             'categories' => $catalog->categories(),
             'fields' => $catalog->fields(),
@@ -128,6 +138,7 @@ final class AdminShopController
             'description' => (string) $request->input('description', ''),
             'price' => max(0, (int) $request->input('price', 0)),
             'sale_price' => max(0, (int) $request->input('sale_price', 0)),
+            'cost_price' => max(0, (int) $request->input('cost_price', 0)),
             'stock' => (int) $request->input('stock', 0),
             'track_stock' => $request->input('track_stock') ? 1 : 0,
             'status' => $request->input('status') === 'published' ? 'published' : 'draft',
@@ -180,15 +191,27 @@ final class AdminShopController
         return [$data, $values, $variants, $error];
     }
 
+    private function images(): ProductImage
+    {
+        return new ProductImage((string) $this->container->get('base_path'));
+    }
+
     public function productCreate(Request $request): Response
     {
         [$data, $values, $variants, $error] = $this->readProductForm($request, 0);
+        if ($error === null) {
+            $error = $this->images()->validate($_FILES['image_file'] ?? null);
+        }
         if ($error !== null) {
             return $this->productForm(null, '/admin/shop/products/create', 'محصول تازه', $error, ['product' => $data, 'values' => $values, 'variants' => $variants]);
         }
         $id = $this->catalog()->productSave($data);
         $this->catalog()->saveValues($id, $values);
         $this->catalog()->replaceVariants($id, $variants);
+        $img = $this->images()->store($_FILES['image_file'] ?? null, $id);
+        if ($img !== null) {
+            $this->catalog()->setImage($id, $img);
+        }
         $this->log('ساخت محصول', $data['title']);
         return $this->back('/admin/shop/products', 'محصول ساخته شد.');
     }
@@ -196,10 +219,14 @@ final class AdminShopController
     public function productUpdate(Request $request, array $params): Response
     {
         $id = (int) ($params['id'] ?? 0);
-        if ($this->catalog()->product($id) === null) {
+        $old = $this->catalog()->product($id);
+        if ($old === null) {
             return $this->back('/admin/shop/products', '', 'محصول یافت نشد.');
         }
         [$data, $values, $variants, $error] = $this->readProductForm($request, $id);
+        if ($error === null) {
+            $error = $this->images()->validate($_FILES['image_file'] ?? null);
+        }
         if ($error !== null) {
             $data['id'] = $id;
             return $this->productForm($data, '/admin/shop/products/edit/' . $id, 'ویرایش محصول', $error, ['product' => $data, 'values' => $values, 'variants' => $variants]);
@@ -207,6 +234,13 @@ final class AdminShopController
         $this->catalog()->productSave($data, $id);
         $this->catalog()->saveValues($id, $values);
         $this->catalog()->replaceVariants($id, $variants);
+        $img = $this->images()->store($_FILES['image_file'] ?? null, $id);
+        if ($img !== null) {
+            $this->catalog()->setImage($id, $img);
+            $this->images()->deleteFor($old['image'] ?? '');
+        } elseif (($data['image'] ?? '') !== ($old['image'] ?? '') && ProductImage::isUploaded($old['image'] ?? '')) {
+            $this->images()->deleteFor($old['image'] ?? '');
+        }
         $this->log('ویرایش محصول', $data['title']);
         return $this->back('/admin/shop/products', 'محصول به‌روز شد.');
     }
@@ -216,6 +250,7 @@ final class AdminShopController
         $id = (int) ($params['id'] ?? 0);
         $product = $this->catalog()->product($id);
         if ($product !== null) {
+            $this->images()->deleteFor($product['image'] ?? '');
             $this->catalog()->productDelete($id);
             $this->log('حذف محصول', (string) $product['title']);
         }
@@ -457,6 +492,7 @@ final class AdminShopController
                 'order_note' => $s->get('order_note', ''),
                 'shop_accent' => $s->get('shop_accent', '#4f46e5'),
                 'gift_wrap_price' => $s->get('gift_wrap_price', '0'),
+                'low_stock_threshold' => (string) $s->getInt('low_stock_threshold', 5),
                 'delivery_slots' => $s->get('delivery_slots', ''),
                 'payment_methods' => $s->get('payment_methods', ''),
             ],
@@ -477,6 +513,7 @@ final class AdminShopController
         $accent = trim((string) $request->input('shop_accent', '#4f46e5'));
         $s->set('shop_accent', preg_match('/^#[0-9a-fA-F]{6}$/', $accent) ? $accent : '#4f46e5');
         $s->set('gift_wrap_price', (string) max(0, (int) $request->input('gift_wrap_price', 0)));
+        $s->set('low_stock_threshold', (string) max(0, (int) $request->input('low_stock_threshold', 5)));
         $s->set('delivery_slots', trim((string) $request->input('delivery_slots', '')));
         $s->set('payment_methods', trim((string) $request->input('payment_methods', '')));
         $this->log('ویرایش تنظیمات فروشگاه', 'تنظیمات');

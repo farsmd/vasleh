@@ -38,6 +38,7 @@
     <tr><th colspan="4">ارسال</th><td><?= number_format((int) $order['shipping']) ?></td></tr>
     <tr><th colspan="4">مالیات</th><td><?= number_format((int) $order['tax']) ?></td></tr>
     <tr><th colspan="4">قابل پرداخت (<?= e($currency) ?>)</th><td><strong><?= number_format((int) $order['total']) ?></strong></td></tr>
+    <tr><th colspan="4">سود تقریبی (فروش − قیمت تمام‌شده ثبت‌شده)</th><td><?= number_format((int) $profit) ?> <?= e($currency) ?></td></tr>
   </table>
 
   <form method="post" action="/admin/shop/orders/<?= (int) $order['id'] ?>/status" style="margin-top:1rem">

@@ -1,7 +1,7 @@
 <div class="card">
   <h1><?= !empty($product['id']) ? 'ویرایش محصول' : 'محصول تازه' ?></h1>
   <?php if (!empty($error)): ?><div class="error"><?= e($error) ?></div><?php endif; ?>
-  <form method="post" action="<?= e($action) ?>">
+  <form method="post" action="<?= e($action) ?>" enctype="multipart/form-data">
     <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
     <div class="row">
       <label>عنوان *
@@ -29,6 +29,9 @@
       <label>قیمت فروش (۰ = بدون تخفیف)
         <input type="number" name="sale_price" min="0" value="<?= (int) $product['sale_price'] ?>">
       </label>
+      <label>قیمت تمام‌شده (برای محاسبه سود؛ ۰ = نامشخص)
+        <input type="number" name="cost_price" min="0" value="<?= (int) ($product['cost_price'] ?? 0) ?>">
+      </label>
       <label>موجودی
         <input type="number" name="stock" value="<?= (int) $product['stock'] ?>">
       </label>
@@ -49,6 +52,9 @@
     </label>
     <label>آدرس تصویر محصول (اختیاری)
       <input type="text" name="image" dir="ltr" value="<?= e($product['image']) ?>">
+    </label>
+    <label>آپلود تصویر (جایگزین آدرس بالا می‌شود؛ حداکثر ۲ مگابایت)
+      <input type="file" name="image_file" accept=".jpg,.jpeg,.png,.webp,.gif">
     </label>
     <label>توضیح کوتاه
       <input type="text" name="short_desc" value="<?= e($product['short_desc']) ?>">

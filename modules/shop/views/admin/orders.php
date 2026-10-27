@@ -17,13 +17,14 @@
     <p>سفارشی نیست.</p>
   <?php else: ?>
   <table>
-    <tr><th>کد پیگیری</th><th>مشتری</th><th>موبایل</th><th>مبلغ</th><th>وضعیت</th><th>پرداخت</th><th>تاریخ</th><th>عملیات</th></tr>
+    <tr><th>کد پیگیری</th><th>مشتری</th><th>موبایل</th><th>مبلغ</th><th>سود تقریبی</th><th>وضعیت</th><th>پرداخت</th><th>تاریخ</th><th>عملیات</th></tr>
     <?php foreach ($orders as $o): ?>
     <tr>
       <td><code dir="ltr"><?= e($o['code']) ?></code></td>
       <td><?= e($o['customer_name']) ?></td>
       <td dir="ltr"><?= e($o['phone']) ?></td>
       <td><?= number_format((int) $o['total']) ?></td>
+      <td><?= isset($profits[(int) $o['id']]) ? number_format((int) $profits[(int) $o['id']]) : '—' ?></td>
       <td><?= e($statuses[$o['status']] ?? $o['status']) ?></td>
       <td><?= $o['payment_status'] === 'paid' ? 'پرداخت شده' : 'پرداخت نشده' ?></td>
       <td><?= e($o['created_at']) ?></td>
@@ -34,5 +35,6 @@
     </tr>
     <?php endforeach; ?>
   </table>
+  <p class="muted">سود تقریبی = فروش − قیمت تمام‌شده ثبت‌شده در زمان فروش؛ برای سفارش‌های قدیمی که قیمت تمام‌شده ثبت نشده، سود برابر فروش نمایش داده می‌شود.</p>
   <?php endif; ?>
 </div>

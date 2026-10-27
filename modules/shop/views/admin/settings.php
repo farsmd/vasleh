@@ -22,6 +22,9 @@
       <label>مالیات (درصد — ۰ = بدون مالیات)
         <input type="number" name="tax_percent" min="0" max="100" value="<?= e($values['tax_percent']) ?>">
       </label>
+      <label>آستانه کمبود موجودی (کالایی با موجودی ≤ این عدد در فهرست «کمبود» می‌خورد)
+        <input type="number" name="low_stock_threshold" min="0" value="<?= e($values['low_stock_threshold']) ?>">
+      </label>
     </div>
     <label>یادداشت ثابت روی صفحه ثبت سفارش (مثلاً شرایط پرداخت یا شماره کارت)
       <textarea name="order_note" rows="3" dir="auto"><?= e($values['order_note']) ?></textarea>

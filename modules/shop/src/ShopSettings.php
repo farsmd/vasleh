@@ -36,6 +36,7 @@ final class ShopSettings
             'order_note'       => '',
             'shop_accent'      => '#4f46e5',
             'gift_wrap_price'  => '0',
+            'low_stock_threshold' => '5',
             'delivery_slots'   => '',
             'payment_methods'  => "online:پرداخت اینترنتی\ncod:پرداخت در محل",
         ];

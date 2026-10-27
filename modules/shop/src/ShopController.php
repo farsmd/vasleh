@@ -350,6 +350,19 @@ final class ShopController
         return Response::json($out);
     }
 
+    /** سرو عمومی عکس‌های آپلودشده‌ی محصول (از storage، بدون احراز هویت). */
+    public function image(Request $request, array $params): Response
+    {
+        $images = new ProductImage((string) $this->container->get('base_path'));
+        $read = $images->read((string) ($params['name'] ?? ''));
+        if ($read === null) {
+            return Response::notFound('عکس یافت نشد.');
+        }
+        return Response::html($read[0])
+            ->withHeader('Content-Type', $read[1])
+            ->withHeader('Cache-Control', 'public, max-age=86400');
+    }
+
     public function wishlistShow(Request $request): Response
     {
         $products = $this->wishlist()->products($this->catalog());
@@ -592,6 +605,7 @@ final class ShopController
                 'options_text' => $row['options_text'],
                 'unit_price' => $row['unit_price'],
                 'qty' => $row['qty'],
+                'cost_price' => (int) ($row['product']['cost_price'] ?? 0),
             ];
         }
         [$coupon, $discount] = $this->validCoupon($subtotal);

@@ -36,6 +36,24 @@ final class Customers
         );
     }
 
+    /** مشتریان با آمار سفارش (جمع خرید بدون سفارش‌های لغوشده)؛ q روی نام یا موبایل می‌گردد. */
+    public function allWithStats(?string $q = null): array
+    {
+        $sql = "SELECT c.*, COUNT(o.id) AS orders_count,
+                       COALESCE(SUM(CASE WHEN o.status != 'cancelled' THEN o.total ELSE 0 END), 0) AS total_spent,
+                       MAX(o.created_at) AS last_order
+                FROM shop_customers c LEFT JOIN shop_orders o ON o.customer_id = c.id";
+        $params = [];
+        if ($q !== null && trim($q) !== '') {
+            $sql .= ' WHERE c.name LIKE :q OR c.phone LIKE :q';
+            $params['q'] = '%' . trim($q) . '%';
+        }
+        $sql .= ' GROUP BY c.id ORDER BY c.id DESC';
+        $stmt = $this->pdo()->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
     public function find(int $id): ?array
     {
         if ($id <= 0) {

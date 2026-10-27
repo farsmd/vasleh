@@ -78,9 +78,14 @@ final class Orders
                 options_text TEXT NOT NULL DEFAULT \'\',
                 unit_price INTEGER NOT NULL DEFAULT 0,
                 qty INTEGER NOT NULL DEFAULT 1,
-                line_total INTEGER NOT NULL DEFAULT 0
+                line_total INTEGER NOT NULL DEFAULT 0,
+                cost_price INTEGER NOT NULL DEFAULT 0
             )'
         );
+        $itemCols = $pdo->query('PRAGMA table_info(shop_order_items)')->fetchAll(\PDO::FETCH_COLUMN, 1);
+        if (!in_array('cost_price', $itemCols, true)) {
+            $pdo->exec('ALTER TABLE shop_order_items ADD COLUMN cost_price INTEGER NOT NULL DEFAULT 0');
+        }
     }
 
     private function newCode(): string
@@ -135,8 +140,8 @@ final class Orders
             ]);
             $orderId = (int) $pdo->lastInsertId();
             $itemStmt = $pdo->prepare(
-                'INSERT INTO shop_order_items (order_id, product_id, variant_id, title, options_text, unit_price, qty, line_total)
-                 VALUES (:o, :p, :v, :t, :ot, :pr, :q, :lt)'
+                'INSERT INTO shop_order_items (order_id, product_id, variant_id, title, options_text, unit_price, qty, line_total, cost_price)
+                 VALUES (:o, :p, :v, :t, :ot, :pr, :q, :lt, :cp)'
             );
             foreach ($items as $item) {
                 $qty = (int) $item['qty'];
@@ -144,7 +149,7 @@ final class Orders
                 $itemStmt->execute([
                     'o' => $orderId, 'p' => (int) $item['product_id'], 'v' => (int) ($item['variant_id'] ?? 0),
                     't' => $item['title'], 'ot' => $item['options_text'] ?? '', 'pr' => $price,
-                    'q' => $qty, 'lt' => $price * $qty,
+                    'q' => $qty, 'lt' => $price * $qty, 'cp' => (int) ($item['cost_price'] ?? 0),
                 ]);
             }
             $pdo->commit();
@@ -205,6 +210,25 @@ final class Orders
         $stmt = $this->pdo()->prepare('SELECT * FROM shop_order_items WHERE order_id = :o ORDER BY id');
         $stmt->execute(['o' => $orderId]);
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    /** سود یک سفارش: مجموع (قیمت واحد − قیمت تمام‌شده ثبت‌شده) × تعداد. */
+    public function profitForOrder(int $orderId): int
+    {
+        $stmt = $this->pdo()->prepare('SELECT COALESCE(SUM((unit_price - cost_price) * qty), 0) FROM shop_order_items WHERE order_id = :o');
+        $stmt->execute(['o' => $orderId]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    /** سود همه سفارش‌ها در یک پرسمان (برای ستون فهرست). */
+    public function profitsByOrder(): array
+    {
+        $rows = $this->pdo()->query('SELECT order_id, COALESCE(SUM((unit_price - cost_price) * qty), 0) AS profit FROM shop_order_items GROUP BY order_id')->fetchAll(\PDO::FETCH_ASSOC);
+        $out = [];
+        foreach ($rows as $row) {
+            $out[(int) $row['order_id']] = (int) $row['profit'];
+        }
+        return $out;
     }
 
     public function setStatus(int $id, string $status): void

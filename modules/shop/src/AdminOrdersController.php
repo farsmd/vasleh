@@ -48,6 +48,7 @@ final class AdminOrdersController
         $status = $request->input('status');
         return $this->page('orders', [
             'orders' => $this->orders()->all(is_string($status) ? $status : null),
+            'profits' => $this->orders()->profitsByOrder(),
             'stats' => $this->orders()->stats(),
             'statuses' => Orders::STATUSES,
             'activeStatus' => is_string($status) ? $status : '',
@@ -66,6 +67,7 @@ final class AdminOrdersController
         return $this->page('order', [
             'order' => $order,
             'items' => $this->orders()->items((int) $order['id']),
+            'profit' => $this->orders()->profitForOrder((int) $order['id']),
             'statuses' => Orders::STATUSES,
             'currency' => $this->container->get('shop.settings')->get('currency', 'تومان'),
             'flash' => $request->input('msg'),
