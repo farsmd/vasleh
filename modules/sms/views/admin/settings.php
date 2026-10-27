@@ -16,7 +16,13 @@
     <label>شناسه قالب کد تأیید (برای ورود با پیامک؛ از پنل SMS.ir)
       <input type="text" name="verify_template_id" dir="ltr" value="<?= $settings->verifyTemplateId() > 0 ? e((string) $settings->verifyTemplateId()) : '' ?>" placeholder="مثلاً 100000">
     </label>
-    <label>متن پیامک ثبت سفارش (توکن‌های {{code}} و {{status}})
+    <label>شناسه قالب پیامک ثبت سفارش (خالی یعنی متن ساده با خط؛ از پنل SMS.ir)
+      <input type="text" name="order_template_id" dir="ltr" value="<?= $settings->orderTemplateId() > 0 ? e((string) $settings->orderTemplateId()) : '' ?>" placeholder="مثلاً 220317">
+    </label>
+    <label>نام پارامتر کد سفارش در قالب (پیش‌فرض Code)
+      <input type="text" name="order_template_param" dir="ltr" value="<?= e($settings->orderTemplateParam()) ?>" placeholder="Code">
+    </label>
+    <label>متن پیامک ثبت سفارش (توکن‌های {{code}} و {{status}} — جایگزین ارسال قالبی)
       <input type="text" name="order_placed_text" value="<?= e($settings->orderPlacedText()) ?>">
     </label>
     <label>متن پیامک تغییر وضعیت سفارش (توکن‌های {{code}} و {{status}})

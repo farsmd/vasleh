@@ -85,6 +85,15 @@ final class SmsSender
 
     public function sendOrderPlaced(string $code, string $phone): bool
     {
+        $tpl = $this->settings->orderTemplateId();
+        if ($tpl > 0 && $this->settings->apiKey() !== '') {
+            $res = $this->client->templateSend($phone, $tpl, $this->settings->orderTemplateParam(), $code);
+            $this->log($phone, 'order_placed', 'ارسال با قالب سفارش', (bool) $res['ok'], (string) $res['message']);
+            if ((bool) $res['ok']) {
+                return true;
+            }
+            // خرابی قالب، پیامک را از دست نمی‌دهد: متن ساده با خط ارسال می‌شود.
+        }
         return $this->sendText($phone, $this->settings->renderOrderText('placed', $code, ''), 'order_placed');
     }
 

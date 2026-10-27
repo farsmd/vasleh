@@ -56,13 +56,19 @@ final class SmsClient
     }
 
     /** ارسال کد تأیید با قالب ازپیش‌تعریف‌شده (پارامتر Code). */
-    public function verifySend(string $mobile, int $templateId, string $code): array
+    /** ارسال قالبی (همان مسیر send/verify) با نام پارامتر دلخواه. */
+    public function templateSend(string $mobile, int $templateId, string $param, string $value): array
     {
         return $this->request('POST', 'send/verify', [
             'mobile' => $mobile,
             'templateId' => $templateId,
-            'parameters' => [['name' => 'Code', 'value' => $code]],
+            'parameters' => [['name' => $param, 'value' => $value]],
         ]);
+    }
+
+    public function verifySend(string $mobile, int $templateId, string $code): array
+    {
+        return $this->templateSend($mobile, $templateId, 'Code', $code);
     }
 
     /** ارسال متن به چند شماره با یک خط فرستنده. */

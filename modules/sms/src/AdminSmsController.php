@@ -96,6 +96,10 @@ final class AdminSmsController
         $s->set('line_number', trim((string) $request->input('line_number', '')));
         $tpl = trim((string) $request->input('verify_template_id', ''));
         $s->set('verify_template_id', $tpl !== '' && ctype_digit($tpl) ? $tpl : '');
+        $otpl = trim((string) $request->input('order_template_id', ''));
+        $s->set('order_template_id', $otpl !== '' && ctype_digit($otpl) ? $otpl : '');
+        $oparam = trim((string) $request->input('order_template_param', ''));
+        $s->set('order_template_param', $oparam !== '' ? $oparam : 'Code');
         $s->set('order_placed_text', trim((string) $request->input('order_placed_text', '')));
         $s->set('order_status_text', trim((string) $request->input('order_status_text', '')));
         $this->log('ذخیره تنظیمات پیامک', 'sms');

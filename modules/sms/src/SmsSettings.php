@@ -22,6 +22,8 @@ final class SmsSettings
             'api_key' => '',
             'line_number' => '',
             'verify_template_id' => '',
+            'order_template_id' => '',
+            'order_template_param' => 'Code',
             'order_placed_text' => 'سفارش شما با کد {{code}} ثبت شد.',
             'order_status_text' => 'وضعیت سفارش {{code}} به {{status}} تغییر کرد.',
         ] as $name => $value) {
@@ -58,6 +60,20 @@ final class SmsSettings
     {
         $v = $this->get('verify_template_id', '');
         return $v !== '' && ctype_digit($v) ? (int) $v : 0;
+    }
+
+    /** شناسه قالب پیامک ثبت سفارش؛ صفر یعنی ارسال با متن ساده. */
+    public function orderTemplateId(): int
+    {
+        $v = $this->get('order_template_id', '');
+        return $v !== '' && ctype_digit($v) ? (int) $v : 0;
+    }
+
+    /** نام پارامتر کد سفارش در قالب؛ خالی یعنی Code. */
+    public function orderTemplateParam(): string
+    {
+        $v = trim($this->get('order_template_param', ''));
+        return $v !== '' ? $v : 'Code';
     }
 
     /** آماده ارسال متن: کلید + خط هر دو لازم‌اند. */
