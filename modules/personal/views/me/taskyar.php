@@ -3,7 +3,7 @@
 // حالت تاریک/روشن با همان کلید localStorage ادمین خوانده می‌شود
 // (کلید قدیمی 'theme' در صورت نبود کلید مشترک، یک‌بار مهاجرت می‌کند).
 $__theme = \Modules\Admin\AdminTheme::load(dirname(__DIR__, 4));
-$__dark = ($__theme['default_theme'] ?? 'dark') === 'dark';
+$__dark = !empty($settings['dark_default']) || ($__theme['default_theme'] ?? 'dark') === 'dark';
 ?>
 <!DOCTYPE html>
 <html lang="fa" dir="rtl"<?= $__dark ? ' class="dark"' : '' ?>>
@@ -68,7 +68,7 @@ $__dark = ($__theme['default_theme'] ?? 'dark') === 'dark';
                 <span class="hidden sm:inline text-xs font-semibold text-slate-500 dark:text-slate-400"><?= e($user['username'] ?? '') ?></span>
                 <button onclick="togglePomodoroModal()" class="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60 hover:bg-rose-100 transition shadow-sm">
                     <i class="fa-solid fa-stopwatch animate-pulse"></i>
-                    <span id="headerPomoTimer">25:00</span>
+                    <span id="headerPomoTimer"><?= strtr((string) (int) $settings['pomo_focus'], '0123456789', '۰۱۲۳۴۵۶۷۸۹') ?>:۰۰</span>
                 </button>
                 <button onclick="openAddTaskModal()" class="flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 shadow-md shadow-indigo-500/25 active:scale-95 transition">
                     <i class="fa-solid fa-plus"></i>
@@ -119,6 +119,14 @@ $__dark = ($__theme['default_theme'] ?? 'dark') === 'dark';
                     <i class="fa-solid fa-share-nodes text-xs"></i>
                     اشتراک‌ها
                 </a>
+                <a href="/me/dashboard" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 transition flex items-center gap-2 whitespace-nowrap">
+                    <i class="fa-solid fa-gauge-high text-xs"></i>
+                    داشبورد شخصی
+                </a>
+                <a href="/me/settings" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 transition flex items-center gap-2 whitespace-nowrap">
+                    <i class="fa-solid fa-gear text-xs"></i>
+                    تنظیمات
+                </a>
             </nav>
             <div class="flex items-center gap-2">
                 <div class="relative">
@@ -127,10 +135,9 @@ $__dark = ($__theme['default_theme'] ?? 'dark') === 'dark';
                 </div>
                 <select id="categoryFilter" onchange="renderCurrentView()" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-600 dark:text-slate-300">
                     <option value="all">همه دسته‌ها</option>
-                    <option value="work">کاری</option>
-                    <option value="personal">شخصی</option>
-                    <option value="study">یادگیری</option>
-                    <option value="health">سلامت</option>
+                    <?php foreach ($settings['categories'] as $c): ?>
+                    <option value="<?= e($c['key']) ?>"><?= e($c['label']) ?></option>
+                    <?php endforeach; ?>
                 </select>
             </div>
         </div>
@@ -346,10 +353,9 @@ $__dark = ($__theme['default_theme'] ?? 'dark') === 'dark';
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">دسته‌بندی</label>
                         <select id="taskCategory" class="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-white">
-                            <option value="work">کاری</option>
-                            <option value="personal">شخصی</option>
-                            <option value="study">یادگیری و مطالعه</option>
-                            <option value="health">سلامت و ورزش</option>
+                            <?php foreach ($settings['categories'] as $c): ?>
+                            <option value="<?= e($c['key']) ?>"><?= e($c['label']) ?></option>
+                            <?php endforeach; ?>
                         </select>
                     </div>
                     <div>
@@ -422,13 +428,13 @@ $__dark = ($__theme['default_theme'] ?? 'dark') === 'dark';
                 <i class="fa-solid fa-xmark"></i>
             </button>
             <div class="flex justify-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl mb-6 mt-2 max-w-xs mx-auto">
-                <button onclick="setPomoMode('work')" id="pomoBtnWork" class="flex-1 py-1 text-xs font-bold rounded-lg bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm transition">تمرکز (۲۵ د)</button>
+                <button onclick="setPomoMode('work')" id="pomoBtnWork" class="flex-1 py-1 text-xs font-bold rounded-lg bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm transition">تمرکز (<?= strtr((string) (int) $settings['pomo_focus'], '0123456789', '۰۱۲۳۴۵۶۷۸۹') ?> د)</button>
                 <button onclick="setPomoMode('shortBreak')" id="pomoBtnShort" class="flex-1 py-1 text-xs font-bold rounded-lg text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition">استراحت کوتاه</button>
                 <button onclick="setPomoMode('longBreak')" id="pomoBtnLong" class="flex-1 py-1 text-xs font-bold rounded-lg text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition">استراحت بلند</button>
             </div>
             <div class="relative w-48 h-48 mx-auto flex items-center justify-center my-4">
                 <div class="w-full h-full rounded-full border-4 border-indigo-100 dark:border-slate-800 flex items-center justify-center">
-                    <span id="pomoDisplay" class="text-4xl font-black tracking-wider text-slate-800 dark:text-white font-mono">25:00</span>
+                    <span id="pomoDisplay" class="text-4xl font-black tracking-wider text-slate-800 dark:text-white font-mono"><?= sprintf('%02d:00', (int) $settings['pomo_focus']) ?></span>
                 </div>
             </div>
             <p id="pomoStatusText" class="text-xs text-slate-500 dark:text-slate-400 mb-6 font-medium">آماده برای شروع جلسه تمرکز عمیق</p>
@@ -458,6 +464,9 @@ $__dark = ($__theme['default_theme'] ?? 'dark') === 'dark';
             'view' => $view,
             'weekSatFa' => \Modules\Personal\Personal::faDate($weekSat),
             'weekSunFa' => \Modules\Personal\Personal::faDate($weekSun),
+            'categories' => $settings['categories'],
+            'pomoFocus' => (int) $settings['pomo_focus'],
+            'pomoBreak' => (int) $settings['pomo_break'],
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
         const DAYS_OF_WEEK = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
         const FA_MONTHS = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
@@ -537,14 +546,24 @@ $__dark = ($__theme['default_theme'] ?? 'dark') === 'dark';
             renderCurrentView();
         }
 
+        const CATEGORY_COLORS = [
+            'bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border-blue-200 dark:border-blue-900',
+            'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900',
+            'bg-purple-50 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400 border-purple-200 dark:border-purple-900',
+            'bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400 border-amber-200 dark:border-amber-900',
+            'bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 border-rose-200 dark:border-rose-900',
+            'bg-sky-50 text-sky-600 dark:bg-sky-950/60 dark:text-sky-400 border-sky-200 dark:border-sky-900',
+            'bg-teal-50 text-teal-600 dark:bg-teal-950/60 dark:text-teal-400 border-teal-200 dark:border-teal-900',
+            'bg-orange-50 text-orange-600 dark:bg-orange-950/60 dark:text-orange-400 border-orange-200 dark:border-orange-900',
+        ];
         function getCategoryMeta(cat) {
-            switch(cat) {
-                case 'work': return { label: 'کاری', color: 'bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border-blue-200 dark:border-blue-900' };
-                case 'personal': return { label: 'شخصی', color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900' };
-                case 'study': return { label: 'یادگیری', color: 'bg-purple-50 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400 border-purple-200 dark:border-purple-900' };
-                case 'health': return { label: 'سلامت', color: 'bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400 border-amber-200 dark:border-amber-900' };
-                default: return { label: 'عمومی', color: 'bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border-slate-200' };
+            const cats = TASKYAR.categories || [];
+            for (let i = 0; i < cats.length; i++) {
+                if (cats[i].key === cat) {
+                    return { label: cats[i].label, color: CATEGORY_COLORS[i % CATEGORY_COLORS.length] };
+                }
             }
+            return { label: 'عمومی', color: 'bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border-slate-200' };
         }
 
         function getPriorityMeta(prio) {
@@ -725,7 +744,7 @@ $__dark = ($__theme['default_theme'] ?? 'dark') === 'dark';
             document.getElementById('progressCircle').setAttribute('stroke-dasharray', percentage + ', 100');
             document.getElementById('progressPercentageText').innerText = faNum(percentage) + '٪';
             document.getElementById('statPomodoroSessions').innerText = faNum(state.pomoSessions);
-            document.getElementById('statPomoMinutes').innerText = faNum(state.pomoSessions * 25);
+            document.getElementById('statPomoMinutes').innerText = faNum(state.pomoSessions * (TASKYAR.pomoFocus || 25));
         }
 
         function postTask(url, data) {
@@ -847,7 +866,7 @@ $__dark = ($__theme['default_theme'] ?? 'dark') === 'dark';
         }
 
         // Pomodoro Timer Logic
-        let pomoTimeLeft = 25 * 60;
+        let pomoTimeLeft = (TASKYAR.pomoFocus || 25) * 60;
         let pomoInterval = null;
         let pomoIsRunning = false;
         let pomoMode = 'work';
@@ -866,11 +885,11 @@ $__dark = ($__theme['default_theme'] ?? 'dark') === 'dark';
                 b.className = 'flex-1 py-1 text-xs font-bold rounded-lg text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition';
             });
             if (mode === 'work') {
-                pomoTimeLeft = 25 * 60;
+                pomoTimeLeft = (TASKYAR.pomoFocus || 25) * 60;
                 document.getElementById('pomoBtnWork').className = 'flex-1 py-1 text-xs font-bold rounded-lg bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm transition';
                 document.getElementById('pomoStatusText').innerText = 'زمان تمرکز عمیق و کار پربازده';
             } else if (mode === 'shortBreak') {
-                pomoTimeLeft = 5 * 60;
+                pomoTimeLeft = (TASKYAR.pomoBreak || 5) * 60;
                 document.getElementById('pomoBtnShort').className = 'flex-1 py-1 text-xs font-bold rounded-lg bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm transition';
                 document.getElementById('pomoStatusText').innerText = 'استراحت کوتاه: چند نفس عمیق بکشید و آب بنوشید';
             } else {

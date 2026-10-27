@@ -1,6 +1,10 @@
 <?php
 declare(strict_types=1);
 
+/* همه تاریخ‌های نمایشی به وقت تهران است (کاربران ایرانی)؛
+   وگرنه «امروز» در /me از نیمه‌شب تا ۳:۳۰ صبح یک روز عقب می‌افتاد. */
+date_default_timezone_set('Asia/Tehran');
+
 /* اتولودر ساده بدون Composer — مناسب هاست اشتراکی:
    Core\X            => core/X.php
    Modules\<slug>\X  => modules/<slug>/src/X.php */

@@ -102,6 +102,93 @@ final class Personal
                 created_at TEXT NOT NULL
             )'
         );
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS pl_settings (
+                user_id INTEGER PRIMARY KEY,
+                settings TEXT NOT NULL DEFAULT \'{}\'
+            )'
+        );
+    }
+
+    // ---------- تنظیمات شخصی ----------
+
+    public const DEFAULT_CATEGORIES = [
+        ['key' => 'work', 'label' => 'کاری'],
+        ['key' => 'personal', 'label' => 'شخصی'],
+        ['key' => 'study', 'label' => 'یادگیری'],
+        ['key' => 'health', 'label' => 'سلامت'],
+    ];
+
+    /** تنظیمات کاربر؛ کلیدهای ناشناخته نادیده گرفته می‌شوند و مقادیر نرمال می‌شوند. */
+    public function settings(int $userId): array
+    {
+        $stmt = $this->pdo()->prepare('SELECT settings FROM pl_settings WHERE user_id = :u');
+        $stmt->execute(['u' => $userId]);
+        $raw = $stmt->fetchColumn();
+        $saved = $raw !== false ? (json_decode((string) $raw, true) ?: []) : [];
+        $defaults = [
+            'default_view' => 'dashboard',
+            'categories' => self::DEFAULT_CATEGORIES,
+            'pomo_focus' => 25,
+            'pomo_break' => 5,
+            'dark_default' => false,
+        ];
+        $out = array_merge($defaults, array_intersect_key(is_array($saved) ? $saved : [], $defaults));
+        $cats = [];
+        if (is_array($out['categories'])) {
+            foreach ($out['categories'] as $c) {
+                if (is_array($c) && isset($c['key'], $c['label'])) {
+                    $k = trim((string) $c['key']);
+                    $l = trim((string) $c['label']);
+                    if ($k !== '' && $l !== '' && !isset($cats[$k])) {
+                        $cats[$k] = ['key' => $k, 'label' => $l];
+                    }
+                }
+            }
+        }
+        $out['categories'] = array_values($cats) !== [] ? array_values($cats) : self::DEFAULT_CATEGORIES;
+        $out['category_keys'] = array_column($out['categories'], 'key');
+        $out['pomo_focus'] = max(1, min(180, (int) $out['pomo_focus']));
+        $out['pomo_break'] = max(1, min(60, (int) $out['pomo_break']));
+        $out['dark_default'] = !empty($out['dark_default']);
+        if (!in_array($out['default_view'], ['dashboard', 'hourly', 'daily', 'weekly', 'monthly'], true)) {
+            $out['default_view'] = 'dashboard';
+        }
+        return $out;
+    }
+
+    public function settingsSave(int $userId, array $data): void
+    {
+        $stmt = $this->pdo()->prepare(
+            'INSERT INTO pl_settings (user_id, settings) VALUES (:u, :s)
+             ON CONFLICT(user_id) DO UPDATE SET settings = excluded.settings'
+        );
+        $stmt->execute(['u' => $userId, 's' => json_encode($data, JSON_UNESCAPED_UNICODE)]);
+    }
+
+    /** هر خط «key|label»؛ کلیدهای نامعتبر نادیده گرفته می‌شوند. */
+    public static function parseCategories(string $text): array
+    {
+        $out = [];
+        foreach (explode("\n", $text) as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+            $parts = explode('|', $line, 2);
+            $key = trim($parts[0]);
+            $label = trim($parts[1] ?? '');
+            if (!preg_match('/^[a-z0-9_-]{1,20}$/', $key)) {
+                continue;
+            }
+            if ($label === '') {
+                $label = $key;
+            }
+            if (!isset($out[$key])) {
+                $out[$key] = ['key' => $key, 'label' => $label];
+            }
+        }
+        return array_values($out);
     }
 
     // ---------- اعتبارسنجی ----------
@@ -323,7 +410,8 @@ final class Personal
         if ($title === '' || !self::validDate($date)) {
             return null;
         }
-        $category = in_array($f['category'] ?? '', ['work', 'personal', 'study', 'health'], true) ? (string) $f['category'] : 'personal';
+        $allowed = $this->settings($userId)['category_keys'];
+        $category = in_array($f['category'] ?? '', $allowed, true) ? (string) $f['category'] : ($allowed[0] ?? 'personal');
         $priority = in_array($f['priority'] ?? '', ['high', 'medium', 'low'], true) ? (string) $f['priority'] : 'medium';
         $duration = max(5, (int) ($f['duration'] ?? 30));
         $note = trim((string) ($f['note'] ?? ''));
@@ -369,7 +457,8 @@ final class Personal
             }
             return $created;
         }
-        $category = in_array($f['category'] ?? '', ['work', 'personal', 'study', 'health'], true) ? (string) $f['category'] : 'personal';
+        $allowed = $this->settings($userId)['category_keys'];
+        $category = in_array($f['category'] ?? '', $allowed, true) ? (string) $f['category'] : ($allowed[0] ?? 'personal');
         $priority = in_array($f['priority'] ?? '', ['high', 'medium', 'low'], true) ? (string) $f['priority'] : 'medium';
         $duration = max(5, (int) ($f['duration'] ?? 30));
         $note = trim((string) ($f['note'] ?? ''));

@@ -58,9 +58,11 @@ $__dark = ($__theme['default_theme'] ?? 'dark') === 'dark';
     <?php if (empty($public)): ?>
     <nav class="flex items-center gap-1 sm:gap-2 p-1 overflow-x-auto" style="background:color-mix(in srgb, var(--admin-panel-bg) 60%, transparent);border-radius:var(--admin-radius)">
         <a href="/me" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900 whitespace-nowrap">داشبورد و تسک‌ها</a>
+        <a href="/me/dashboard" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap <?= $tab === 'dashboard' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900' ?>">داشبورد شخصی</a>
         <a href="/me/notes" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap <?= $tab === 'notes' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900' ?>">یادداشت‌ها</a>
         <a href="/me/projects" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap <?= $tab === 'projects' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900' ?>">پروژه‌ها</a>
         <a href="/me/shared" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap <?= $tab === 'shared' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900' ?>">اشتراک‌ها</a>
+        <a href="/me/settings" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap <?= $tab === 'settings' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900' ?>">تنظیمات</a>
     </nav>
     <?php endif; ?>
     <?php if (!empty($flash)): ?><div class="bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium rounded-xl px-4 py-3"><?= e($flash) ?></div><?php endif; ?>

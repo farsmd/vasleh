@@ -90,9 +90,10 @@ final class MeController
         $monthLast = date('Y-m-t', strtotime($date));
         $from = min($weekSat, $monthFirst);
         $to = max($weekSun, $monthLast);
-        $view = (string) $request->input('view', 'dashboard');
+        $settings = $this->store()->settings((int) $this->user()['id']);
+        $view = (string) $request->input('view', $settings['default_view']);
         if (!in_array($view, ['dashboard', 'hourly', 'daily', 'weekly', 'monthly'], true)) {
-            $view = 'dashboard';
+            $view = $settings['default_view'];
         }
         return Response::html(View::render('personal', 'me', 'taskyar', [
             'tasks' => $this->store()->tasksForRange((int) $this->user()['id'], $from, $to),
@@ -103,6 +104,7 @@ final class MeController
             'monthFirst' => $monthFirst,
             'monthLast' => $monthLast,
             'view' => $view,
+            'settings' => $settings,
             'csrf' => $this->session()->csrfToken(),
             'user' => $this->user(),
             'flash' => $request->input('msg'),
@@ -128,6 +130,93 @@ final class MeController
             'error' => $request->input('err'),
             'public' => false,
         ]));
+    }
+
+    // ---------- داشبورد شخصی ----------
+
+    public function dashboard(Request $request): Response
+    {
+        if (($r = $this->requireUser()) !== null) {
+            return $r;
+        }
+        $uid = (int) $this->user()['id'];
+        $store = $this->store();
+        $today = date('Y-m-d');
+        $weekSat = Personal::weekSaturday($today);
+        $weekSun = date('Y-m-d', strtotime($weekSat . ' +6 days'));
+        $weekTasks = $store->tasksForRange($uid, $weekSat, $weekSun);
+        $todayTasks = array_values(array_filter($weekTasks, static fn ($t) => ($t['date'] ?? '') === $today));
+        $todos = $store->todos($uid);
+        $overdue = array_values(array_filter($todos, static fn ($t) => (int) ($t['done'] ?? 0) === 0 && ($t['due_date'] ?? '') !== '' && $t['due_date'] < $today));
+        $projects = [];
+        foreach ($store->projects($uid) as $pr) {
+            $needs = $store->needs((int) $pr['id']);
+            $done = count(array_filter($needs, static fn ($n) => (int) ($n['done'] ?? 0) === 1));
+            $projects[] = $pr + ['needs' => $needs, 'needs_done' => $done, 'needs_total' => count($needs)];
+        }
+        $weekDone = count(array_filter($weekTasks, static fn ($t) => (int) ($t['done'] ?? 0) === 1));
+        $todayDone = count(array_filter($todayTasks, static fn ($t) => (int) ($t['done'] ?? 0) === 1));
+        return $this->page2($request, 'dashboard', [
+            'today' => $today,
+            'todayTasks' => $todayTasks,
+            'todayDone' => $todayDone,
+            'todayEvents' => $store->eventsForDay($uid, $today),
+            'weekTasks' => $weekTasks,
+            'weekDone' => $weekDone,
+            'weekSat' => $weekSat,
+            'weekSun' => $weekSun,
+            'todos' => $todos,
+            'overdue' => $overdue,
+            'projects' => $projects,
+            'notesCount' => count($store->notes($uid)),
+        ], 'داشبورد شخصی', 'dashboard');
+    }
+
+    // ---------- تنظیمات شخصی ----------
+
+    public function settings(Request $request): Response
+    {
+        if (($r = $this->requireUser()) !== null) {
+            return $r;
+        }
+        $settings = $this->store()->settings((int) $this->user()['id']);
+        $lines = [];
+        foreach ($settings['categories'] as $c) {
+            $lines[] = $c['key'] . '|' . $c['label'];
+        }
+        return $this->page2($request, 'settings', [
+            'settings' => $settings,
+            'categories_text' => implode("\n", $lines),
+        ], 'تنظیمات شخصی', 'settings');
+    }
+
+    public function settingsSave(Request $request): Response
+    {
+        if (($r = $this->requireUser()) !== null) {
+            return $r;
+        }
+        if (!$this->csrfOk($request)) {
+            return Response::forbidden('توکن امنیتی نامعتبر است');
+        }
+        $uid = (int) $this->user()['id'];
+        $current = $this->store()->settings($uid);
+        $cats = Personal::parseCategories((string) $request->input('categories_text', ''));
+        if ($cats === []) {
+            $cats = Personal::DEFAULT_CATEGORIES;
+        }
+        $view = (string) $request->input('default_view', $current['default_view']);
+        if (!in_array($view, ['dashboard', 'hourly', 'daily', 'weekly', 'monthly'], true)) {
+            $view = $current['default_view'];
+        }
+        $new = $current;
+        unset($new['category_keys']);
+        $new['default_view'] = $view;
+        $new['categories'] = $cats;
+        $new['pomo_focus'] = max(1, min(180, (int) $request->input('pomo_focus', $current['pomo_focus'])));
+        $new['pomo_break'] = max(1, min(60, (int) $request->input('pomo_break', $current['pomo_break'])));
+        $new['dark_default'] = (bool) $request->input('dark_default');
+        $this->store()->settingsSave($uid, $new);
+        return $this->back('/me/settings', 'تنظیمات ذخیره شد.');
     }
 
     // ریدایرکت مسیرهای قدیمی به نمای تازه
