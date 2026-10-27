@@ -534,4 +534,70 @@ final class AdminShopController
         $this->log('حذف کوپن', (string) $id);
         return $this->back('/admin/shop/coupons', 'کوپن حذف شد.');
     }
+
+    // ---------- قالب‌های فروشگاه ----------
+
+    private function templateService(): ShopTemplates
+    {
+        return $this->container->get('shop.templates');
+    }
+
+    public function templates(Request $request): Response
+    {
+        return $this->page('templates', [
+            'templates' => $this->templateService()->all(),
+            'flash' => $request->input('msg'),
+            'error' => $request->input('err'),
+        ], 'قالب‌های فروشگاه');
+    }
+
+    public function templateForm(Request $request, array $params = []): Response
+    {
+        $id = (int) ($params['id'] ?? 0);
+        $tpl = $id > 0 ? $this->templateService()->find($id) : null;
+        if ($id > 0 && $tpl === null) {
+            return $this->back('/admin/shop/templates', '', 'قالب پیدا نشد.');
+        }
+        return $this->page('template_form', [
+            'tpl' => $tpl,
+            'flash' => $request->input('msg'),
+            'error' => $request->input('err'),
+        ], $tpl !== null ? 'ویرایش قالب' : 'قالب تازه');
+    }
+
+    public function templateSave(Request $request, array $params = []): Response
+    {
+        $id = (int) ($params['id'] ?? 0);
+        [$tpl, $error] = $this->templateService()->save(
+            $id > 0 ? $id : null,
+            (string) $request->input('name', ''),
+            (string) $request->input('title', ''),
+            (string) $request->input('content', '')
+        );
+        if ($error !== null) {
+            return $this->back($id > 0 ? '/admin/shop/templates/edit/' . $id : '/admin/shop/templates/create', '', $error);
+        }
+        $this->log('ذخیره قالب فروشگاه', (string) ($tpl['name'] ?? ''));
+        return $this->back('/admin/shop/templates', 'قالب ذخیره شد.');
+    }
+
+    public function templateDefault(Request $request, array $params): Response
+    {
+        $id = (int) ($params['id'] ?? 0);
+        if (!$this->templateService()->setDefault($id)) {
+            return $this->back('/admin/shop/templates', '', 'قالب پیدا نشد.');
+        }
+        $this->log('قالب پیش‌فرض فروشگاه', (string) $id);
+        return $this->back('/admin/shop/templates', 'قالب پیش‌فرض شد.');
+    }
+
+    public function templateDelete(Request $request, array $params): Response
+    {
+        $id = (int) ($params['id'] ?? 0);
+        if (!$this->templateService()->delete($id)) {
+            return $this->back('/admin/shop/templates', '', 'قالب پیش‌فرض حذف نمی‌شود.');
+        }
+        $this->log('حذف قالب فروشگاه', (string) $id);
+        return $this->back('/admin/shop/templates', 'قالب حذف شد.');
+    }
 }

@@ -10,6 +10,7 @@ use Modules\Shop\Catalog;
 use Modules\Shop\Coupons;
 use Modules\Shop\Customers;
 use Modules\Shop\Orders;
+use Modules\Shop\ShopTemplates;
 use Modules\Shop\ShopController;
 use Modules\Shop\ShopSettings;
 use Modules\Shop\Wishlist;
@@ -25,7 +26,7 @@ return [
     'title'       => 'فروشگاه',
     'icon'        => '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1.5-5h15L21 9"/><path d="M4 9h16v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M9 21V13h6v8"/></svg>',
     'description' => 'فروشگاه کامل: محصولات، فیلدهای سفارشی، ویژگی و واریانت، دسته‌بندی، سبد خرید، لیست قیمت، سفارش و پیگیری، فاکتور فروش',
-    'version'     => '1.2.4',
+    'version'     => '1.3.0',
     'system'      => false,
     'requires'    => ['sqlite', 'session'],
 
@@ -36,6 +37,7 @@ return [
         'shop.cart'     => static fn (Container $c): Cart => new Cart($c->get('session')),
         'shop.coupons'  => static fn (Container $c): Coupons => new Coupons($c->get('db')),
         'shop.customers' => static fn (Container $c): Customers => new Customers($c->get('db')),
+        'shop.templates' => static fn (Container $c): ShopTemplates => new ShopTemplates($c->get('db')),
         'shop.wishlist' => static fn (Container $c): Wishlist => new Wishlist($c->get('session')),
     ],
 
@@ -53,6 +55,7 @@ return [
         $c->get('shop.orders')->migrate();
         $c->get('shop.coupons')->migrate();
         $c->get('shop.customers')->migrate();
+        $c->get('shop.templates')->migrate();
     },
 
     'admin_menu' => [
@@ -63,6 +66,7 @@ return [
         ['label' => 'ویژگی‌ها و واریانت', 'path' => '/admin/shop/attributes', 'permission' => 'shop.manage'],
         ['label' => 'سفارش‌ها', 'path' => '/admin/shop/orders', 'permission' => 'shop.manage'],
         ['label' => 'کوپن‌ها', 'path' => '/admin/shop/coupons', 'permission' => 'shop.manage'],
+        ['label' => 'قالب‌های فروشگاه', 'path' => '/admin/shop/templates', 'permission' => 'shop.manage'],
         ['label' => 'لیست قیمت', 'path' => '/admin/shop/pricelist', 'permission' => 'shop.manage'],
         ['label' => 'تنظیمات فروشگاه', 'path' => '/admin/shop/settings', 'permission' => 'shop.manage'],
     ],
@@ -125,6 +129,14 @@ return [
         $router->post('/admin/shop/settings', [AdminShopController::class, 'settingsSave'], $module);
 
         $router->get('/admin/shop/coupons', [AdminShopController::class, 'coupons'], $module);
+
+        $router->get('/admin/shop/templates', [AdminShopController::class, 'templates'], $module);
+        $router->get('/admin/shop/templates/create', [AdminShopController::class, 'templateForm'], $module);
+        $router->post('/admin/shop/templates/create', [AdminShopController::class, 'templateSave'], $module);
+        $router->get('/admin/shop/templates/edit/{id}', [AdminShopController::class, 'templateForm'], $module);
+        $router->post('/admin/shop/templates/edit/{id}', [AdminShopController::class, 'templateSave'], $module);
+        $router->post('/admin/shop/templates/{id}/default', [AdminShopController::class, 'templateDefault'], $module);
+        $router->post('/admin/shop/templates/{id}/delete', [AdminShopController::class, 'templateDelete'], $module);
         $router->post('/admin/shop/coupons/save', [AdminShopController::class, 'couponSave'], $module);
         $router->post('/admin/shop/coupons/delete/{id}', [AdminShopController::class, 'couponDelete'], $module);
 

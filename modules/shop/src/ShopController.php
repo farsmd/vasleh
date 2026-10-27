@@ -45,6 +45,79 @@ final class ShopController
     }
 
     /** مشتری واردشده فروشگاه (سشن جدا از کاربر ادمین) یا null. */
+    private function templates(): ShopTemplates
+    {
+        return $this->container->get('shop.templates');
+    }
+
+    private function appVersion(): string
+    {
+        $file = dirname(__DIR__, 3) . '/version.json';
+        if (!is_file($file)) {
+            return '';
+        }
+        $j = json_decode((string) file_get_contents($file), true);
+        if (!is_array($j)) {
+            return '';
+        }
+        return (int) $j['core'] . '.' . (int) $j['system'] . '.' . (int) $j['other'];
+    }
+
+    /** نشان تعداد علاقه‌مندی‌ها (صفر باشد، خالی است). */
+    private function wishlistBadge(int $count): string
+    {
+        if ($count <= 0) {
+            return '';
+        }
+        return '<span class="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white rounded-full text-[10px] flex items-center justify-center font-bold">' . $count . '</span>';
+    }
+
+    private function accountLink(?array $customer): string
+    {
+        $href = $customer !== null ? '/shop/account/orders' : '/shop/account';
+        $title = $customer !== null ? 'حساب من' : 'ورود / ثبت‌نام';
+        return '<a href="' . $href . '" class="relative w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-brand-600 flex items-center justify-center transition" title="' . $title . '">'
+            . '<i class="fa-regular fa-user text-base"></i></a>';
+    }
+
+    private function categoriesNav(array $categories): string
+    {
+        $out = '';
+        foreach ($categories as $c) {
+            $out .= '<a href="/shop?cat=' . e(rawurlencode((string) $c['slug'])) . '" class="hover:text-brand-600 transition shrink-0">' . e((string) $c['title']) . '</a>';
+        }
+        return $out;
+    }
+
+    /** آیتم‌های دراور سبد — همان نشانه‌گذاری پوسته نکسوس. */
+    private function cartDrawerItems(array $items, string $csrf): string
+    {
+        if ($items === []) {
+            return '<div class="text-center py-12 text-slate-400 text-xs">سبد خرید شما فعلاً خالی است.</div>';
+        }
+        $out = '';
+        foreach ($items as $row) {
+            $product = $row['product'];
+            $img = ($product['image'] ?? '') !== ''
+                ? '<img src="' . e((string) $product['image']) . '" class="w-16 h-16 object-contain rounded-xl bg-white dark:bg-slate-900 p-1">'
+                : '<span class="w-16 h-16 rounded-xl bg-white dark:bg-slate-900 text-slate-300 flex items-center justify-center text-xl"><i class="fa-regular fa-image"></i></span>';
+            $opts = $row['options_text'] !== '' ? '<span class="text-[11px] text-slate-400">' . e((string) $row['options_text']) . '</span>' : '';
+            $out .= '<div class="flex items-center gap-3.5 bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800">'
+                . $img
+                . '<div class="flex-1 min-w-0">'
+                . '<a href="/shop/product/' . e(rawurlencode((string) $product['slug'])) . '" class="text-xs font-extrabold text-slate-900 dark:text-white truncate block">' . e((string) $product['title']) . '</a>'
+                . $opts
+                . '<span class="text-xs font-black text-brand-600 block mt-1">' . number_format((int) $row['unit_price']) . ' تومان × ' . (int) $row['qty'] . '</span>'
+                . '</div>'
+                . '<form method="post" action="/shop/cart/remove">'
+                . '<input type="hidden" name="_csrf" value="' . e($csrf) . '">'
+                . '<input type="hidden" name="key" value="' . e((string) $row['key']) . '">'
+                . '<button class="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-500 flex items-center justify-center" title="حذف"><i class="fa-solid fa-trash text-xs"></i></button>'
+                . '</form></div>';
+        }
+        return $out;
+    }
+
     private function customer(): ?array
     {
         $id = (int) $this->session()->get('shop_customer_id', 0);
@@ -165,18 +238,46 @@ final class ShopController
             'categories' => $this->catalog()->categories(),
             'wishlistIds' => $this->wishlist()->ids(),
         ]);
-        return Response::html(View::render('shop', 'front', 'layout', [
-            'title' => $title,
-            'content' => $content,
-            'shopTitle' => $settings->get('shop_title', 'فروشگاه'),
-            'shopAccent' => $settings->get('shop_accent', '#4f46e5'),
-            'customer' => $this->customer(),
-            'cartCount' => $this->cart()->count(),
-            'cartItems' => $this->cart()->items($this->catalog()),
-            'wishlistCount' => $this->wishlist()->count(),
-            'categories' => $this->catalog()->categories(),
-            'csrf' => $this->session()->csrfToken(),
-        ]), $status);
+        $tpl = $this->templates()->defaultTemplate();
+        if ($tpl === null) {
+            return Response::html(View::render('shop', 'front', 'layout', [
+                'title' => $title,
+                'content' => $content,
+                'shopTitle' => $settings->get('shop_title', 'فروشگاه'),
+                'shopAccent' => $settings->get('shop_accent', '#4f46e5'),
+                'customer' => $this->customer(),
+                'cartCount' => $this->cart()->count(),
+                'cartItems' => $this->cart()->items($this->catalog()),
+                'wishlistCount' => $this->wishlist()->count(),
+                'categories' => $this->catalog()->categories(),
+                'csrf' => $this->session()->csrfToken(),
+            ]), $status);
+        }
+        // رندر با قالب فعال: اول توکن‌ها (بدون content) جایگزین می‌شوند تا
+        // رشته‌های {{...}} داخل خودِ محتوا دست نخورده بمانند، بعد content می‌نشیند.
+        $customer = $this->customer();
+        $cartItems = $this->cart()->items($this->catalog());
+        $cartCount = $this->cart()->count();
+        $wishlistCount = $this->wishlist()->count();
+        $csrf = $this->session()->csrfToken();
+        $accent = $settings->get('shop_accent', '#4f46e5');
+        $accent = preg_match('/^#[0-9a-fA-F]{6}$/', $accent) ? $accent : '#4f46e5';
+        $tokens = [
+            '{{title}}' => e($title),
+            '{{shop_title}}' => e($settings->get('shop_title', 'فروشگاه')),
+            '{{shop_accent}}' => e($accent),
+            '{{app_version}}' => e($this->appVersion()),
+            '{{cart_count}}' => (string) $cartCount,
+            '{{wishlist_badge}}' => $this->wishlistBadge($wishlistCount),
+            '{{account_link}}' => $this->accountLink($customer),
+            '{{categories_nav}}' => $this->categoriesNav($this->catalog()->categories()),
+            '{{cart_items}}' => $this->cartDrawerItems($cartItems, $csrf),
+            '{{cart_total}}' => number_format(array_sum(array_map(static fn (array $ci): int => (int) $ci['line_total'], $cartItems))),
+            '{{csrf}}' => e($csrf),
+        ];
+        $html = str_replace(array_keys($tokens), array_values($tokens), (string) $tpl['content']);
+        $html = str_replace('{{content}}', $content, $html);
+        return Response::html($html, $status);
     }
 
     public function index(Request $request): Response
