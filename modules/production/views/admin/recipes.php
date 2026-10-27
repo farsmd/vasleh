@@ -14,12 +14,13 @@
     <p>هنوز فرمولی نیست. فرمول یعنی: برای ساخت چه کالایی، چه مواد اولیه‌ای چقدر لازم است.</p>
   <?php else: ?>
   <table>
-    <tr><th>فرمول</th><th>خروجی هر بچ</th><th>مواد</th><th>فعال</th><th>عملیات</th></tr>
+    <tr><th>فرمول</th><th>خروجی هر بچ</th><th>مواد</th><th>هزینه مواد هر بچ</th><th>فعال</th><th>عملیات</th></tr>
     <?php foreach ($recipes as $r): ?>
     <tr>
       <td class="wrap"><?= e($r['title']) ?></td>
       <td><?= e($r['output_title']) ?> × <?= Stock::fmt((float) $r['output_qty']) ?> <?= e($r['output_unit']) ?></td>
       <td><?= (int) $r['lines_count'] ?> قلم</td>
+      <td><?= number_format((int) round($r['cost'])) ?></td>
       <td><?= (int) $r['active'] === 1 ? 'بله' : 'خیر' ?></td>
       <td>
         <a class="btn yellow" href="/admin/production/recipes/edit/<?= (int) $r['id'] ?>">ویرایش</a>
@@ -32,5 +33,6 @@
     </tr>
     <?php endforeach; ?>
   </table>
+  <p class="muted">هزینه مواد بر مبنای آخرین قیمت خرید انبار است؛ ۰ یعنی هنوز خرید قیمت‌داری برای آن ماده ثبت نشده.</p>
   <?php endif; ?>
 </div>

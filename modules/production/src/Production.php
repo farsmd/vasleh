@@ -76,7 +76,24 @@ final class Production
                 actor TEXT NOT NULL DEFAULT \'\',
                 created_at TEXT NOT NULL,
                 started_at TEXT NOT NULL DEFAULT \'\',
-                finished_at TEXT NOT NULL DEFAULT \'\'
+                finished_at TEXT NOT NULL DEFAULT \'\',
+                done_qty REAL NOT NULL DEFAULT 0
+            )'
+        );
+        $orderCols = $pdo->query('PRAGMA table_info(prod_orders)')->fetchAll(\PDO::FETCH_COLUMN, 1);
+        if (!in_array('done_qty', $orderCols, true)) {
+            $pdo->exec('ALTER TABLE prod_orders ADD COLUMN done_qty REAL NOT NULL DEFAULT 0');
+        }
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS prod_waste (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                order_id INTEGER NOT NULL,
+                material_item_id INTEGER NOT NULL,
+                material_title TEXT NOT NULL DEFAULT \'\',
+                qty REAL NOT NULL DEFAULT 0,
+                note TEXT NOT NULL DEFAULT \'\',
+                actor TEXT NOT NULL DEFAULT \'\',
+                created_at TEXT NOT NULL
             )'
         );
         $pdo->exec(
@@ -101,9 +118,58 @@ final class Production
             $row['output_title'] = $out['title'] ?? '؟';
             $row['output_unit'] = $out['unit'] ?? '';
             $row['lines_count'] = count($this->recipeLines((int) $row['id']));
+            $row['cost'] = $this->recipeCost((int) $row['id']);
         }
         unset($row);
         return $rows;
+    }
+
+    /** آخرین قیمت خرید یک کالا (از ورودهای قیمت‌دار انبار)؛ ۰ اگر خریدی ثبت نشده. */
+    public function lastPurchasePrice(int $itemId): float
+    {
+        $stmt = $this->pdo()->prepare("SELECT unit_price FROM inv_movements WHERE item_id = :i AND type = 'in' AND unit_price > 0 ORDER BY id DESC LIMIT 1");
+        $stmt->execute(['i' => $itemId]);
+        $v = $stmt->fetchColumn();
+        return $v === false ? 0.0 : (float) $v;
+    }
+
+    /** هزینه مواد یک فرمول برای یک بچ، بر مبنای آخرین قیمت خرید. */
+    public function recipeCost(int $recipeId): float
+    {
+        $total = 0.0;
+        foreach ($this->recipeLines($recipeId) as $line) {
+            $total += (float) $line['qty'] * $this->lastPurchasePrice((int) $line['material_item_id']);
+        }
+        return $total;
+    }
+
+    /** هزینه مواد یک دستور: ریز هر خط + جمع + هزینه هر واحد خروجی. */
+    public function orderCost(array $order): array
+    {
+        $lines = [];
+        $total = 0.0;
+        foreach ($this->orderLines((int) $order['id']) as $line) {
+            $up = $this->lastPurchasePrice((int) $line['material_item_id']);
+            $lc = (float) $line['qty'] * $up;
+            $total += $lc;
+            $lines[] = $line + ['unit_price' => $up, 'line_cost' => $lc];
+        }
+        $outQty = (float) $order['output_qty'];
+        return ['lines' => $lines, 'total' => $total, 'unit' => $outQty > 0 ? $total / $outQty : 0.0];
+    }
+
+    /** کسری مواد دستورهای برنامه‌ریزی‌شده (برای داشبورد). */
+    public function shortages(): array
+    {
+        $out = [];
+        foreach ($this->orders('planned') as $order) {
+            foreach ($this->availability($order) as $line) {
+                if ($line['shortage'] > 0) {
+                    $out[] = $line + ['order_code' => $order['code'], 'order_id' => (int) $order['id']];
+                }
+            }
+        }
+        return $out;
     }
 
     public function recipe(int $id): ?array
@@ -280,8 +346,8 @@ final class Production
     }
 
     /**
-     * اتمام تولید: ورود محصول به انبار. اگر کالای خروجی به محصول فروشگاه وصل
-     * باشد، موجودی فروشگاه هم زیاد می‌شود و مقدارش برگردانده می‌شود.
+     * اتمام تولید: ورود باقی‌مانده خروجی به انبار (با اتمام‌های جزئی سازگار است).
+     * مقدار واقعاً واردشده در 'added' برمی‌گردد تا فروشگاه هم همان‌قدر زیاد شود.
      */
     public function complete(int $orderId, string $actor): array
     {
@@ -289,13 +355,85 @@ final class Production
         if ($order === null || $order['status'] !== 'in_progress') {
             return ['ok' => false, 'error' => 'این دستور قابل اتمام نیست.'];
         }
-        $result = $this->stock->move('in', (int) $order['output_item_id'], (int) $order['warehouse_id'], (float) $order['output_qty'], (string) $order['code'], 'خروجی تولید', $actor);
-        if (!$result['ok']) {
-            return ['ok' => false, 'error' => (string) $result['error'], 'shop_added' => 0.0];
+        $remaining = (float) $order['output_qty'] - (float) ($order['done_qty'] ?? 0);
+        if ($remaining <= 0) {
+            return ['ok' => false, 'error' => 'این دستور قبلاً کامل شده است.'];
         }
-        $this->pdo()->prepare("UPDATE prod_orders SET status = 'done', finished_at = :n WHERE id = :id")
-            ->execute(['n' => date('Y-m-d H:i:s'), 'id' => $orderId]);
-        return ['ok' => true, 'error' => null, 'shop_added' => 0.0];
+        $result = $this->stock->move('in', (int) $order['output_item_id'], (int) $order['warehouse_id'], $remaining, (string) $order['code'], 'خروجی تولید', $actor);
+        if (!$result['ok']) {
+            return ['ok' => false, 'error' => (string) $result['error'], 'shop_added' => 0.0, 'added' => 0.0];
+        }
+        $this->pdo()->prepare("UPDATE prod_orders SET status = 'done', finished_at = :n, done_qty = :d WHERE id = :id")
+            ->execute(['n' => date('Y-m-d H:i:s'), 'd' => (float) $order['output_qty'], 'id' => $orderId]);
+        return ['ok' => true, 'error' => null, 'shop_added' => 0.0, 'added' => $remaining];
+    }
+
+    /** اتمام جزئی: بخشی از خروجی وارد انبار می‌شود؛ دستور تا تکمیل کامل در حال تولید می‌ماند. */
+    public function completePartial(int $orderId, float $qty, string $actor): array
+    {
+        $order = $this->order($orderId);
+        if ($order === null || $order['status'] !== 'in_progress') {
+            return ['ok' => false, 'error' => 'این دستور در حال تولید نیست.', 'added' => 0.0, 'finished' => false];
+        }
+        if ($qty <= 0) {
+            return ['ok' => false, 'error' => 'مقدار اتمام جزئی باید بزرگ‌تر از صفر باشد.', 'added' => 0.0, 'finished' => false];
+        }
+        $done = (float) ($order['done_qty'] ?? 0);
+        $remaining = (float) $order['output_qty'] - $done;
+        if ($qty > $remaining) {
+            return ['ok' => false, 'error' => 'مقدار جزئی بیشتر از باقی‌مانده دستور است.', 'added' => 0.0, 'finished' => false];
+        }
+        $result = $this->stock->move('in', (int) $order['output_item_id'], (int) $order['warehouse_id'], $qty, (string) $order['code'], 'خروجی تولید (جزئی)', $actor);
+        if (!$result['ok']) {
+            return ['ok' => false, 'error' => (string) $result['error'], 'added' => 0.0, 'finished' => false];
+        }
+        $newDone = $done + $qty;
+        $finished = $newDone >= (float) $order['output_qty'];
+        if ($finished) {
+            $this->pdo()->prepare("UPDATE prod_orders SET status = 'done', finished_at = :n, done_qty = :d WHERE id = :id")
+                ->execute(['n' => date('Y-m-d H:i:s'), 'd' => $newDone, 'id' => $orderId]);
+        } else {
+            $this->pdo()->prepare('UPDATE prod_orders SET done_qty = :d WHERE id = :id')
+                ->execute(['d' => $newDone, 'id' => $orderId]);
+        }
+        return ['ok' => true, 'error' => null, 'added' => $qty, 'finished' => $finished];
+    }
+
+    /**
+     * ثبت ضایعات محصول: واحدهای معیوبِ خروجی از انبار کسر و در جدول ضایعات ثبت
+     * می‌شوند (مواد در شروع دستور کسر شده‌اند، پس ضایعات فقط روی خروجی اثر دارد).
+     */
+    public function waste(int $orderId, float $qty, string $note, string $actor): array
+    {
+        $order = $this->order($orderId);
+        if ($order === null || !in_array($order['status'], ['in_progress', 'done'], true)) {
+            return ['ok' => false, 'error' => 'ضایعات فقط برای دستور در حال تولید یا تمام‌شده ثبت می‌شود.'];
+        }
+        if ($qty <= 0) {
+            return ['ok' => false, 'error' => 'مقدار ضایعات باید بزرگ‌تر از صفر باشد.'];
+        }
+        if ($this->stock->qty((int) $order['output_item_id'], (int) $order['warehouse_id']) < $qty) {
+            return ['ok' => false, 'error' => 'موجودی خروجی در انبار برای ثبت ضایعات کافی نیست.'];
+        }
+        $result = $this->stock->move('out', (int) $order['output_item_id'], (int) $order['warehouse_id'], $qty, (string) $order['code'], 'ضایعات تولید', $actor);
+        if (!$result['ok']) {
+            return ['ok' => false, 'error' => (string) $result['error']];
+        }
+        $this->pdo()->prepare(
+            'INSERT INTO prod_waste (order_id, material_item_id, material_title, qty, note, actor, created_at)
+             VALUES (:o, :m, :t, :q, :n, :a, :now)'
+        )->execute([
+            'o' => $orderId, 'm' => (int) $order['output_item_id'], 't' => $order['output_title'],
+            'q' => $qty, 'n' => $note, 'a' => $actor, 'now' => date('Y-m-d H:i:s'),
+        ]);
+        return ['ok' => true, 'error' => null];
+    }
+
+    public function wastes(int $orderId): array
+    {
+        $stmt = $this->pdo()->prepare('SELECT * FROM prod_waste WHERE order_id = :o ORDER BY id DESC');
+        $stmt->execute(['o' => $orderId]);
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
     /** لغو: از برنامه‌ریزی‌شده بدون اثر؛ از درحال‌تولید با برگشت مواد به انبار. */

@@ -225,11 +225,37 @@ final class AdminProductionController
             'order' => $order,
             'lines' => $this->prod()->availability($order),
             'canStart' => $this->prod()->canStart($order),
+            'cost' => $this->prod()->orderCost($order),
+            'wastes' => $this->prod()->wastes((int) $order['id']),
             'warehouse' => $warehouse,
             'statuses' => Production::STATUSES,
             'flash' => $request->input('msg'),
             'error' => $request->input('err'),
         ], 'دستور تولید ' . $order['code']);
+    }
+
+    /** افزایش موجودی محصول فروشگاهِ متصل به خروجی، به‌اندازه مقدار واقعاً ساخته‌شده. */
+    private function syncShopStock(array $order, float $qty): string
+    {
+        if (!$this->container->has('shop.catalog')) {
+            return '';
+        }
+        $outItem = $this->stock()->item((int) $order['output_item_id']);
+        $shopId = (int) ($outItem['shop_product_id'] ?? 0);
+        if ($shopId <= 0) {
+            return '';
+        }
+        $catalog = $this->container->get('shop.catalog');
+        $product = $catalog->product($shopId);
+        if ($product === null) {
+            return '';
+        }
+        $q = (int) round($qty);
+        if ($q <= 0) {
+            return '';
+        }
+        $catalog->productQuickPrice($shopId, (int) $product['price'], (int) $product['sale_price'], (int) $product['stock'] + $q);
+        return ' موجودی محصول فروشگاه هم ' . $q . ' واحد زیاد شد.';
     }
 
     public function orderStart(Request $request, array $params): Response
@@ -252,25 +278,54 @@ final class AdminProductionController
         if (!$result['ok']) {
             return $this->back('/admin/production/orders/' . $id, '', (string) $result['error']);
         }
-        // اتصال به فروشگاه: موجودی محصول متناظر هم زیاد می‌شود.
-        $shopMsg = '';
-        if ($order !== null && $this->container->has('shop.catalog')) {
-            $outItem = $this->stock()->item((int) $order['output_item_id']);
-            $shopId = (int) ($outItem['shop_product_id'] ?? 0);
-            if ($shopId > 0) {
-                $catalog = $this->container->get('shop.catalog');
-                $product = $catalog->product($shopId);
-                if ($product !== null) {
-                    $qty = (int) round((float) $order['output_qty']);
-                    if ($qty > 0) {
-                        $catalog->productQuickPrice($shopId, (int) $product['price'], (int) $product['sale_price'], (int) $product['stock'] + $qty);
-                        $shopMsg = ' موجودی محصول فروشگاه هم ' . $qty . ' واحد زیاد شد.';
-                    }
-                }
-            }
-        }
+        $shopMsg = $order !== null ? $this->syncShopStock($order, (float) ($result['added'] ?? 0)) : '';
         $this->log('اتمام تولید', (string) ($order['code'] ?? ''));
         return $this->back('/admin/production/orders/' . $id, 'تولید تمام شد؛ خروجی وارد انبار شد.' . $shopMsg);
+    }
+
+    public function orderPartial(Request $request, array $params): Response
+    {
+        $id = (int) ($params['id'] ?? 0);
+        $order = $this->prod()->order($id);
+        $result = $this->prod()->completePartial($id, (float) $request->input('qty', 0), $this->actor());
+        if (!$result['ok']) {
+            return $this->back('/admin/production/orders/' . $id, '', (string) $result['error']);
+        }
+        $shopMsg = $order !== null ? $this->syncShopStock($order, (float) ($result['added'] ?? 0)) : '';
+        $this->log('اتمام جزئی تولید', (string) ($order['code'] ?? ''));
+        $msg = !empty($result['finished'])
+            ? 'تولید کامل شد؛ خروجی وارد انبار شد.'
+            : 'اتمام جزئی ثبت شد؛ باقی‌مانده بعداً تکمیل می‌شود.';
+        return $this->back('/admin/production/orders/' . $id, $msg . $shopMsg);
+    }
+
+    public function orderWaste(Request $request, array $params): Response
+    {
+        $id = (int) ($params['id'] ?? 0);
+        $result = $this->prod()->waste($id, (float) $request->input('qty', 0), trim((string) $request->input('note', '')), $this->actor());
+        if (!$result['ok']) {
+            return $this->back('/admin/production/orders/' . $id, '', (string) $result['error']);
+        }
+        $this->log('ثبت ضایعات تولید', '#' . $id);
+        return $this->back('/admin/production/orders/' . $id, 'ضایعات ثبت و از انبار کسر شد.');
+    }
+
+    public function dashboard(Request $request): Response
+    {
+        $prod = $this->prod();
+        $inProgressCost = 0.0;
+        foreach ($prod->orders('in_progress') as $o) {
+            $inProgressCost += $prod->orderCost($o)['total'];
+        }
+        return $this->page('dashboard', [
+            'stats' => $prod->stats(),
+            'recent' => array_slice($prod->orders(), 0, 10),
+            'shortages' => array_slice($prod->shortages(), 0, 10),
+            'inProgressCost' => $inProgressCost,
+            'statuses' => Production::STATUSES,
+            'flash' => $request->input('msg'),
+            'error' => $request->input('err'),
+        ], 'داشبورد تولید');
     }
 
     public function orderCancel(Request $request, array $params): Response

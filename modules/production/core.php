@@ -18,7 +18,7 @@ return [
     'title'       => 'ساخت و تولید',
     'icon'        => '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20"/><path d="M4 20V9l5 3V9l5 3V4h6v16z"/><path d="M17 8h.01"/></svg>',
     'description' => 'ساخت و تولید: فرمول ساخت (BOM)، دستور تولید، کسر مواد از انبار و ورود محصول ساخته‌شده',
-    'version'     => '1.0.0',
+    'version'     => '1.1.0',
     'system'      => false,
     'requires'    => ['sqlite', 'session', 'inventory'],
 
@@ -35,6 +35,7 @@ return [
     },
 
     'admin_menu' => [
+        ['label' => 'داشبورد تولید', 'path' => '/admin/production/dashboard', 'permission' => 'production.manage'],
         ['label' => 'دستورهای تولید', 'path' => '/admin/production/orders', 'permission' => 'production.manage'],
         ['label' => 'دستور تازه', 'path' => '/admin/production/orders/create', 'permission' => 'production.manage'],
         ['label' => 'فرمول‌های ساخت', 'path' => '/admin/production/recipes', 'permission' => 'production.manage'],
@@ -55,6 +56,9 @@ return [
         $router->get('/admin/production/orders/{id}', [AdminProductionController::class, 'orderDetail'], $module);
         $router->post('/admin/production/orders/{id}/start', [AdminProductionController::class, 'orderStart'], $module);
         $router->post('/admin/production/orders/{id}/complete', [AdminProductionController::class, 'orderComplete'], $module);
+        $router->post('/admin/production/orders/{id}/partial', [AdminProductionController::class, 'orderPartial'], $module);
+        $router->post('/admin/production/orders/{id}/waste', [AdminProductionController::class, 'orderWaste'], $module);
         $router->post('/admin/production/orders/{id}/cancel', [AdminProductionController::class, 'orderCancel'], $module);
+        $router->get('/admin/production/dashboard', [AdminProductionController::class, 'dashboard'], $module);
     },
 ];
