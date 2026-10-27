@@ -8,9 +8,10 @@ use Modules\Sqlite\Database;
 
 /**
  * حساب مشتری فروشگاه — جدا از کاربران ادمین.
- * ورود با موبایل + رمز عبور (هش). سفارش‌های مهمان به‌صورت خودکار به حساب وصل
- * نمی‌شوند (موبایل به‌تنهایی مالکیت را ثابت نمی‌کند)؛ فقط سفارش‌های ثبت‌شده
- * در حالت ورود، customer_id می‌گیرند.
+ * شناسه مشتری شماره موبایل است و ورود/ثبت‌نام فقط با کد پیامکی انجام می‌شود
+ * (گام ۴۷)؛ متدهای رمزی فعلاً از رابط کاربری حذف شده‌اند ولی در سرویس مانده‌اند.
+ * سفارش‌های مهمان به‌صورت خودکار به حساب وصل نمی‌شوند (موبایل به‌تنهایی مالکیت
+ * را ثابت نمی‌کند)؛ فقط سفارش‌های ثبت‌شده در حالت ورود، customer_id می‌گیرند.
  */
 final class Customers
 {
@@ -85,6 +86,28 @@ final class Customers
             'h' => password_hash($password, PASSWORD_DEFAULT),
             'now' => date('Y-m-d H:i:s'),
         ]);
+        return [$this->find((int) $this->pdo()->lastInsertId()), null];
+    }
+
+    /** @return array{0: ?array, 1: ?string} ثبت‌نام با کد پیامکی — بدون رمز عبور */
+    public function registerByOtp(string $name, string $phone): array
+    {
+        $name = trim($name);
+        $phone = trim($phone);
+        if ($name === '') {
+            return [null, 'نام الزامی است.'];
+        }
+        if (!self::validPhone($phone)) {
+            return [null, 'شماره موبایل معتبر نیست (با 09 شروع شود و ۱۱ رقم باشد).'];
+        }
+        if ($this->findByPhone($phone) !== null) {
+            return [null, 'این شماره موبایل قبلاً ثبت شده است.'];
+        }
+        $stmt = $this->pdo()->prepare(
+            'INSERT INTO shop_customers (name, phone, pass_hash, address, created_at)
+             VALUES (:n, :p, \'\', \'\', :now)'
+        );
+        $stmt->execute(['n' => $name, 'p' => $phone, 'now' => date('Y-m-d H:i:s')]);
         return [$this->find((int) $this->pdo()->lastInsertId()), null];
     }
 

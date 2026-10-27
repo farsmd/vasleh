@@ -666,52 +666,8 @@ final class ShopController
             'flash' => $request->input('msg'),
             'old' => [],
             'otpPhone' => null,
+            'otpName' => null,
         ], 'حساب من');
-    }
-
-    public function accountRegister(Request $request): Response
-    {
-        if (!$this->csrfOk($request)) {
-            return Response::forbidden('توکن امنیتی نامعتبر است');
-        }
-        if ($this->customer() !== null) {
-            return Response::redirect('/shop/account/orders');
-        }
-        [$customer, $error] = $this->customers()->register(
-            (string) $request->input('name', ''),
-            (string) $request->input('phone', ''),
-            (string) $request->input('password', '')
-        );
-        if ($error !== null) {
-            return $this->page('account', [
-                'error' => $error, 'flash' => null,
-                'old' => ['name' => (string) $request->input('name', ''), 'phone' => (string) $request->input('phone', '')],
-            ], 'حساب من');
-        }
-        $this->session()->set('shop_customer_id', (int) $customer['id']);
-        return Response::redirect('/shop/account/orders');
-    }
-
-    public function accountLogin(Request $request): Response
-    {
-        if (!$this->csrfOk($request)) {
-            return Response::forbidden('توکن امنیتی نامعتبر است');
-        }
-        if ($this->customer() !== null) {
-            return Response::redirect('/shop/account/orders');
-        }
-        $customer = $this->customers()->verify(
-            (string) $request->input('phone', ''),
-            (string) $request->input('password', '')
-        );
-        if ($customer === null) {
-            return $this->page('account', [
-                'error' => 'شماره موبایل یا رمز عبور درست نیست.', 'flash' => null,
-                'old' => ['phone' => (string) $request->input('phone', '')],
-            ], 'حساب من');
-        }
-        $this->session()->set('shop_customer_id', (int) $customer['id']);
-        return Response::redirect('/shop/account/orders');
     }
 
     public function accountLogout(Request $request): Response
@@ -788,7 +744,7 @@ final class ShopController
         return Response::redirect('/shop/account/profile?msg=' . rawurlencode('حساب به‌روز شد.'));
     }
 
-    // ---------- ورود با کد پیامکی ----------
+    // ---------- ورود / ثبت‌نام با کد پیامکی (گام ۴۷: بدون رمز عبور) ----------
 
     public function accountOtpRequest(Request $request): Response
     {
@@ -799,29 +755,30 @@ final class ShopController
             return Response::redirect('/shop/account/orders');
         }
         $phone = trim((string) $request->input('phone', ''));
-        $customer = $this->customers()->findByPhone($phone);
-        if ($customer === null) {
-            return $this->page('account', [
-                'error' => 'حسابی با این شماره موبایل ثبت نشده است؛ اول ثبت‌نام کنید.', 'flash' => null,
-                'old' => ['phone' => $phone], 'otpPhone' => null,
-            ], 'حساب من');
+        $name = trim((string) $request->input('name', ''));
+        $customers = $this->customers();
+        $fail = fn (string $error): Response => $this->page('account', [
+            'error' => $error, 'flash' => null,
+            'old' => ['name' => $name, 'phone' => $phone], 'otpPhone' => null, 'otpName' => null,
+        ], 'حساب من');
+        if (!Customers::validPhone($phone)) {
+            return $fail('شماره موبایل معتبر نیست (با 09 شروع شود و ۱۱ رقم باشد).');
+        }
+        $customer = $customers->findByPhone($phone);
+        if ($customer === null && $name === '') {
+            return $fail('نام الزامی است.');
         }
         $sender = $this->sms();
         if ($sender === null) {
-            return $this->page('account', [
-                'error' => 'ارسال پیامک فعال نیست.', 'flash' => null,
-                'old' => ['phone' => $phone], 'otpPhone' => null,
-            ], 'حساب من');
+            return $fail('ارسال پیامک فعال نیست.');
         }
         [$ok, $error] = $sender->requestOtp($phone);
         if (!$ok) {
-            return $this->page('account', [
-                'error' => $error, 'flash' => null,
-                'old' => ['phone' => $phone], 'otpPhone' => null,
-            ], 'حساب من');
+            return $fail((string) $error);
         }
         return $this->page('account', [
-            'error' => null, 'flash' => 'کد تأیید پیامک شد.', 'old' => [], 'otpPhone' => $phone,
+            'error' => null, 'flash' => 'کد تأیید پیامک شد.', 'old' => [],
+            'otpPhone' => $phone, 'otpName' => $name,
         ], 'حساب من');
     }
 
@@ -835,13 +792,28 @@ final class ShopController
         }
         $phone = trim((string) $request->input('phone', ''));
         $code = trim((string) $request->input('code', ''));
-        $customer = $this->customers()->findByPhone($phone);
+        $name = trim((string) $request->input('name', ''));
         $sender = $this->sms();
-        if ($customer === null || $sender === null || !$sender->verifyOtp($phone, $code)) {
+        if ($sender === null || !$sender->verifyOtp($phone, $code)) {
             return $this->page('account', [
                 'error' => 'کد درست نیست یا منقضی شده است.', 'flash' => null,
-                'old' => ['phone' => $phone], 'otpPhone' => $phone,
+                'old' => ['phone' => $phone], 'otpPhone' => $phone, 'otpName' => $name,
             ], 'حساب من');
+        }
+        $customers = $this->customers();
+        $customer = $customers->findByPhone($phone);
+        if ($customer === null) {
+            [$customer, $error] = $customers->registerByOtp($name !== '' ? $name : $phone, $phone);
+            if ($customer === null) {
+                // مسابقه ثبت هم‌زمان: اگر شماره همین بین ثبت شد، وارد شو
+                $customer = $customers->findByPhone($phone);
+                if ($customer === null) {
+                    return $this->page('account', [
+                        'error' => (string) $error, 'flash' => null,
+                        'old' => ['phone' => $phone], 'otpPhone' => $phone, 'otpName' => $name,
+                    ], 'حساب من');
+                }
+            }
         }
         $this->session()->set('shop_customer_id', (int) $customer['id']);
         return Response::redirect('/shop/account/orders');

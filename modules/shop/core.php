@@ -26,7 +26,7 @@ return [
     'title'       => 'فروشگاه',
     'icon'        => '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1.5-5h15L21 9"/><path d="M4 9h16v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M9 21V13h6v8"/></svg>',
     'description' => 'فروشگاه کامل: محصولات، فیلدهای سفارشی، ویژگی و واریانت، دسته‌بندی، سبد خرید، لیست قیمت، سفارش و پیگیری، فاکتور فروش',
-    'version'     => '1.3.1',
+    'version'     => '1.3.2',
     'system'      => false,
     'requires'    => ['sqlite', 'session'],
 
@@ -88,8 +88,7 @@ return [
         $router->post('/shop/coupon/remove', [ShopController::class, 'couponRemove'], $module);
         $router->get('/shop/success/{code}', [ShopController::class, 'success'], $module);
         $router->get('/shop/account', [ShopController::class, 'account'], $module);
-        $router->post('/shop/account/register', [ShopController::class, 'accountRegister'], $module);
-        $router->post('/shop/account/login', [ShopController::class, 'accountLogin'], $module);
+
         $router->post('/shop/account/logout', [ShopController::class, 'accountLogout'], $module);
         $router->get('/shop/account/orders', [ShopController::class, 'accountOrders'], $module);
         $router->get('/shop/account/orders/{code}', [ShopController::class, 'accountOrderDetail'], $module);
