@@ -13,6 +13,14 @@ final class SmsSender
     public const OTP_TTL = 300;
     public const OTP_RESEND_WAIT = 60;
     public const OTP_MAX_ATTEMPTS = 5;
+    /** ضداسپم: هر شماره در هر پنجره ۲ ساعته حداکثر ۵ پیامک کد می‌گیرد. */
+    public const OTP_SEND_CAP = 5;
+    public const OTP_SEND_WINDOW = 7200;
+
+    private static function faDigits(string $s): string
+    {
+        return strtr($s, ['0' => '۰', '1' => '۱', '2' => '۲', '3' => '۳', '4' => '۴', '5' => '۵', '6' => '۶', '7' => '۷', '8' => '۸', '9' => '۹']);
+    }
 
     public function __construct(
         private readonly Database $db,
@@ -95,6 +103,16 @@ final class SmsSender
             return [false, 'ارسال پیامک فعال نیست.'];
         }
         $now = time();
+        $stmt = $this->db->pdo()->prepare('SELECT COUNT(*) AS n, MIN(created_at) AS oldest FROM sms_otps WHERE phone = :phone AND created_at >= :since');
+        $stmt->execute(['phone' => $phone, 'since' => $now - self::OTP_SEND_WINDOW]);
+        $win = $stmt->fetch(\PDO::FETCH_ASSOC);
+        if ($win !== false && (int) $win['n'] >= self::OTP_SEND_CAP) {
+            $wait = (int) ceil(((int) $win['oldest'] + self::OTP_SEND_WINDOW - $now) / 60);
+            if ($wait < 1) {
+                $wait = 1;
+            }
+            return [false, 'سقف ارسال کد برای این شماره پر شده است؛ تا ' . self::faDigits((string) $wait) . ' دقیقه دیگر دوباره تلاش کنید.'];
+        }
         $stmt = $this->db->pdo()->prepare('SELECT created_at FROM sms_otps WHERE phone = :phone ORDER BY id DESC LIMIT 1');
         $stmt->execute(['phone' => $phone]);
         $last = $stmt->fetch(\PDO::FETCH_ASSOC);

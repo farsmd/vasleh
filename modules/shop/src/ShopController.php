@@ -667,6 +667,7 @@ final class ShopController
             'old' => [],
             'otpPhone' => null,
             'otpName' => null,
+            'otpFresh' => false,
         ], 'حساب من');
     }
 
@@ -744,6 +745,24 @@ final class ShopController
         return Response::redirect('/shop/account/profile?msg=' . rawurlencode('حساب به‌روز شد.'));
     }
 
+    /** ورودی موبایل را به فرمت 09… برمی‌گرداند (+98/98/0098/9… و ارقام فارسی/عربی). */
+    private static function normalizePhone(string $phone): string
+    {
+        $phone = trim($phone);
+        $phone = strtr($phone, ['۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4', '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9', '٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4', '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9']);
+        $phone = preg_replace('/[^0-9+]/', '', $phone) ?? '';
+        if (str_starts_with($phone, '+98')) {
+            $phone = '0' . substr($phone, 3);
+        } elseif (str_starts_with($phone, '0098') && strlen($phone) === 14) {
+            $phone = '0' . substr($phone, 4);
+        } elseif (str_starts_with($phone, '98') && strlen($phone) === 12) {
+            $phone = '0' . substr($phone, 2);
+        } elseif (str_starts_with($phone, '9') && strlen($phone) === 10) {
+            $phone = '0' . $phone;
+        }
+        return $phone;
+    }
+
     // ---------- ورود / ثبت‌نام با کد پیامکی (گام ۴۷: بدون رمز عبور) ----------
 
     public function accountOtpRequest(Request $request): Response
@@ -754,12 +773,12 @@ final class ShopController
         if ($this->customer() !== null) {
             return Response::redirect('/shop/account/orders');
         }
-        $phone = trim((string) $request->input('phone', ''));
+        $phone = self::normalizePhone((string) $request->input('phone', ''));
         $name = trim((string) $request->input('name', ''));
         $customers = $this->customers();
         $fail = fn (string $error): Response => $this->page('account', [
             'error' => $error, 'flash' => null,
-            'old' => ['name' => $name, 'phone' => $phone], 'otpPhone' => null, 'otpName' => null,
+            'old' => ['name' => $name, 'phone' => $phone], 'otpPhone' => null, 'otpName' => null, 'otpFresh' => false,
         ], 'حساب من');
         if (!Customers::validPhone($phone)) {
             return $fail('شماره موبایل معتبر نیست (با 09 شروع شود و ۱۱ رقم باشد).');
@@ -777,8 +796,9 @@ final class ShopController
             return $fail((string) $error);
         }
         return $this->page('account', [
-            'error' => null, 'flash' => 'کد تأیید پیامک شد.', 'old' => [],
-            'otpPhone' => $phone, 'otpName' => $name,
+            'error' => null, 'flash' => 'کد تأیید پیامک شد.',
+            'old' => ['name' => $name, 'phone' => $phone],
+            'otpPhone' => $phone, 'otpName' => $name, 'otpFresh' => true,
         ], 'حساب من');
     }
 
@@ -790,14 +810,14 @@ final class ShopController
         if ($this->customer() !== null) {
             return Response::redirect('/shop/account/orders');
         }
-        $phone = trim((string) $request->input('phone', ''));
+        $phone = self::normalizePhone((string) $request->input('phone', ''));
         $code = trim((string) $request->input('code', ''));
         $name = trim((string) $request->input('name', ''));
         $sender = $this->sms();
         if ($sender === null || !$sender->verifyOtp($phone, $code)) {
             return $this->page('account', [
                 'error' => 'کد درست نیست یا منقضی شده است.', 'flash' => null,
-                'old' => ['phone' => $phone], 'otpPhone' => $phone, 'otpName' => $name,
+                'old' => ['name' => $name, 'phone' => $phone], 'otpPhone' => $phone, 'otpName' => $name, 'otpFresh' => false,
             ], 'حساب من');
         }
         $customers = $this->customers();
@@ -810,7 +830,7 @@ final class ShopController
                 if ($customer === null) {
                     return $this->page('account', [
                         'error' => (string) $error, 'flash' => null,
-                        'old' => ['phone' => $phone], 'otpPhone' => $phone, 'otpName' => $name,
+                        'old' => ['name' => $name, 'phone' => $phone], 'otpPhone' => $phone, 'otpName' => $name, 'otpFresh' => false,
                     ], 'حساب من');
                 }
             }
