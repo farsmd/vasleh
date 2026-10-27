@@ -8,6 +8,7 @@ use Core\Request;
 use Core\Response;
 use Core\View;
 use Modules\Session\SessionManager;
+use Modules\Sms\SmsSender;
 
 /** صفحات عمومی فروشگاه: ویترین، محصول، سبد، تسویه، پیگیری، لیست قیمت و فاکتور. */
 final class ShopController
@@ -626,12 +627,31 @@ final class ShopController
         if ($this->container->has('logger')) {
             $this->container->get('logger')->system('ثبت سفارش فروشگاه', $code, $old['phone']);
         }
+        $this->notifyOrderPlaced($code, $old['phone']);
         if ($extra['payment_method'] === 'zibal') {
             $tax = $taxPercent > 0 ? (int) round(($subtotal - $discount) * $taxPercent / 100) : 0;
             $total = $subtotal - $discount + $giftFee + $shipping + $tax;
             return $this->zibalRedirect($code, (int) $total);
         }
         return Response::redirect('/shop/success/' . $code);
+    }
+
+    private function sms(): ?SmsSender
+    {
+        return $this->container->has('sms.sender') ? $this->container->get('sms.sender') : null;
+    }
+
+    /** پیامک ثبت سفارش؛ خرابی‌اش جریان تسویه را نمی‌شکند. */
+    private function notifyOrderPlaced(string $code, string $phone): void
+    {
+        $sender = $this->sms();
+        if ($sender === null) {
+            return;
+        }
+        try {
+            $sender->sendOrderPlaced($code, $phone);
+        } catch (\Throwable) {
+        }
     }
 
     // ---------- ناحیه کاربری فروشگاه ----------
@@ -645,6 +665,7 @@ final class ShopController
             'error' => $request->input('err'),
             'flash' => $request->input('msg'),
             'old' => [],
+            'otpPhone' => null,
         ], 'حساب من');
     }
 
@@ -765,6 +786,65 @@ final class ShopController
         }
         $this->customers()->updateProfile((int) $customer['id'], $name, (string) $request->input('address', ''));
         return Response::redirect('/shop/account/profile?msg=' . rawurlencode('حساب به‌روز شد.'));
+    }
+
+    // ---------- ورود با کد پیامکی ----------
+
+    public function accountOtpRequest(Request $request): Response
+    {
+        if (!$this->csrfOk($request)) {
+            return Response::forbidden('توکن امنیتی نامعتبر است');
+        }
+        if ($this->customer() !== null) {
+            return Response::redirect('/shop/account/orders');
+        }
+        $phone = trim((string) $request->input('phone', ''));
+        $customer = $this->customers()->findByPhone($phone);
+        if ($customer === null) {
+            return $this->page('account', [
+                'error' => 'حسابی با این شماره موبایل ثبت نشده است؛ اول ثبت‌نام کنید.', 'flash' => null,
+                'old' => ['phone' => $phone], 'otpPhone' => null,
+            ], 'حساب من');
+        }
+        $sender = $this->sms();
+        if ($sender === null) {
+            return $this->page('account', [
+                'error' => 'ارسال پیامک فعال نیست.', 'flash' => null,
+                'old' => ['phone' => $phone], 'otpPhone' => null,
+            ], 'حساب من');
+        }
+        [$ok, $error] = $sender->requestOtp($phone);
+        if (!$ok) {
+            return $this->page('account', [
+                'error' => $error, 'flash' => null,
+                'old' => ['phone' => $phone], 'otpPhone' => null,
+            ], 'حساب من');
+        }
+        return $this->page('account', [
+            'error' => null, 'flash' => 'کد تأیید پیامک شد.', 'old' => [], 'otpPhone' => $phone,
+        ], 'حساب من');
+    }
+
+    public function accountOtpVerify(Request $request): Response
+    {
+        if (!$this->csrfOk($request)) {
+            return Response::forbidden('توکن امنیتی نامعتبر است');
+        }
+        if ($this->customer() !== null) {
+            return Response::redirect('/shop/account/orders');
+        }
+        $phone = trim((string) $request->input('phone', ''));
+        $code = trim((string) $request->input('code', ''));
+        $customer = $this->customers()->findByPhone($phone);
+        $sender = $this->sms();
+        if ($customer === null || $sender === null || !$sender->verifyOtp($phone, $code)) {
+            return $this->page('account', [
+                'error' => 'کد درست نیست یا منقضی شده است.', 'flash' => null,
+                'old' => ['phone' => $phone], 'otpPhone' => $phone,
+            ], 'حساب من');
+        }
+        $this->session()->set('shop_customer_id', (int) $customer['id']);
+        return Response::redirect('/shop/account/orders');
     }
 
     public function success(Request $request, array $params): Response

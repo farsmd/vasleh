@@ -7,6 +7,7 @@ use Core\Container;
 use Core\Request;
 use Core\Response;
 use Core\View;
+use Modules\Sms\SmsSender;
 
 /** پنل سفارش‌ها: فهرست، جزئیات، تغییر وضعیت و فاکتور فروش چاپی. */
 final class AdminOrdersController
@@ -77,9 +78,19 @@ final class AdminOrdersController
         $id = (int) ($params['id'] ?? 0);
         $order = $this->orders()->find($id);
         if ($order !== null) {
-            $this->orders()->setStatus($id, (string) $request->input('status', 'new'));
+            $oldStatus = (string) $order['status'];
+            $newStatus = (string) $request->input('status', 'new');
+            $this->orders()->setStatus($id, $newStatus);
             $this->orders()->setPayment($id, (string) $request->input('payment_status', 'unpaid'));
             $this->log('تغییر وضعیت سفارش', (string) $order['code']);
+            if ($newStatus !== $oldStatus && isset(Orders::STATUSES[$newStatus]) && $this->container->has('sms.sender')) {
+                try {
+                    $sender = $this->container->get('sms.sender');
+                    assert($sender instanceof SmsSender);
+                    $sender->sendOrderStatus((string) $order['code'], (string) $order['phone'], (string) Orders::STATUSES[$newStatus]);
+                } catch (\Throwable) {
+                }
+            }
         }
         return Response::redirect('/admin/shop/orders/' . $id . '?msg=' . urlencode('وضعیت سفارش به‌روز شد.'));
     }
