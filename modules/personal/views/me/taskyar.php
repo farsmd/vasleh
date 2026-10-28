@@ -78,6 +78,9 @@ $__dark = !empty($settings['dark_default']) || ($__theme['default_theme'] ?? 'da
                     <i class="fa-solid fa-stopwatch animate-pulse"></i>
                     <span id="headerPomoTimer"><?= strtr((string) (int) $settings['pomo_focus'], '0123456789', '۰۱۲۳۴۵۶۷۸۹') ?>:۰۰</span>
                 </button>
+                <form method="get" action="/me/search" class="flex items-center" role="search">
+                    <input type="text" name="q" placeholder="جست‌وجوی سراسری..." class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 w-32 sm:w-44">
+                </form>
                 <button onclick="openAddTaskModal()" class="flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 shadow-md shadow-indigo-500/25 active:scale-95 transition">
                     <i class="fa-solid fa-plus"></i>
                     <span class="hidden sm:inline">افزودن تسک</span>
@@ -154,6 +157,62 @@ $__dark = !empty($settings['dark_default']) || ($__theme['default_theme'] ?? 'da
                 </select>
             </div>
         </div>
+
+        <!-- نوار فیلتر بالای داشبورد: برچسب + دسته + اولویت + نماهای ذخیره‌شده -->
+        <?php
+        $__fTag = (string) ($_GET['tag'] ?? '');
+        $__fCat = (string) ($_GET['category'] ?? '');
+        $__fPrio = (string) ($_GET['priority'] ?? '');
+        $__fTags = [];
+        if (isset($tags) && is_array($tags)) { foreach ($tags as $__tg) { $__fTags[] = is_array($__tg) ? (string) ($__tg['name'] ?? '') : (string) $__tg; } $__fTags = array_values(array_filter($__fTags)); }
+        $__savedFilters = $savedFilters ?? $settings['saved_filters'] ?? [];
+        if (!is_array($__savedFilters)) { $__savedFilters = []; }
+        $__hasFilter = $__fTag !== '' || $__fCat !== '' || $__fPrio !== '';
+        ?>
+        <div class="me-filter-bar">
+            <a href="/me" class="me-chip<?= !$__hasFilter ? ' active' : '' ?>">همه</a>
+            <?php foreach ($__fTags as $__tg): ?>
+            <a href="/me?tag=<?= urlencode($__tg) ?>" class="me-chip<?= $__fTag === $__tg ? ' active' : '' ?>">#<?= e($__tg) ?></a>
+            <?php endforeach; ?>
+            <?php foreach ($settings['categories'] as $__c): ?>
+            <a href="/me?category=<?= urlencode($__c['key']) ?><?= $__fTag !== '' ? '&tag=' . urlencode($__fTag) : '' ?><?= $__fPrio !== '' ? '&priority=' . urlencode($__fPrio) : '' ?>" class="me-chip<?= $__fCat === $__c['key'] ? ' active' : '' ?>"><?= e($__c['label']) ?></a>
+            <?php endforeach; ?>
+            <?php foreach (['high' => 'فوری', 'medium' => 'متوسط', 'low' => 'عادی'] as $__pk => $__pl): ?>
+            <a href="/me?priority=<?= $__pk ?><?= $__fTag !== '' ? '&tag=' . urlencode($__fTag) : '' ?><?= $__fCat !== '' ? '&category=' . urlencode($__fCat) : '' ?>" class="me-chip<?= $__fPrio === $__pk ? ' active' : '' ?>"><?= $__pl ?></a>
+            <?php endforeach; ?>
+            <?php foreach ($__savedFilters as $__sf): ?>
+            <?php if (is_array($__sf) && !empty($__sf['name'])): ?>
+            <a href="/me?<?= http_build_query(array_filter(['tag' => $__sf['tag'] ?? '', 'category' => $__sf['category'] ?? '', 'priority' => $__sf['priority'] ?? ''])) ?>" class="me-chip me-chip-saved"><i class="fa-regular fa-bookmark"></i> <?= e($__sf['name']) ?></a>
+            <?php endif; ?>
+            <?php endforeach; ?>
+        </div>
+
+        <!-- ثبت سریع تک‌خطی + هشدار بار روز + کارت انتقال ناتمام‌ها -->
+        <div class="me-card">
+            <form method="post" action="/me/todos" class="me-quick-add">
+                <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
+                <input type="hidden" name="from" value="/me">
+                <input type="text" name="title" required placeholder="کار تازه را سریع بنویسید و Enter بزنید..." class="me-note-input">
+                <button class="me-note-btn">ثبت سریع</button>
+            </form>
+        </div>
+        <?php if (isset($workload, $settings['day_capacity']) && (int) $workload > (int) $settings['day_capacity']): ?>
+        <div class="me-card me-alert-card">
+            <h3 class="me-section-title"><i class="fa-solid fa-triangle-exclamation"></i> روز شلوغ</h3>
+            <p class="me-alert-text">بار امروز <?= (int) $workload ?> دقیقه است؛ بیشتر از ظرفیت <?= (int) $settings['day_capacity'] ?> دقیقه‌ای روز. بعضی کارها را به روزهای بعد موکول کنید.</p>
+        </div>
+        <?php endif; ?>
+        <?php $__rollN = 0; if (isset($rolloverCount)) { $__rollN = (int) $rolloverCount; } elseif (isset($rollover)) { $__rollN = is_array($rollover) ? count($rollover) : (int) $rollover; } ?>
+        <?php if ($__rollN > 0): ?>
+        <div class="me-card me-rollover-card">
+            <h3 class="me-section-title"><i class="fa-solid fa-forward"></i> <?= $__rollN ?> کار ناتمام از روزهای قبل</h3>
+            <p class="me-alert-text">کارهای انجام‌نشدهٔ دارای تاریخ، از امروز عقب مانده‌اند.</p>
+            <form method="post" action="/me/rollover" class="me-btn-row">
+                <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
+                <button class="me-note-btn">انتقال به امروز</button>
+            </form>
+        </div>
+        <?php endif; ?>
 
         <!-- VIEW 1: Dashboard (بنتو، عین ماکاپ) -->
         <div id="view-dashboard" class="space-y-4">
@@ -244,6 +303,90 @@ $__dark = !empty($settings['dark_default']) || ($__theme['default_theme'] ?? 'da
                     <?php endif; ?>
                 </div>
             </section>
+
+            <!-- کارت «برنامه‌ریزی روز»: فهرست امروز + میله ظرفیت + انتقال ناتمام‌ها (فقط از داده موجود) -->
+            <?php
+            $__ptToday = (string) ($today ?? date('Y-m-d'));
+            $__ptTodos = array_values(array_filter($tasks, static fn ($t) => ($t['kind'] ?? '') === 'todo' && ($t['date'] ?? '') === $__ptToday && empty($t['done'])));
+            $__ptLoad = 0; foreach ($tasks as $__tt) { if (($__tt['date'] ?? '') === $__ptToday) { $__ptLoad += (int) ($__tt['duration'] ?? 0); } }
+            $__ptCap = isset($settings['day_capacity']) ? (int) $settings['day_capacity'] : 0;
+            $__ptOverdue = array_values(array_filter($tasks, static fn ($t) => ($t['kind'] ?? '') === 'todo' && ($t['date'] ?? '') !== '' && ($t['date'] ?? '') < $__ptToday && empty($t['done'])));
+            $__ptInbox = array_values(array_filter($tasks, static fn ($t) => ($t['kind'] ?? '') === 'todo' && ($t['date'] ?? '') === ''));
+            ?>
+            <section class="me-card">
+                <div class="me-section-head">
+                    <h3 class="me-section-title"><i class="fa-solid fa-map"></i> برنامه‌ریزی روز</h3>
+                    <span class="me-section-action"><?= count($__ptTodos) ?> کار امروز</span>
+                </div>
+                <?php if ($__ptCap > 0): ?>
+                    <?php $__ptPct = (int) round(100 * $__ptLoad / $__ptCap); ?>
+                    <div class="me-progress-bar-bg"><div class="me-progress-bar-fill" style="width:<?= max(0, min(100, $__ptPct)) ?>%"></div></div>
+                    <p class="me-goal-date"><?= $__ptLoad ?> از <?= $__ptCap ?> دقیقه ظرفیت روز (<?= $__ptPct ?>٪)<?php if ($__ptLoad > $__ptCap): ?> — روز شلوغ است.<?php endif; ?></p>
+                <?php endif; ?>
+                <?php if ($__ptTodos === []): ?>
+                    <p class="me-empty">کاری برای امروز نیست.</p>
+                <?php else: ?>
+                    <div class="me-search-list">
+                    <?php foreach ($__ptTodos as $__t): ?>
+                        <div class="me-search-row">
+                            <button type="button" class="me-icon-btn" title="انجام" onclick="postTask('/me/task/todo/<?= (int) $__t['id'] ?>/toggle', {}).then(function(){window.location.reload();})"><i class="fa-regular fa-square-check"></i></button>
+                            <span class="me-search-title"><?= e($__t['title'] ?? '') ?></span>
+                            <?php if (!empty($__t['duration'])): ?><span class="me-search-date"><?= (int) $__t['duration'] ?> دقیقه</span><?php endif; ?>
+                        </div>
+                    <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+                <?php if ($__ptOverdue !== []): ?>
+                <form method="post" action="/me/rollover" class="me-btn-row">
+                    <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
+                    <button class="me-mini-btn"><i class="fa-solid fa-forward"></i> انتقال <?= count($__ptOverdue) ?> کار ناتمام به امروز</button>
+                </form>
+                <?php endif; ?>
+            </section>
+
+            <!-- صندوق ورودی: تودوهای بدون تاریخ -->
+            <section class="me-card">
+                <div class="me-section-head">
+                    <h3 class="me-section-title"><i class="fa-solid fa-inbox"></i> صندوق ورودی</h3>
+                    <span class="me-section-action"><?= count($__ptInbox) ?> کار بدون تاریخ</span>
+                </div>
+                <?php if ($__ptInbox === []): ?>
+                    <p class="me-empty">صندوق ورودی خالی است.</p>
+                <?php else: ?>
+                    <div class="me-search-list">
+                    <?php foreach ($__ptInbox as $__t): ?>
+                        <div class="me-search-row">
+                            <button type="button" class="me-icon-btn" title="انجام" onclick="postTask('/me/task/todo/<?= (int) $__t['id'] ?>/toggle', {}).then(function(){window.location.reload();})"><i class="fa-regular fa-square-check"></i></button>
+                            <span class="me-search-title"><?= e($__t['title'] ?? '') ?></span>
+                            <?php if (!empty($__t['category'])): ?><span class="me-search-date"><?= e($__t['category']) ?></span><?php endif; ?>
+                        </div>
+                    <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </section>
+
+            <!-- عادت‌های امروز (فقط وقتی داده habits پاس شده باشد) -->
+            <?php if (!empty($habits) && is_array($habits)): ?>
+            <section class="me-card">
+                <div class="me-section-head">
+                    <h3 class="me-section-title"><i class="fa-solid fa-repeat"></i> عادت‌های امروز</h3>
+                    <a href="/me/habits" class="me-section-action">همه عادت‌ها</a>
+                </div>
+                <div class="me-search-list">
+                <?php foreach ($habits as $__h): ?>
+                    <div class="me-search-row">
+                        <form method="post" action="/me/habits/<?= (int) $__h['id'] ?>/toggle" class="me-habit-check">
+                            <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
+                            <input type="hidden" name="date" value="<?= e($__ptToday) ?>">
+                            <input type="checkbox" <?= !empty($__h['done_today']) ? 'checked' : '' ?> onchange="this.form.submit()" class="me-check">
+                        </form>
+                        <span class="me-search-title<?= !empty($__h['done_today']) ? ' me-done' : '' ?>"><?= e($__h['title'] ?? '') ?></span>
+                        <?php if (isset($__h['streak'])): ?><span class="me-badge me-badge-streak"><i class="fa-solid fa-fire"></i> <?= (int) $__h['streak'] ?> روز</span><?php endif; ?>
+                    </div>
+                <?php endforeach; ?>
+                </div>
+            </section>
+            <?php endif; ?>
         </div>
 
         <!-- VIEW 2: Hourly Time Blocking -->
@@ -371,6 +514,11 @@ $__dark = !empty($settings['dark_default']) || ($__theme['default_theme'] ?? 'da
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
+                        <div class="me-chip-row me-date-chips">
+                            <button type="button" class="me-chip" onclick="setTaskDayFromChip('today')">امروز</button>
+                            <button type="button" class="me-chip" onclick="setTaskDayFromChip('tomorrow')">فردا</button>
+                            <button type="button" class="me-chip" onclick="setTaskDayFromChip('saturday')">شنبه</button>
+                        </div>
                         <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">روز هدف</label>
                         <select id="taskDay" class="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-white">
                             <option value="0">شنبه</option>
@@ -614,13 +762,19 @@ $__dark = !empty($settings['dark_default']) || ($__theme['default_theme'] ?? 'da
             eventsBox.innerHTML = events.length === 0
                 ? '<p class="me-empty">رویدادی برای امروز نیست.</p>'
                 : events.map(t => createTaskCardHTML(t)).join('');
-            // کارهای اولویت‌دار امروز (تودوهای انجام‌نشدهٔ امروز، فوری اول).
+            // کارهای اولویت‌دار امروز (تودوهای انجام‌نشدهٔ امروز، فوری اول) + بخش «آینده» برای شروع‌های آینده.
             const list = document.getElementById('bentoTodoList');
             const todos = getFilteredTasks().filter(t => t.kind === 'todo' && !t.done && t.date === TASKYAR.today);
             todos.sort((a, b) => (a.priority === 'high' ? -1 : (b.priority === 'high' ? 1 : 0)));
-            list.innerHTML = todos.length === 0
+            const todosNow = todos.filter(t => !(t.start_date && t.start_date > TASKYAR.today));
+            const todosFuture = todos.filter(t => t.start_date && t.start_date > TASKYAR.today);
+            let todosHtml = todosNow.length === 0
                 ? '<div class="me-empty">کاری برای امروز نیست.</div>'
-                : todos.slice(0, 8).map(t => createTaskCardHTML(t)).join('');
+                : todosNow.slice(0, 8).map(t => createTaskCardHTML(t)).join('');
+            if (todosFuture.length > 0) {
+                todosHtml += '<h4 class="me-future-head"><i class="fa-regular fa-hourglass-half"></i> آینده</h4>' + todosFuture.map(t => createTaskCardHTML(t)).join('');
+            }
+            list.innerHTML = todosHtml;
         }
 
         function renderHourlyView() {
@@ -730,7 +884,28 @@ $__dark = !empty($settings['dark_default']) || ($__theme['default_theme'] ?? 'da
             const catMeta = getCategoryMeta(task.category);
             const prioMeta = getPriorityMeta(task.priority);
             const timeLabel = task.hour === 'all-day' ? 'تمام روز' : task.hour + (task.end ? ' تا ' + task.end : '');
-            return '<div class="group bg-white dark:bg-slate-800/80 p-3 rounded-xl border border-slate-200/70 dark:border-slate-700/60 hover:shadow-sm transition flex items-center justify-between gap-3">'
+            // برچسب‌ها، تکرار، یادآوری، تاریخ شروع آینده و زیرکارها (فقط وقتی در داده باشند).
+            let tagsHtml = '';
+            if (Array.isArray(task.tags)) {
+                tagsHtml = task.tags.map(function (tg) { return '<span class="me-tag-chip">#' + esc(tg) + '</span>'; }).join('');
+            }
+            const recurLabels = { daily: 'روزانه', weekly: 'هفتگی', monthly: 'ماهانه' };
+            const recurBadge = (task.recur && task.recur !== 'none') ? '<span class="me-badge me-badge-recur"><i class="fa-solid fa-repeat"></i> ' + (recurLabels[task.recur] || esc(task.recur)) + '</span>' : '';
+            const remindHtml = task.remind_at ? '<span class="me-badge"><i class="fa-regular fa-bell"></i> یادآوری ' + esc(task.remind_at) + '</span>' : '';
+            const startBadge = (task.start_date && task.start_date > TASKYAR.today) ? '<span class="me-badge me-badge-future">شروع: ' + faDateOf(task.start_date) + '</span>' : '';
+            let subsHtml = '';
+            if (task.kind === 'todo' && Array.isArray(task.subtasks)) {
+                const items = task.subtasks.map(function (st) {
+                    return '<div class="me-sub-row">'
+                        + '<form method="post" action="/me/todos/subtasks/' + st.id + '/toggle"><input type="hidden" name="_csrf" value="' + TASKYAR.csrf + '"><input type="checkbox"' + (st.done ? ' checked' : '') + ' onchange="this.form.submit()" class="me-check"></form>'
+                        + '<span class="' + (st.done ? 'me-done' : '') + '">' + esc(st.title) + '</span>'
+                        + '<form method="post" action="/me/todos/subtasks/' + st.id + '/delete" onsubmit="return confirm(\'این زیرکار حذف شود؟\')"><input type="hidden" name="_csrf" value="' + TASKYAR.csrf + '"><button class="me-icon-btn" title="حذف"><i class="fa-regular fa-trash-can"></i></button></form>'
+                        + '</div>';
+                }).join('');
+                subsHtml = '<div class="me-sub-list">' + items
+                    + '<form method="post" action="/me/todos/' + task.id + '/subtasks" class="me-sub-add"><input type="hidden" name="_csrf" value="' + TASKYAR.csrf + '"><input type="text" name="title" required placeholder="زیرکار تازه..." class="me-note-input"><button class="me-mini-btn">افزودن</button></form></div>';
+            }
+            const rowHtml = '<div class="group bg-white dark:bg-slate-800/80 p-3 rounded-xl border border-slate-200/70 dark:border-slate-700/60 hover:shadow-sm transition flex items-center justify-between gap-3">'
                 + '<div class="flex items-center gap-3 min-w-0">'
                 + '<button onclick="toggleTaskStatus(\'' + task.kind + '\', ' + task.id + ')" class="w-5 h-5 rounded-lg border ' + (task.done ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 dark:border-slate-600 hover:border-indigo-500') + ' flex items-center justify-center transition flex-shrink-0">'
                 + (task.done ? '<i class="fa-solid fa-check text-[10px]"></i>' : '') + '</button>'
@@ -741,11 +916,13 @@ $__dark = !empty($settings['dark_default']) || ($__theme['default_theme'] ?? 'da
                 + '<span class="font-mono flex items-center gap-1"><i class="fa-regular fa-clock"></i>' + timeLabel + '</span>'
                 + (task.duration ? '<span>(' + faNum(task.duration) + ' د)</span>' : '')
                 + (task.date ? '<span>' + faDateOf(task.date) + '</span>' : '<span>بدون تاریخ</span>')
+                + startBadge + recurBadge + remindHtml + tagsHtml
                 + '</div></div></div>'
                 + '<div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">'
                 + '<button onclick="openEditTaskModal(\'' + task.kind + '\', ' + task.id + ')" title="ویرایش" class="w-7 h-7 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center justify-center text-xs"><i class="fa-regular fa-pen-to-square"></i></button>'
                 + '<button onclick="deleteTask(\'' + task.kind + '\', ' + task.id + ')" title="حذف" class="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center justify-center text-xs"><i class="fa-regular fa-trash-can"></i></button>'
                 + '</div></div>';
+            return subsHtml ? '<div class="me-task-wrap">' + rowHtml + subsHtml + '</div>' : rowHtml;
         }
 
         function updateDashboardMetrics() {
@@ -830,6 +1007,14 @@ $__dark = !empty($settings['dark_default']) || ($__theme['default_theme'] ?? 'da
                 updateDashboardMetrics();
                 renderCurrentView();
             });
+        }
+
+        // چیپ‌های تاریخ سریع در فرم افزودن: روز هدف (select روز هفته) را پر می‌کنند.
+        function setTaskDayFromChip(which) {
+            let d = TASKYAR.today;
+            if (which === 'tomorrow') d = dateAdd(TASKYAR.today, 1);
+            if (which === 'saturday') { document.getElementById('taskDay').value = '0'; return; }
+            document.getElementById('taskDay').value = String(uiDayOf(d));
         }
 
         function openAddTaskModal() {
@@ -937,6 +1122,13 @@ $__dark = !empty($settings['dark_default']) || ($__theme['default_theme'] ?? 'da
                             state.pomoSessions++;
                             localStorage.setItem('taskyar_pomo_sessions', String(state.pomoSessions));
                             updateDashboardMetrics();
+                            // ثبت پومودورو در سرور: best-effort، خطا هرگز تایمر را نمی‌شکند.
+                            try {
+                                const __fd = new FormData();
+                                __fd.append('_csrf', TASKYAR.csrf);
+                                __fd.append('minutes', String(TASKYAR.pomoFocus || 25));
+                                fetch('/me/pomo/log', { method: 'POST', body: __fd }).catch(function () {});
+                            } catch (e) {}
                         }
                         playToneNotification();
                         setPomoMode(pomoMode === 'work' ? 'shortBreak' : 'work');
@@ -1011,6 +1203,58 @@ $__dark = !empty($settings['dark_default']) || ($__theme['default_theme'] ?? 'da
                 if (!pomo.classList.contains('hidden')) togglePomodoroModal();
             }
         });
+    </script>
+    <!-- پالت فرمان Ctrl+K: فقط کیبورد، روی صفحه‌های موجود + ثبت سریع؛ بدون بک‌اند تازه -->
+    <div id="cmdPalette" class="me-cmd-overlay hidden">
+        <div class="me-cmd-box">
+            <input type="text" id="cmdPaletteInput" oninput="meCmdFilter()" placeholder="بگردید یا دستوری بنویسید... (Ctrl+K برای باز و Esc برای بستن)" class="me-cmd-input">
+            <div id="cmdPaletteList" class="me-cmd-list"></div>
+        </div>
+    </div>
+    <script>
+    const ME_CMD_LINKS = [
+        ['داشبورد و تسک‌ها', '/me'], ['داشبورد شخصی', '/me/dashboard'], ['تقویم', '/me/calendar'],
+        ['یادداشت‌ها', '/me/notes'], ['پروژه‌ها', '/me/projects'], ['عادت‌ها', '/me/habits'],
+        ['اهداف', '/me/goals'], ['ژورنال', '/me/journal'], ['آمار', '/me/stats'],
+        ['بورد', '/me/board'], ['ماتریس', '/me/matrix'], ['مرور هفتگی', '/me/review'],
+        ['جست‌وجو', '/me/search'], ['اشتراک‌ها', '/me/shared'], ['تنظیمات', '/me/settings'],
+    ];
+    function meCmdOpen() {
+        const ov = document.getElementById('cmdPalette');
+        ov.classList.remove('hidden');
+        meCmdFilter();
+        document.getElementById('cmdPaletteInput').focus();
+    }
+    function meCmdClose() { document.getElementById('cmdPalette').classList.add('hidden'); }
+    function meCmdFilter() {
+        const q = (document.getElementById('cmdPaletteInput').value || '').toLowerCase();
+        const list = document.getElementById('cmdPaletteList');
+        let html = '<button type="button" class="me-cmd-item" onclick="meCmdClose();openAddTaskModal();"><i class="fa-solid fa-plus"></i> افزودن سریع تسک</button>';
+        ME_CMD_LINKS.forEach(function (l) {
+            if (!q || l[0].indexOf(q) !== -1 || l[1].indexOf(q) !== -1) {
+                html += '<a href="' + l[1] + '" class="me-cmd-item">' + l[0] + '<span>' + l[1] + '</span></a>';
+            }
+        });
+        list.innerHTML = html;
+    }
+    document.addEventListener('keydown', function (e) {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+            e.preventDefault();
+            const ov = document.getElementById('cmdPalette');
+            if (ov.classList.contains('hidden')) { meCmdOpen(); } else { meCmdClose(); }
+        } else if (e.key === 'Escape') {
+            meCmdClose();
+        } else if (e.key === 'Enter' && !document.getElementById('cmdPalette').classList.contains('hidden')) {
+            const first = document.querySelector('#cmdPaletteList .me-cmd-item');
+            if (first && document.activeElement === document.getElementById('cmdPaletteInput')) {
+                e.preventDefault();
+                first.click();
+            }
+        }
+    });
+    document.getElementById('cmdPalette').addEventListener('click', function (e) {
+        if (e.target === this) { meCmdClose(); }
+    });
     </script>
     <nav class="me-dock" aria-label="ناوبری تسک‌یار">
         <a href="/me" class="me-dock-item me-dock-active">

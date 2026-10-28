@@ -15,6 +15,7 @@
 var CACHE = 'taskyar-pwa-v1';
 var OFFLINE_URL = '/assets/pwa/offline.html';
 var STATIC_ASSETS = [
+  '/assets/taskyar/me-shell.css',
   '/assets/taskyar/tailwind.css',
   '/assets/taskyar/fonts/vazirmatn.css',
   '/assets/taskyar/fa/css/all.min.css',

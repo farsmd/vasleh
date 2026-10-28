@@ -1,15 +1,63 @@
-<div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
-    <form method="post" action="/me/notes/<?= (int) $note['id'] ?>" class="space-y-4">
+<div class="me-card">
+    <form method="post" action="/me/notes/<?= (int) $note['id'] ?>" class="me-settings-form">
         <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
-        <label class="block text-xs font-semibold text-slate-600 mb-1">عنوان</label>
-        <input type="text" name="title" required value="<?= e($note['title']) ?>" class="w-full bg-slate-50 border border-slate-200 text-sm rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-        <label class="block text-xs font-semibold text-slate-600 mb-1">متن</label>
-        <textarea name="body" rows="14" class="w-full bg-slate-50 border border-slate-200 text-sm rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"><?= e($note['body']) ?></textarea>
-        <button class="px-5 py-2.5 text-xs font-bold rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 shadow-md shadow-indigo-600/30">ذخیره</button>
+        <div class="me-settings-field">
+            <label>عنوان</label>
+            <input type="text" name="title" required value="<?= e($note['title']) ?>">
+        </div>
+        <div class="me-settings-field">
+            <label>متن</label>
+            <textarea name="body" rows="14"><?= e($note['body']) ?></textarea>
+        </div>
+        <div class="me-settings-field">
+            <label>برچسب‌ها (با کاما جدا شوند)</label>
+            <input type="text" name="tags" value="<?= e(implode(', ', array_map('strval', (array) ($note['tags'] ?? [])))) ?>" placeholder="مثلاً ایده، مطالعه">
+        </div>
+        <?php if (!empty($note['tags']) && is_array($note['tags'])): ?>
+        <div class="me-chip-row">
+            <?php foreach ($note['tags'] as $__tg): ?><span class="me-tag-chip">#<?= e((string) $__tg) ?></span><?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+        <button class="me-note-btn">ذخیره</button>
     </form>
-    <form method="post" action="/me/notes/<?= (int) $note['id'] ?>/delete" onsubmit="return confirm('این یادداشت حذف شود؟')" class="mt-4">
+    <form method="post" action="/me/notes/<?= (int) $note['id'] ?>/delete" onsubmit="return confirm('این یادداشت حذف شود؟')" class="me-btn-row">
         <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
-        <button class="px-5 py-2.5 text-xs font-bold rounded-xl bg-rose-600 text-white hover:bg-rose-700">حذف یادداشت</button>
+        <button class="me-mini-btn danger">حذف یادداشت</button>
     </form>
+</div>
+
+<?php if (isset($noteLinks) && is_array($noteLinks)): ?>
+<div class="me-card">
+    <h3 class="me-section-title"><i class="fa-solid fa-link"></i> آیتم‌های لینک‌شده</h3>
+    <?php if ($noteLinks === []): ?>
+        <p class="me-empty">هنوز آیتمی لینک نشده است.</p>
+    <?php else: ?>
+        <div class="me-search-list">
+        <?php foreach ($noteLinks as $__l): ?>
+            <?php $__lt = (string) ($__l['item_type'] ?? ''); $__href = $__lt === 'project' ? '/me/projects/' . (int) ($__l['item_id'] ?? 0) : '/me'; ?>
+            <div class="me-search-row">
+                <span class="me-search-title"><?= e($__lt === 'todo' ? 'کار' : ($__lt === 'event' ? 'رویداد' : 'پروژه')) ?>: <a href="<?= e($__href) ?>"><?= e($__l['title'] ?? ('#' . (int) ($__l['item_id'] ?? 0))) ?></a></span>
+                <form method="post" action="/me/notes/links/<?= (int) ($__l['id'] ?? 0) ?>/delete" onsubmit="return confirm('این لینک حذف شود؟')">
+                    <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
+                    <button class="me-icon-btn" title="حذف لینک"><i class="fa-regular fa-trash-can"></i></button>
+                </form>
+            </div>
+        <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+    <form method="post" action="/me/notes/<?= (int) $note['id'] ?>/links" class="me-inline-form">
+        <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
+        <select name="item_type" class="me-input-sm">
+            <option value="todo">کار</option>
+            <option value="event">رویداد</option>
+            <option value="project">پروژه</option>
+        </select>
+        <input type="number" name="item_id" min="1" required placeholder="شناسه آیتم" class="me-input-sm">
+        <button class="me-note-btn">افزودن لینک</button>
+    </form>
+</div>
+<?php endif; ?>
+
+<div class="me-card">
     <?= $shareBox ?>
 </div>

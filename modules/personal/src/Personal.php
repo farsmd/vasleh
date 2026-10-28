@@ -108,6 +108,101 @@ final class Personal
                 settings TEXT NOT NULL DEFAULT \'{}\'
             )'
         );
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS pl_subtasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                todo_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                done INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL
+            )'
+        );
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS pl_tags (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                UNIQUE(user_id, name)
+            )'
+        );
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS pl_todo_tags (
+                todo_id INTEGER NOT NULL,
+                tag_id INTEGER NOT NULL,
+                UNIQUE(todo_id, tag_id)
+            )'
+        );
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS pl_note_tags (
+                note_id INTEGER NOT NULL,
+                tag_id INTEGER NOT NULL,
+                UNIQUE(note_id, tag_id)
+            )'
+        );
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS pl_habits (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                target_per_week INTEGER NOT NULL DEFAULT 7,
+                created_at TEXT NOT NULL
+            )'
+        );
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS pl_habit_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                habit_id INTEGER NOT NULL,
+                date TEXT NOT NULL,
+                UNIQUE(habit_id, date)
+            )'
+        );
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS pl_note_links (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                note_id INTEGER NOT NULL,
+                item_type TEXT NOT NULL,
+                item_id INTEGER NOT NULL,
+                created_at TEXT NOT NULL
+            )'
+        );
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS pl_goals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                target_date TEXT NOT NULL DEFAULT \'\',
+                created_at TEXT NOT NULL
+            )'
+        );
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS pl_milestones (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                goal_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                done INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL
+            )'
+        );
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS pl_journal (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                date TEXT NOT NULL,
+                body TEXT NOT NULL DEFAULT \'\',
+                mood TEXT NOT NULL DEFAULT \'\',
+                UNIQUE(user_id, date)
+            )'
+        );
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS pl_pomo_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                task_id INTEGER,
+                started_at TEXT NOT NULL,
+                minutes INTEGER NOT NULL DEFAULT 0
+            )'
+        );
+        $this->migrateExtended();
     }
 
     // ---------- تنظیمات شخصی ----------
@@ -141,6 +236,8 @@ final class Personal
             'pomo_break' => 5,
             'dark_default' => false,
             'style' => 'darkPrism',
+            'saved_filters' => [],
+            'day_capacity' => 480,
         ];
         $out = array_merge($defaults, array_intersect_key(is_array($saved) ? $saved : [], $defaults));
         $cats = [];
@@ -159,6 +256,21 @@ final class Personal
         $out['category_keys'] = array_column($out['categories'], 'key');
         $out['pomo_focus'] = max(1, min(180, (int) $out['pomo_focus']));
         $out['pomo_break'] = max(1, min(60, (int) $out['pomo_break']));
+        $out['day_capacity'] = max(1, min(1440, (int) $out['day_capacity']));
+        $filters = [];
+        if (is_array($out['saved_filters'])) {
+            foreach ($out['saved_filters'] as $f) {
+                if (is_array($f)) {
+                    $filters[] = [
+                        'name' => (string) ($f['name'] ?? ''),
+                        'tag' => (string) ($f['tag'] ?? ''),
+                        'category' => (string) ($f['category'] ?? ''),
+                        'priority' => (string) ($f['priority'] ?? ''),
+                    ];
+                }
+            }
+        }
+        $out['saved_filters'] = $filters;
         $out['dark_default'] = !empty($out['dark_default']);
         if (!isset(self::STYLES[(string) ($out['style'] ?? '')])) {
             $out['style'] = 'darkPrism';
@@ -326,6 +438,30 @@ final class Personal
             'duration' => 'INTEGER NOT NULL DEFAULT 30',
             'done' => 'INTEGER NOT NULL DEFAULT 0',
         ]);
+        $this->migrateExtended();
+    }
+
+    /** ستون‌های توسعه‌یافته: تکرار، یادآوری، تاریخ شروع و لینک پروژه. */
+    public function migrateExtended(): void
+    {
+        $this->ensureColumns('pl_todos', [
+            'recur' => "TEXT NOT NULL DEFAULT 'none'",
+            'recur_until' => "TEXT NOT NULL DEFAULT ''",
+            'recur_mode' => "TEXT NOT NULL DEFAULT 'fixed'",
+            'remind_at' => "TEXT NOT NULL DEFAULT ''",
+            'start_date' => "TEXT NOT NULL DEFAULT ''",
+            'project_id' => 'INTEGER NOT NULL DEFAULT 0',
+        ]);
+        $this->ensureColumns('pl_events', [
+            'remind_at' => "TEXT NOT NULL DEFAULT ''",
+        ]);
+        $this->pdo()->exec(
+            'CREATE TABLE IF NOT EXISTS pl_goal_tasks (
+                goal_id INTEGER NOT NULL,
+                todo_id INTEGER NOT NULL,
+                UNIQUE(goal_id, todo_id)
+            )'
+        );
     }
 
     /** شنبه هفته‌ای که تاریخ داده‌شده در آن است (هفته ایرانی شنبه تا جمعه). */
@@ -358,14 +494,20 @@ final class Personal
         $stmt->execute(['u' => $userId, 'a' => $from, 'b' => $to]);
         foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $t) {
             $date = (string) $t['due_date'];
+            $todoId = (int) $t['id'];
             $tasks[] = [
-                'kind' => 'todo', 'id' => (int) $t['id'], 'title' => (string) $t['title'],
+                'kind' => 'todo', 'id' => $todoId, 'title' => (string) $t['title'],
                 'category' => (string) ($t['category'] ?? 'personal'),
                 'priority' => (string) ($t['priority'] ?? 'medium'),
                 'date' => $date, 'day' => $date === '' ? null : self::uiDay($date),
                 'hour' => 'all-day', 'end' => '',
                 'duration' => (int) ($t['duration'] ?? 30), 'note' => (string) ($t['note'] ?? ''),
                 'done' => (int) $t['done'],
+                'subtasks' => $this->subtaskRows($todoId),
+                'tags' => $this->todoTagNames($todoId),
+                'start_date' => (string) ($t['start_date'] ?? ''),
+                'remind_at' => (string) ($t['remind_at'] ?? ''),
+                'project_id' => (int) ($t['project_id'] ?? 0),
             ];
         }
         $stmt = $pdo->prepare(
@@ -382,6 +524,7 @@ final class Personal
                 'hour' => (string) $ev['start_time'], 'end' => (string) $ev['end_time'],
                 'duration' => (int) ($ev['duration'] ?? 30), 'note' => (string) $ev['note'],
                 'done' => (int) ($ev['done'] ?? 0),
+                'remind_at' => (string) ($ev['remind_at'] ?? ''),
             ];
         }
         return $tasks;
@@ -427,18 +570,28 @@ final class Personal
         $priority = in_array($f['priority'] ?? '', ['high', 'medium', 'low'], true) ? (string) $f['priority'] : 'medium';
         $duration = max(5, (int) ($f['duration'] ?? 30));
         $note = trim((string) ($f['note'] ?? ''));
+        // فیلدهای افزودنی: فقط وقتی در ورودی آمده‌اند اعتبارسنجی می‌شوند؛
+        // نبودنشان یعنی مقدار پیش‌فرض (برای سطر تازه) و در taskUpdate حفظ مقدار قبلی است.
+        $extra = $this->todoExtraFields($userId, $f, null);
         if ($hour === 'all-day' || $hour === '' || !self::validTime($hour)) {
             $id = $this->todoCreate($userId, $title, $date);
             $this->pdo()->prepare(
-                'UPDATE pl_todos SET category = :c, priority = :p, duration = :d, note = :n WHERE id = :id'
-            )->execute(['c' => $category, 'p' => $priority, 'd' => $duration, 'n' => $note, 'id' => $id]);
+                'UPDATE pl_todos SET category = :c, priority = :p, duration = :d, note = :n,
+                 recur = :r, recur_until = :ru, recur_mode = :rm, remind_at = :ra,
+                 start_date = :sd, project_id = :pj WHERE id = :id'
+            )->execute([
+                'c' => $category, 'p' => $priority, 'd' => $duration, 'n' => $note,
+                'r' => $extra['recur'], 'ru' => $extra['recur_until'], 'rm' => $extra['recur_mode'],
+                'ra' => $extra['remind_at'], 'sd' => $extra['start_date'], 'pj' => $extra['project_id'],
+                'id' => $id,
+            ]);
             return ['kind' => 'todo', 'id' => $id];
         }
         $end = date('H:i', min(strtotime($date . ' ' . $hour) + $duration * 60, strtotime($date . ' 23:59')));
         $id = $this->eventCreate($userId, $title, $date, $hour, $end, $note);
         $this->pdo()->prepare(
-            'UPDATE pl_events SET category = :c, priority = :p, duration = :d WHERE id = :id'
-        )->execute(['c' => $category, 'p' => $priority, 'd' => $duration, 'id' => $id]);
+            'UPDATE pl_events SET category = :c, priority = :p, duration = :d, remind_at = :ra WHERE id = :id'
+        )->execute(['c' => $category, 'p' => $priority, 'd' => $duration, 'ra' => $extra['remind_at'], 'id' => $id]);
         return ['kind' => 'event', 'id' => $id];
     }
 
@@ -475,24 +628,34 @@ final class Personal
         $duration = max(5, (int) ($f['duration'] ?? 30));
         $note = trim((string) ($f['note'] ?? ''));
         $pdo = $this->pdo();
+        $rawStmt = $pdo->prepare(
+            'SELECT * FROM ' . ($kind === 'event' ? 'pl_events' : 'pl_todos') . ' WHERE id = :id AND user_id = :u'
+        );
+        $rawStmt->execute(['id' => $id, 'u' => $userId]);
+        $raw = $rawStmt->fetch(\PDO::FETCH_ASSOC) ?: [];
+        $extra = $this->todoExtraFields($userId, $f, $raw);
         if ($kind === 'event') {
             $end = date('H:i', min(strtotime($date . ' ' . $hour) + $duration * 60, strtotime($date . ' 23:59')));
             $stmt = $pdo->prepare(
                 'UPDATE pl_events SET title = :t, date = :d, start_time = :s, end_time = :e, note = :n,
-                 category = :c, priority = :p, duration = :du WHERE id = :id AND user_id = :u'
+                 category = :c, priority = :p, duration = :du, remind_at = :ra WHERE id = :id AND user_id = :u'
             );
             $stmt->execute([
                 't' => $title, 'd' => $date, 's' => $hour, 'e' => $end, 'n' => $note,
-                'c' => $category, 'p' => $priority, 'du' => $duration, 'id' => $id, 'u' => $userId,
+                'c' => $category, 'p' => $priority, 'du' => $duration, 'ra' => $extra['remind_at'],
+                'id' => $id, 'u' => $userId,
             ]);
         } else {
             $stmt = $pdo->prepare(
                 'UPDATE pl_todos SET title = :t, due_date = :d, category = :c, priority = :p,
-                 duration = :du, note = :n WHERE id = :id AND user_id = :u'
+                 duration = :du, note = :n, recur = :r, recur_until = :ru, recur_mode = :rm,
+                 remind_at = :ra, start_date = :sd, project_id = :pj WHERE id = :id AND user_id = :u'
             );
             $stmt->execute([
                 't' => $title, 'd' => $date, 'c' => $category, 'p' => $priority,
-                'du' => $duration, 'n' => $note, 'id' => $id, 'u' => $userId,
+                'du' => $duration, 'n' => $note, 'r' => $extra['recur'], 'ru' => $extra['recur_until'],
+                'rm' => $extra['recur_mode'], 'ra' => $extra['remind_at'], 'sd' => $extra['start_date'],
+                'pj' => $extra['project_id'], 'id' => $id, 'u' => $userId,
             ]);
         }
         return $this->taskByKind($userId, $kind, $id);
@@ -507,7 +670,114 @@ final class Personal
             return null;
         }
         $task = $this->taskByKind($userId, $kind, $id);
-        return $task === null ? null : (int) $task['done'];
+        if ($task === null) {
+            return null;
+        }
+        if ($kind === 'todo' && (int) $task['done'] === 1) {
+            $this->spawnRecurrence($userId, $id);
+        }
+        return (int) $task['done'];
+    }
+
+    /** اعتبارسنجی فیلدهای افزودنی تودو؛ $current=null یعنی سطر تازه (مقادیر پیش‌فرض). */
+    private function todoExtraFields(int $userId, array $f, ?array $current): array
+    {
+        $out = [
+            'recur' => (string) ($current['recur'] ?? 'none'),
+            'recur_until' => (string) ($current['recur_until'] ?? ''),
+            'recur_mode' => (string) ($current['recur_mode'] ?? 'fixed'),
+            'remind_at' => (string) ($current['remind_at'] ?? ''),
+            'start_date' => (string) ($current['start_date'] ?? ''),
+            'project_id' => (int) ($current['project_id'] ?? 0),
+        ];
+        if (array_key_exists('recur', $f)) {
+            $out['recur'] = in_array($f['recur'], ['daily', 'weekly', 'monthly'], true) ? (string) $f['recur'] : 'none';
+        }
+        if (array_key_exists('recur_until', $f)) {
+            $out['recur_until'] = self::validDate((string) $f['recur_until']) ? (string) $f['recur_until'] : '';
+        }
+        if (array_key_exists('recur_mode', $f)) {
+            $out['recur_mode'] = in_array($f['recur_mode'], ['fixed', 'after'], true) ? (string) $f['recur_mode'] : 'fixed';
+        }
+        if (array_key_exists('remind_at', $f)) {
+            $out['remind_at'] = self::validTime((string) $f['remind_at']) ? (string) $f['remind_at'] : '';
+        }
+        if (array_key_exists('start_date', $f)) {
+            $out['start_date'] = self::validDate((string) $f['start_date']) ? (string) $f['start_date'] : '';
+        }
+        if (array_key_exists('project_id', $f)) {
+            $pid = (int) $f['project_id'];
+            $out['project_id'] = ($pid > 0 && $this->project($userId, $pid) !== null) ? $pid : 0;
+        }
+        return $out;
+    }
+
+    /** تاریخ وقوع بعدی تکرار: fixed از تاریخ زمان‌بندی‌شده، after از روز تکمیل. */
+    private static function nextRecurDate(string $scheduled, string $recur, string $mode, string $completedDay): ?string
+    {
+        $base = $mode === 'after' ? $completedDay : $scheduled;
+        if (!self::validDate($base)) {
+            return null;
+        }
+        if ($recur === 'daily') {
+            return date('Y-m-d', strtotime($base . ' +1 day'));
+        }
+        if ($recur === 'weekly') {
+            return date('Y-m-d', strtotime($base . ' +7 days'));
+        }
+        if ($recur === 'monthly') {
+            $ts = strtotime($base);
+            $y = (int) date('Y', $ts);
+            $m = (int) date('n', $ts) + 1;
+            if ($m > 12) {
+                $m = 1;
+                $y++;
+            }
+            $day = min((int) date('j', $ts), (int) date('t', mktime(0, 0, 0, $m, 1, $y)));
+            return sprintf('%04d-%02d-%02d', $y, $m, $day);
+        }
+        return null;
+    }
+
+    /** ساخت وقوع بعدی تودوی تکرارشونده؛ زیرکارها کپی نمی‌شوند. */
+    private function spawnRecurrenceFromRow(array $row, string $completedDay): void
+    {
+        $recur = (string) ($row['recur'] ?? 'none');
+        if (!in_array($recur, ['daily', 'weekly', 'monthly'], true)) {
+            return;
+        }
+        $mode = in_array($row['recur_mode'] ?? '', ['fixed', 'after'], true) ? (string) $row['recur_mode'] : 'fixed';
+        $next = self::nextRecurDate((string) ($row['due_date'] ?? ''), $recur, $mode, $completedDay);
+        if ($next === null) {
+            return;
+        }
+        $until = (string) ($row['recur_until'] ?? '');
+        if ($until !== '' && self::validDate($until) && $next > $until) {
+            return;
+        }
+        $stmt = $this->pdo()->prepare(
+            'INSERT INTO pl_todos (user_id, title, due_date, category, priority, duration, note,
+             recur, recur_until, recur_mode, remind_at, project_id, created_at)
+             VALUES (:u, :t, :d, :c, :p, :du, :n, :r, :ru, :rm, :ra, :pj, :now)'
+        );
+        $stmt->execute([
+            'u' => (int) $row['user_id'], 't' => (string) $row['title'], 'd' => $next,
+            'c' => (string) ($row['category'] ?? 'personal'), 'p' => (string) ($row['priority'] ?? 'medium'),
+            'du' => (int) ($row['duration'] ?? 30), 'n' => (string) ($row['note'] ?? ''),
+            'r' => $recur, 'ru' => $until, 'rm' => $mode,
+            'ra' => (string) ($row['remind_at'] ?? ''),
+            'pj' => (int) ($row['project_id'] ?? 0), 'now' => date('Y-m-d H:i:s'),
+        ]);
+    }
+
+    private function spawnRecurrence(int $userId, int $todoId): void
+    {
+        $stmt = $this->pdo()->prepare('SELECT * FROM pl_todos WHERE id = :id AND user_id = :u');
+        $stmt->execute(['id' => $todoId, 'u' => $userId]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+        if ($row !== false) {
+            $this->spawnRecurrenceFromRow($row, date('Y-m-d'));
+        }
     }
 
     public function taskDelete(int $userId, string $kind, int $id): void
@@ -543,13 +813,31 @@ final class Personal
     {
         $stmt = $this->pdo()->prepare('UPDATE pl_todos SET done = 1 - done WHERE id = :id AND user_id = :u');
         $stmt->execute(['id' => $id, 'u' => $userId]);
-        return $stmt->rowCount() > 0;
+        if ($stmt->rowCount() === 0) {
+            return false;
+        }
+        $rowStmt = $this->pdo()->prepare('SELECT * FROM pl_todos WHERE id = :id AND user_id = :u');
+        $rowStmt->execute(['id' => $id, 'u' => $userId]);
+        $row = $rowStmt->fetch(\PDO::FETCH_ASSOC);
+        if ($row !== false && (int) $row['done'] === 1) {
+            $this->spawnRecurrenceFromRow($row, date('Y-m-d'));
+        }
+        return true;
     }
 
     public function todoDelete(int $userId, int $id): void
     {
-        $this->pdo()->prepare('DELETE FROM pl_todos WHERE id = :id AND user_id = :u')
-            ->execute(['id' => $id, 'u' => $userId]);
+        $pdo = $this->pdo();
+        $stmt = $pdo->prepare('DELETE FROM pl_todos WHERE id = :id AND user_id = :u');
+        $stmt->execute(['id' => $id, 'u' => $userId]);
+        if ($stmt->rowCount() === 0) {
+            return;
+        }
+        // پاک‌سازی ردیف‌های وابسته تا زیرکار/برچسب/لینک هدفِ یتیم نماند.
+        $pdo->prepare('DELETE FROM pl_subtasks WHERE todo_id = :id')->execute(['id' => $id]);
+        $pdo->prepare('DELETE FROM pl_todo_tags WHERE todo_id = :id')->execute(['id' => $id]);
+        $pdo->prepare('DELETE FROM pl_goal_tasks WHERE todo_id = :id')->execute(['id' => $id]);
+        $pdo->prepare('DELETE FROM pl_note_links WHERE item_type = \'todo\' AND item_id = :id')->execute(['id' => $id]);
     }
 
     // ---------- رویدادها ----------
@@ -593,8 +881,12 @@ final class Personal
 
     public function eventDelete(int $userId, int $id): void
     {
-        $this->pdo()->prepare('DELETE FROM pl_events WHERE id = :id AND user_id = :u')
-            ->execute(['id' => $id, 'u' => $userId]);
+        $pdo = $this->pdo();
+        $stmt = $pdo->prepare('DELETE FROM pl_events WHERE id = :id AND user_id = :u');
+        $stmt->execute(['id' => $id, 'u' => $userId]);
+        if ($stmt->rowCount() > 0) {
+            $pdo->prepare('DELETE FROM pl_note_links WHERE item_type = \'event\' AND item_id = :id')->execute(['id' => $id]);
+        }
     }
 
     // ---------- نوت ----------
@@ -638,7 +930,13 @@ final class Personal
     public function noteDelete(int $userId, int $id): void
     {
         $pdo = $this->pdo();
-        $pdo->prepare('DELETE FROM pl_notes WHERE id = :id AND user_id = :u')->execute(['id' => $id, 'u' => $userId]);
+        $stmt = $pdo->prepare('DELETE FROM pl_notes WHERE id = :id AND user_id = :u');
+        $stmt->execute(['id' => $id, 'u' => $userId]);
+        if ($stmt->rowCount() === 0) {
+            return;
+        }
+        $pdo->prepare('DELETE FROM pl_note_tags WHERE note_id = :id')->execute(['id' => $id]);
+        $pdo->prepare('DELETE FROM pl_note_links WHERE note_id = :id')->execute(['id' => $id]);
         $this->deleteItemShares('note', $id);
     }
 
@@ -688,8 +986,15 @@ final class Personal
     public function projectDelete(int $userId, int $id): void
     {
         $pdo = $this->pdo();
-        $pdo->prepare('DELETE FROM pl_projects WHERE id = :id AND user_id = :u')->execute(['id' => $id, 'u' => $userId]);
+        $stmt = $pdo->prepare('DELETE FROM pl_projects WHERE id = :id AND user_id = :u');
+        $stmt->execute(['id' => $id, 'u' => $userId]);
+        if ($stmt->rowCount() === 0) {
+            return;
+        }
         $pdo->prepare('DELETE FROM pl_needs WHERE project_id = :id')->execute(['id' => $id]);
+        $pdo->prepare('UPDATE pl_todos SET project_id = 0 WHERE user_id = :u AND project_id = :id')
+            ->execute(['u' => $userId, 'id' => $id]);
+        $pdo->prepare('DELETE FROM pl_note_links WHERE item_type = \'project\' AND item_id = :id')->execute(['id' => $id]);
         $this->deleteItemShares('project', $id);
     }
 
@@ -728,6 +1033,793 @@ final class Personal
             'DELETE FROM pl_needs WHERE id = :id AND project_id IN
              (SELECT id FROM pl_projects WHERE user_id = :u)'
         )->execute(['id' => $needId, 'u' => $userId]);
+    }
+
+    // ---------- توسعه‌یافته: زیرکار، برچسب، جست‌وجو، عادت، هدف، ژورنال ----------
+
+    private function subtaskRows(int $todoId): array
+    {
+        $stmt = $this->pdo()->prepare('SELECT id, title, done FROM pl_subtasks WHERE todo_id = :t ORDER BY id');
+        $stmt->execute(['t' => $todoId]);
+        $out = [];
+        foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $r) {
+            $out[] = ['id' => (int) $r['id'], 'title' => (string) $r['title'], 'done' => (int) $r['done']];
+        }
+        return $out;
+    }
+
+    /** زیرکارهای یک تودو (بدون فیلتر مالک در امضا؛ فراخواننده مالکیت تودو را چک می‌کند). */
+    public function subtasks(int $todoId): array
+    {
+        return $this->subtaskRows($todoId);
+    }
+
+    public function subtaskAdd(int $userId, int $todoId, string $title): ?int
+    {
+        $title = trim($title);
+        if ($title === '') {
+            return null;
+        }
+        $stmt = $this->pdo()->prepare('SELECT id FROM pl_todos WHERE id = :id AND user_id = :u');
+        $stmt->execute(['id' => $todoId, 'u' => $userId]);
+        if ($stmt->fetchColumn() === false) {
+            return null;
+        }
+        $ins = $this->pdo()->prepare(
+            'INSERT INTO pl_subtasks (todo_id, title, created_at) VALUES (:t, :title, :now)'
+        );
+        $ins->execute(['t' => $todoId, 'title' => $title, 'now' => date('Y-m-d H:i:s')]);
+        return (int) $this->pdo()->lastInsertId();
+    }
+
+    public function subtaskToggle(int $userId, int $id): bool
+    {
+        $stmt = $this->pdo()->prepare(
+            'UPDATE pl_subtasks SET done = 1 - done WHERE id = :id AND todo_id IN
+             (SELECT id FROM pl_todos WHERE user_id = :u)'
+        );
+        $stmt->execute(['id' => $id, 'u' => $userId]);
+        return $stmt->rowCount() > 0;
+    }
+
+    public function subtaskDelete(int $userId, int $id): bool
+    {
+        $stmt = $this->pdo()->prepare(
+            'DELETE FROM pl_subtasks WHERE id = :id AND todo_id IN
+             (SELECT id FROM pl_todos WHERE user_id = :u)'
+        );
+        $stmt->execute(['id' => $id, 'u' => $userId]);
+        return $stmt->rowCount() > 0;
+    }
+
+    // ---------- برچسب‌ها ----------
+
+    public function tags(int $userId): array
+    {
+        $stmt = $this->pdo()->prepare('SELECT * FROM pl_tags WHERE user_id = :u ORDER BY name, id');
+        $stmt->execute(['u' => $userId]);
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    private function ensureTag(int $userId, string $name): int
+    {
+        $this->pdo()->prepare('INSERT OR IGNORE INTO pl_tags (user_id, name) VALUES (:u, :n)')
+            ->execute(['u' => $userId, 'n' => $name]);
+        $stmt = $this->pdo()->prepare('SELECT id FROM pl_tags WHERE user_id = :u AND name = :n');
+        $stmt->execute(['u' => $userId, 'n' => $name]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    private function todoTagNames(int $todoId): array
+    {
+        $stmt = $this->pdo()->prepare(
+            'SELECT t.name FROM pl_tags t JOIN pl_todo_tags tt ON tt.tag_id = t.id WHERE tt.todo_id = :t ORDER BY t.name'
+        );
+        $stmt->execute(['t' => $todoId]);
+        return array_map('strval', $stmt->fetchAll(\PDO::FETCH_COLUMN));
+    }
+
+    private function noteTagNames(int $noteId): array
+    {
+        $stmt = $this->pdo()->prepare(
+            'SELECT t.name FROM pl_tags t JOIN pl_note_tags nt ON nt.tag_id = t.id WHERE nt.note_id = :n ORDER BY t.name'
+        );
+        $stmt->execute(['n' => $noteId]);
+        return array_map('strval', $stmt->fetchAll(\PDO::FETCH_COLUMN));
+    }
+
+    /** برچسب‌های تودو را با فهرست نام‌ها جایگزین می‌کند؛ تگ از جدول پاک نمی‌شود. */
+    public function setTodoTags(int $userId, int $todoId, array $names): void
+    {
+        $stmt = $this->pdo()->prepare('SELECT id FROM pl_todos WHERE id = :id AND user_id = :u');
+        $stmt->execute(['id' => $todoId, 'u' => $userId]);
+        if ($stmt->fetchColumn() === false) {
+            return;
+        }
+        $pdo = $this->pdo();
+        $pdo->prepare('DELETE FROM pl_todo_tags WHERE todo_id = :t')->execute(['t' => $todoId]);
+        $seen = [];
+        foreach ($names as $name) {
+            $name = trim((string) $name);
+            if ($name === '' || isset($seen[$name])) {
+                continue;
+            }
+            $seen[$name] = true;
+            $pdo->prepare('INSERT OR IGNORE INTO pl_todo_tags (todo_id, tag_id) VALUES (:t, :g)')
+                ->execute(['t' => $todoId, 'g' => $this->ensureTag($userId, $name)]);
+        }
+    }
+
+    public function setNoteTags(int $userId, int $noteId, array $names): void
+    {
+        if ($this->note($userId, $noteId) === null) {
+            return;
+        }
+        $pdo = $this->pdo();
+        $pdo->prepare('DELETE FROM pl_note_tags WHERE note_id = :n')->execute(['n' => $noteId]);
+        $seen = [];
+        foreach ($names as $name) {
+            $name = trim((string) $name);
+            if ($name === '' || isset($seen[$name])) {
+                continue;
+            }
+            $seen[$name] = true;
+            $pdo->prepare('INSERT OR IGNORE INTO pl_note_tags (note_id, tag_id) VALUES (:n, :g)')
+                ->execute(['n' => $noteId, 'g' => $this->ensureTag($userId, $name)]);
+        }
+    }
+
+    // ---------- تودوهای پروژه + چرت یادآوری ----------
+
+    /** تودوهای یک پروژهٔ متعلق به کاربر؛ پروژهٔ کاربر دیگر فهرست خالی می‌دهد. */
+    public function tasksForProject(int $userId, int $projectId): array
+    {
+        if ($this->project($userId, $projectId) === null) {
+            return [];
+        }
+        $stmt = $this->pdo()->prepare(
+            'SELECT * FROM pl_todos WHERE user_id = :u AND project_id = :p
+             ORDER BY done ASC, (due_date = \'\') ASC, due_date ASC, id DESC'
+        );
+        $stmt->execute(['u' => $userId, 'p' => $projectId]);
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * چرت یادآوری: remind_at می‌شود «اکنون + minutes» (HH:MM).
+     * توجه: ستون فقط ساعت دارد و تاریخ ندارد؛ اگر مجموع از نیمه‌شب بگذرد،
+     * ساعت به بامداد روز بعد می‌چرخد (مثلاً ۲۳:۵۰ + ۳۰ دقیقه = ۰۰:۲۰) و
+     * همان مقدار ذخیره می‌شود — یعنی در روزِ تنظیم، زمانی گذشته به نظر
+     * می‌رسد و عملاً یادآوریِ صبح روز بعد است.
+     */
+    public function taskSnooze(int $userId, string $kind, int $id, int $minutes): bool
+    {
+        if ($minutes < 0) {
+            return false;
+        }
+        $table = match ($kind) {
+            'todo' => 'pl_todos',
+            'event' => 'pl_events',
+            default => null,
+        };
+        if ($table === null) {
+            return false;
+        }
+        $nowMin = (int) date('H') * 60 + (int) date('i') + $minutes;
+        $wrapped = $nowMin % 1440;
+        $at = sprintf('%02d:%02d', intdiv($wrapped, 60), $wrapped % 60);
+        $stmt = $this->pdo()->prepare("UPDATE {$table} SET remind_at = :ra WHERE id = :id AND user_id = :u");
+        $stmt->execute(['ra' => $at, 'id' => $id, 'u' => $userId]);
+        return $stmt->rowCount() > 0;
+    }
+
+    // ---------- جست‌وجو، بار روز، انتقال ----------
+
+    /** جست‌وجوی سراسری خصوصی (بدون اشتراک‌ها)؛ حداکثر ۵۰ نتیجه در مجموع. */
+    public function search(int $userId, string $q): array
+    {
+        $out = ['todos' => [], 'events' => [], 'notes' => [], 'projects' => []];
+        $q = trim($q);
+        if ($q === '') {
+            return $out;
+        }
+        $pdo = $this->pdo();
+        $queries = [
+            'todos' => 'SELECT * FROM pl_todos WHERE user_id = :u AND (instr(title, :q) > 0 OR instr(note, :q) > 0) ORDER BY id DESC LIMIT 50',
+            'events' => 'SELECT * FROM pl_events WHERE user_id = :u AND (instr(title, :q) > 0 OR instr(note, :q) > 0) ORDER BY id DESC LIMIT 50',
+            'notes' => 'SELECT * FROM pl_notes WHERE user_id = :u AND (instr(title, :q) > 0 OR instr(body, :q) > 0) ORDER BY id DESC LIMIT 50',
+            'projects' => 'SELECT * FROM pl_projects WHERE user_id = :u AND (instr(title, :q) > 0 OR instr(description, :q) > 0) ORDER BY id DESC LIMIT 50',
+        ];
+        $total = 0;
+        foreach ($queries as $key => $sql) {
+            if ($total >= 50) {
+                break;
+            }
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute(['u' => $userId, 'q' => $q]);
+            $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+            $out[$key] = array_slice($rows, 0, 50 - $total);
+            $total += count($out[$key]);
+        }
+        return $out;
+    }
+
+    /** مجموع دقیقهٔ تودوها + رویدادهای یک روز (صرف‌نظر از انجام‌شده بودن). */
+    public function workloadForDay(int $userId, string $date): int
+    {
+        $pdo = $this->pdo();
+        $sum = 0;
+        $stmt = $pdo->prepare('SELECT COALESCE(SUM(duration), 0) FROM pl_todos WHERE user_id = :u AND due_date = :d');
+        $stmt->execute(['u' => $userId, 'd' => $date]);
+        $sum += (int) $stmt->fetchColumn();
+        $stmt = $pdo->prepare('SELECT COALESCE(SUM(duration), 0) FROM pl_events WHERE user_id = :u AND date = :d');
+        $stmt->execute(['u' => $userId, 'd' => $date]);
+        $sum += (int) $stmt->fetchColumn();
+        return $sum;
+    }
+
+    /** فقط تودوهای تاریخ‌دارِ انجام‌نشده با تاریخ ≤ fromDate به toDate می‌روند؛ رویداد هرگز. */
+    public function rollover(int $userId, string $fromDate, string $toDate): int
+    {
+        if (!self::validDate($fromDate) || !self::validDate($toDate)) {
+            return 0;
+        }
+        $stmt = $this->pdo()->prepare(
+            'UPDATE pl_todos SET due_date = :to WHERE user_id = :u AND done = 0 AND due_date <> \'\' AND due_date <= :from'
+        );
+        $stmt->execute(['to' => $toDate, 'u' => $userId, 'from' => $fromDate]);
+        return $stmt->rowCount();
+    }
+
+    // ---------- عادت‌ها ----------
+
+    public function habits(int $userId): array
+    {
+        $stmt = $this->pdo()->prepare('SELECT * FROM pl_habits WHERE user_id = :u ORDER BY id');
+        $stmt->execute(['u' => $userId]);
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    private function habitOwned(int $userId, int $habitId): bool
+    {
+        $stmt = $this->pdo()->prepare('SELECT id FROM pl_habits WHERE id = :id AND user_id = :u');
+        $stmt->execute(['id' => $habitId, 'u' => $userId]);
+        return $stmt->fetchColumn() !== false;
+    }
+
+    private function habitLogDates(int $habitId): array
+    {
+        $stmt = $this->pdo()->prepare('SELECT date FROM pl_habit_logs WHERE habit_id = :h ORDER BY date');
+        $stmt->execute(['h' => $habitId]);
+        return array_map('strval', $stmt->fetchAll(\PDO::FETCH_COLUMN));
+    }
+
+    public function habitCreate(int $userId, string $title, int $target): int
+    {
+        $title = trim($title);
+        if ($title === '') {
+            return 0;
+        }
+        $stmt = $this->pdo()->prepare(
+            'INSERT INTO pl_habits (user_id, title, target_per_week, created_at) VALUES (:u, :t, :g, :now)'
+        );
+        $stmt->execute(['u' => $userId, 't' => $title, 'g' => max(1, min(7, $target)), 'now' => date('Y-m-d H:i:s')]);
+        return (int) $this->pdo()->lastInsertId();
+    }
+
+    public function habitToggle(int $userId, int $id, string $date): bool
+    {
+        if (!$this->habitOwned($userId, $id) || !self::validDate($date)) {
+            return false;
+        }
+        $pdo = $this->pdo();
+        $stmt = $pdo->prepare('SELECT id FROM pl_habit_logs WHERE habit_id = :h AND date = :d');
+        $stmt->execute(['h' => $id, 'd' => $date]);
+        if ($stmt->fetchColumn() !== false) {
+            $pdo->prepare('DELETE FROM pl_habit_logs WHERE habit_id = :h AND date = :d')->execute(['h' => $id, 'd' => $date]);
+        } else {
+            $pdo->prepare('INSERT INTO pl_habit_logs (habit_id, date) VALUES (:h, :d)')->execute(['h' => $id, 'd' => $date]);
+        }
+        return true;
+    }
+
+    public function habitDelete(int $userId, int $id): bool
+    {
+        if (!$this->habitOwned($userId, $id)) {
+            return false;
+        }
+        $pdo = $this->pdo();
+        $pdo->prepare('DELETE FROM pl_habit_logs WHERE habit_id = :h')->execute(['h' => $id]);
+        $pdo->prepare('DELETE FROM pl_habits WHERE id = :id')->execute(['id' => $id]);
+        return true;
+    }
+
+    /**
+     * استریک بخشنده: رو به عقب از امروز می‌رویم و روزهای تیک‌خورده شمرده
+     * می‌شوند؛ یک روزِ تکیِ ازدست‌رفته پل می‌شود، ولی دو روز پیاپیِ
+     * ازدست‌رفته زنجیره را می‌شکند (استریک صفر نمی‌شود مگر همین اتفاق
+     * در انتهای بازه بیفتد). امروزِ هنوز تیک‌نخورده هم یک پل حساب می‌شود،
+     * نه شکست؛ ولی امروز + دیروزِ هر دو خالی یعنی صفر.
+     */
+    public function habitStreak(int $userId, int $habitId): int
+    {
+        if (!$this->habitOwned($userId, $habitId)) {
+            return 0;
+        }
+        $set = array_flip($this->habitLogDates($habitId));
+        $cursor = date('Y-m-d');
+        $misses = 0;
+        $count = 0;
+        for ($i = 0; $i < 3650; $i++) {
+            if (isset($set[$cursor])) {
+                $count++;
+                $misses = 0;
+            } else {
+                $misses++;
+                if ($misses >= 2) {
+                    break;
+                }
+            }
+            $cursor = date('Y-m-d', strtotime($cursor . ' -1 day'));
+        }
+        return $count;
+    }
+
+    /** رکورد: بیشترین تعداد روزهای تیک‌خورده در یک زنجیره (با همان پلِ تک‌روزه). */
+    public function habitRecordStreak(int $userId, int $habitId): int
+    {
+        if (!$this->habitOwned($userId, $habitId)) {
+            return 0;
+        }
+        $today = date('Y-m-d');
+        $best = 0;
+        $current = 0;
+        $prev = null;
+        foreach ($this->habitLogDates($habitId) as $d) {
+            if ($d > $today) {
+                continue;
+            }
+            if ($prev === null) {
+                $current = 1;
+            } else {
+                $gap = (int) ((strtotime($d) - strtotime($prev)) / 86400);
+                if ($gap <= 2) {
+                    $current++;
+                } else {
+                    $best = max($best, $current);
+                    $current = 1;
+                }
+            }
+            $prev = $d;
+        }
+        return max($best, $current);
+    }
+
+    /** تاریخ‌های تیک‌خوردهٔ ۱۲ هفتهٔ اخیر (امروز و ۸۳ روز قبل از آن). */
+    public function habitHeatmap(int $userId, int $habitId): array
+    {
+        if (!$this->habitOwned($userId, $habitId)) {
+            return [];
+        }
+        $from = date('Y-m-d', strtotime('-83 days'));
+        $stmt = $this->pdo()->prepare(
+            'SELECT date FROM pl_habit_logs WHERE habit_id = :h AND date BETWEEN :a AND :b ORDER BY date'
+        );
+        $stmt->execute(['h' => $habitId, 'a' => $from, 'b' => date('Y-m-d')]);
+        return array_map('strval', $stmt->fetchAll(\PDO::FETCH_COLUMN));
+    }
+
+    // ---------- لینک‌های نوت ----------
+
+    public function noteLinks(int $userId, int $noteId): array
+    {
+        if ($this->note($userId, $noteId) === null) {
+            return [];
+        }
+        $stmt = $this->pdo()->prepare('SELECT * FROM pl_note_links WHERE note_id = :n ORDER BY id');
+        $stmt->execute(['n' => $noteId]);
+        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $table = ['todo' => 'pl_todos', 'event' => 'pl_events', 'project' => 'pl_projects'];
+        foreach ($rows as &$row) {
+            $title = '';
+            $t = $table[(string) $row['item_type']] ?? null;
+            if ($t !== null) {
+                $s = $this->pdo()->prepare("SELECT title FROM {$t} WHERE id = :id AND user_id = :u");
+                $s->execute(['id' => (int) $row['item_id'], 'u' => $userId]);
+                $title = (string) ($s->fetchColumn() ?: '');
+            }
+            $row['item_title'] = $title;
+        }
+        unset($row);
+        return $rows;
+    }
+
+    /** لینک نوت به تودو/رویداد/پروژهٔ متعلق به کاربر؛ لینک تکراری بی‌اثر و موفق است. */
+    public function noteLinkAdd(int $userId, int $noteId, string $type, int $itemId): bool
+    {
+        $table = match ($type) {
+            'todo' => 'pl_todos',
+            'event' => 'pl_events',
+            'project' => 'pl_projects',
+            default => null,
+        };
+        if ($table === null || $this->note($userId, $noteId) === null) {
+            return false;
+        }
+        $stmt = $this->pdo()->prepare("SELECT id FROM {$table} WHERE id = :id AND user_id = :u");
+        $stmt->execute(['id' => $itemId, 'u' => $userId]);
+        if ($stmt->fetchColumn() === false) {
+            return false;
+        }
+        $pdo = $this->pdo();
+        $exists = $pdo->prepare(
+            'SELECT id FROM pl_note_links WHERE note_id = :n AND item_type = :t AND item_id = :i'
+        );
+        $exists->execute(['n' => $noteId, 't' => $type, 'i' => $itemId]);
+        if ($exists->fetchColumn() !== false) {
+            return true;
+        }
+        $pdo->prepare(
+            'INSERT INTO pl_note_links (note_id, item_type, item_id, created_at) VALUES (:n, :t, :i, :now)'
+        )->execute(['n' => $noteId, 't' => $type, 'i' => $itemId, 'now' => date('Y-m-d H:i:s')]);
+        return true;
+    }
+
+    public function noteLinkDelete(int $userId, int $linkId): bool
+    {
+        $stmt = $this->pdo()->prepare(
+            'DELETE FROM pl_note_links WHERE id = :id AND note_id IN (SELECT id FROM pl_notes WHERE user_id = :u)'
+        );
+        $stmt->execute(['id' => $linkId, 'u' => $userId]);
+        return $stmt->rowCount() > 0;
+    }
+
+    // ---------- مرور هفتگی + پومودورو ----------
+
+    /**
+     * آمار هفتهٔ شنبه‌محور: تودوهای تاریخ‌دارِ آن هفته، رویدادها، پروژه‌های
+     * در حال پیشرفت (نیاز ناتمام دارند)، استریک عادت‌ها، پومودوروهای هفته،
+     * و تودوهای ناتمامِ مانده از قبلِ هفته (overdue).
+     */
+    public function reviewStats(int $userId, string $weekSat): array
+    {
+        if (!self::validDate($weekSat)) {
+            $weekSat = self::weekSaturday(date('Y-m-d'));
+        }
+        $weekEnd = date('Y-m-d', strtotime($weekSat . ' +6 days'));
+        $pdo = $this->pdo();
+        $count = static function (string $sql, array $params) use ($pdo): int {
+            $s = $pdo->prepare($sql);
+            $s->execute($params);
+            return (int) $s->fetchColumn();
+        };
+        $todosTotal = $count(
+            'SELECT COUNT(*) FROM pl_todos WHERE user_id = :u AND due_date BETWEEN :a AND :b',
+            ['u' => $userId, 'a' => $weekSat, 'b' => $weekEnd]
+        );
+        $todosDone = $count(
+            'SELECT COUNT(*) FROM pl_todos WHERE user_id = :u AND done = 1 AND due_date BETWEEN :a AND :b',
+            ['u' => $userId, 'a' => $weekSat, 'b' => $weekEnd]
+        );
+        $eventsTotal = $count(
+            'SELECT COUNT(*) FROM pl_events WHERE user_id = :u AND date BETWEEN :a AND :b',
+            ['u' => $userId, 'a' => $weekSat, 'b' => $weekEnd]
+        );
+        $eventsDone = $count(
+            'SELECT COUNT(*) FROM pl_events WHERE user_id = :u AND done = 1 AND date BETWEEN :a AND :b',
+            ['u' => $userId, 'a' => $weekSat, 'b' => $weekEnd]
+        );
+        $inProgress = 0;
+        foreach ($this->projects($userId) as $p) {
+            $needs = $this->needs((int) $p['id']);
+            $done = 0;
+            foreach ($needs as $n) {
+                $done += (int) $n['done'];
+            }
+            if ($needs !== [] && $done < count($needs)) {
+                $inProgress++;
+            }
+        }
+        $streaks = [];
+        foreach ($this->habits($userId) as $h) {
+            $streaks[] = ['id' => (int) $h['id'], 'title' => (string) $h['title'], 'streak' => $this->habitStreak($userId, (int) $h['id'])];
+        }
+        $pomo = $pdo->prepare(
+            'SELECT COUNT(*), COALESCE(SUM(minutes), 0) FROM pl_pomo_logs
+             WHERE user_id = :u AND started_at BETWEEN :a AND :b'
+        );
+        $pomo->execute(['u' => $userId, 'a' => $weekSat . ' 00:00:00', 'b' => $weekEnd . ' 23:59:59']);
+        [$pomoSessions, $pomoMinutes] = $pomo->fetch(\PDO::FETCH_NUM);
+        $overdue = $count(
+            'SELECT COUNT(*) FROM pl_todos WHERE user_id = :u AND done = 0 AND due_date <> \'\' AND due_date < :a',
+            ['u' => $userId, 'a' => $weekSat]
+        );
+        return [
+            'week_start' => $weekSat, 'week_end' => $weekEnd,
+            'todos_total' => $todosTotal, 'todos_done' => $todosDone,
+            'todos_percent' => $todosTotal > 0 ? (int) round($todosDone * 100 / $todosTotal) : 0,
+            'events_total' => $eventsTotal, 'events_done' => $eventsDone,
+            'projects_in_progress' => $inProgress,
+            'habit_streaks' => $streaks,
+            'pomo_sessions' => (int) $pomoSessions, 'pomo_minutes' => (int) $pomoMinutes,
+            'incomplete_todos' => $todosTotal - $todosDone, 'overdue' => $overdue,
+        ];
+    }
+
+    /** ثبت نشست پومودورو؛ task_id فقط وقتی ذخیره می‌شود که تودوی همان کاربر باشد. */
+    public function pomoLog(int $userId, int $minutes, ?int $taskId): void
+    {
+        if ($minutes < 1) {
+            return;
+        }
+        $task = null;
+        if ($taskId !== null && $taskId > 0) {
+            $stmt = $this->pdo()->prepare('SELECT id FROM pl_todos WHERE id = :id AND user_id = :u');
+            $stmt->execute(['id' => $taskId, 'u' => $userId]);
+            $task = $stmt->fetchColumn() !== false ? $taskId : null;
+        }
+        $this->pdo()->prepare(
+            'INSERT INTO pl_pomo_logs (user_id, task_id, started_at, minutes) VALUES (:u, :t, :now, :m)'
+        )->execute(['u' => $userId, 't' => $task, 'now' => date('Y-m-d H:i:s'), 'm' => $minutes]);
+    }
+
+    /** مجموع دقیقه‌های پومودورو در بازهٔ تاریخی (شامل روزها). */
+    public function pomoMinutesForRange(int $userId, string $from, string $to): int
+    {
+        $stmt = $this->pdo()->prepare(
+            'SELECT COALESCE(SUM(minutes), 0) FROM pl_pomo_logs
+             WHERE user_id = :u AND substr(started_at, 1, 10) BETWEEN :a AND :b'
+        );
+        $stmt->execute(['u' => $userId, 'a' => $from, 'b' => $to]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    /** تسک‌های لینک‌شده به یک هدف (فقط هدفِ مالک). */
+    public function goalTasks(int $userId, int $goalId): array
+    {
+        if ($this->goal($userId, $goalId) === null) {
+            return [];
+        }
+        $stmt = $this->pdo()->prepare(
+            'SELECT t.* FROM pl_goal_tasks gt JOIN pl_todos t ON t.id = gt.todo_id
+             WHERE gt.goal_id = :g AND t.user_id = :u ORDER BY t.due_date, t.id'
+        );
+        $stmt->execute(['g' => $goalId, 'u' => $userId]);
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    // ---------- اهداف + مایل‌استون + تسک‌های لینک‌شده ----------
+
+    public function goals(int $userId): array
+    {
+        $stmt = $this->pdo()->prepare(
+            'SELECT * FROM pl_goals WHERE user_id = :u ORDER BY created_at DESC, id DESC'
+        );
+        $stmt->execute(['u' => $userId]);
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    public function goal(int $userId, int $id): ?array
+    {
+        $stmt = $this->pdo()->prepare('SELECT * FROM pl_goals WHERE id = :id AND user_id = :u');
+        $stmt->execute(['id' => $id, 'u' => $userId]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+        return $row === false ? null : $row;
+    }
+
+    public function goalCreate(int $userId, string $title, string $targetDate): int
+    {
+        $title = trim($title);
+        if ($title === '') {
+            return 0;
+        }
+        $stmt = $this->pdo()->prepare(
+            'INSERT INTO pl_goals (user_id, title, target_date, created_at) VALUES (:u, :t, :d, :now)'
+        );
+        $stmt->execute([
+            'u' => $userId, 't' => $title,
+            'd' => self::validDate($targetDate) ? $targetDate : '',
+            'now' => date('Y-m-d H:i:s'),
+        ]);
+        return (int) $this->pdo()->lastInsertId();
+    }
+
+    public function goalDelete(int $userId, int $id): bool
+    {
+        if ($this->goal($userId, $id) === null) {
+            return false;
+        }
+        $pdo = $this->pdo();
+        $pdo->prepare('DELETE FROM pl_milestones WHERE goal_id = :g')->execute(['g' => $id]);
+        $pdo->prepare('DELETE FROM pl_goal_tasks WHERE goal_id = :g')->execute(['g' => $id]);
+        $pdo->prepare('DELETE FROM pl_goals WHERE id = :id AND user_id = :u')->execute(['id' => $id, 'u' => $userId]);
+        return true;
+    }
+
+    /** مایل‌استون‌های یک هدف (بدون فیلتر مالک در امضا، مثل needs()). */
+    public function milestones(int $goalId): array
+    {
+        $stmt = $this->pdo()->prepare('SELECT * FROM pl_milestones WHERE goal_id = :g ORDER BY id');
+        $stmt->execute(['g' => $goalId]);
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    public function milestoneAdd(int $userId, int $goalId, string $title): ?int
+    {
+        $title = trim($title);
+        if ($title === '' || $this->goal($userId, $goalId) === null) {
+            return null;
+        }
+        $stmt = $this->pdo()->prepare(
+            'INSERT INTO pl_milestones (goal_id, title, created_at) VALUES (:g, :t, :now)'
+        );
+        $stmt->execute(['g' => $goalId, 't' => $title, 'now' => date('Y-m-d H:i:s')]);
+        return (int) $this->pdo()->lastInsertId();
+    }
+
+    public function milestoneToggle(int $userId, int $id): bool
+    {
+        $stmt = $this->pdo()->prepare(
+            'UPDATE pl_milestones SET done = 1 - done WHERE id = :id AND goal_id IN
+             (SELECT id FROM pl_goals WHERE user_id = :u)'
+        );
+        $stmt->execute(['id' => $id, 'u' => $userId]);
+        return $stmt->rowCount() > 0;
+    }
+
+    public function milestoneDelete(int $userId, int $id): bool
+    {
+        $stmt = $this->pdo()->prepare(
+            'DELETE FROM pl_milestones WHERE id = :id AND goal_id IN
+             (SELECT id FROM pl_goals WHERE user_id = :u)'
+        );
+        $stmt->execute(['id' => $id, 'u' => $userId]);
+        return $stmt->rowCount() > 0;
+    }
+
+    public function goalLinkTask(int $userId, int $goalId, int $todoId): bool
+    {
+        if ($this->goal($userId, $goalId) === null) {
+            return false;
+        }
+        $stmt = $this->pdo()->prepare('SELECT id FROM pl_todos WHERE id = :id AND user_id = :u');
+        $stmt->execute(['id' => $todoId, 'u' => $userId]);
+        if ($stmt->fetchColumn() === false) {
+            return false;
+        }
+        $this->pdo()->prepare('INSERT OR IGNORE INTO pl_goal_tasks (goal_id, todo_id) VALUES (:g, :t)')
+            ->execute(['g' => $goalId, 't' => $todoId]);
+        return true;
+    }
+
+    /** حذف لینک؛ اگر هدف متعلق به کاربر باشد همیشه موفق است (حذفِ لینکِ ناموجود هم). */
+    public function goalUnlinkTask(int $userId, int $goalId, int $todoId): bool
+    {
+        if ($this->goal($userId, $goalId) === null) {
+            return false;
+        }
+        $this->pdo()->prepare('DELETE FROM pl_goal_tasks WHERE goal_id = :g AND todo_id = :t')
+            ->execute(['g' => $goalId, 't' => $todoId]);
+        return true;
+    }
+
+    /** درصد پیشرفت: تسک‌های لینک‌شده اگر هست، وگرنه مایل‌استون‌ها، وگرنه ۰. */
+    public function goalProgress(int $userId, int $goalId): int
+    {
+        if ($this->goal($userId, $goalId) === null) {
+            return 0;
+        }
+        $stmt = $this->pdo()->prepare(
+            'SELECT t.done FROM pl_goal_tasks gt JOIN pl_todos t ON t.id = gt.todo_id
+             WHERE gt.goal_id = :g AND t.user_id = :u'
+        );
+        $stmt->execute(['g' => $goalId, 'u' => $userId]);
+        $tasks = $stmt->fetchAll(\PDO::FETCH_COLUMN);
+        if ($tasks !== []) {
+            $done = 0;
+            foreach ($tasks as $d) {
+                $done += (int) $d;
+            }
+            return (int) round($done * 100 / count($tasks));
+        }
+        $miles = $this->milestones($goalId);
+        if ($miles !== []) {
+            $done = 0;
+            foreach ($miles as $m) {
+                $done += (int) $m['done'];
+            }
+            return (int) round($done * 100 / count($miles));
+        }
+        return 0;
+    }
+
+    // ---------- ژورنال ----------
+
+    public function journal(int $userId, string $date): ?array
+    {
+        if (!self::validDate($date)) {
+            return null;
+        }
+        $stmt = $this->pdo()->prepare('SELECT * FROM pl_journal WHERE user_id = :u AND date = :d');
+        $stmt->execute(['u' => $userId, 'd' => $date]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+        return $row === false ? null : $row;
+    }
+
+    public function journalSave(int $userId, string $date, string $body, string $mood): bool
+    {
+        if (!self::validDate($date) || !in_array($mood, ['great', 'good', 'ok', 'bad', 'awful'], true)) {
+            return false;
+        }
+        $stmt = $this->pdo()->prepare(
+            'INSERT INTO pl_journal (user_id, date, body, mood) VALUES (:u, :d, :b, :m)
+             ON CONFLICT(user_id, date) DO UPDATE SET body = excluded.body, mood = excluded.mood'
+        );
+        $stmt->execute(['u' => $userId, 'd' => $date, 'b' => $body, 'm' => $mood]);
+        return true;
+    }
+
+    // ---------- کپی پروژه + خروجی ----------
+
+    /** کپی پروژه + نیازها (با همان وضعیت انجام)؛ عنوان با پیشوند «کپی ». اشتراک کپی نمی‌شود. */
+    public function duplicateProject(int $userId, int $id): ?int
+    {
+        $src = $this->project($userId, $id);
+        if ($src === null) {
+            return null;
+        }
+        $now = date('Y-m-d H:i:s');
+        $stmt = $this->pdo()->prepare(
+            'INSERT INTO pl_projects (user_id, title, description, start_date, hours_needed, created_at, updated_at)
+             VALUES (:u, :t, :d, :s, :h, :now, :now)'
+        );
+        $stmt->execute([
+            'u' => $userId, 't' => 'کپی ' . (string) $src['title'], 'd' => (string) $src['description'],
+            's' => (string) $src['start_date'], 'h' => (int) $src['hours_needed'], 'now' => $now,
+        ]);
+        $newId = (int) $this->pdo()->lastInsertId();
+        foreach ($this->needs($id) as $n) {
+            $this->pdo()->prepare(
+                'INSERT INTO pl_needs (project_id, title, done, created_at) VALUES (:p, :t, :d, :now)'
+            )->execute(['p' => $newId, 't' => (string) $n['title'], 'd' => (int) $n['done'], 'now' => $now]);
+        }
+        return $newId;
+    }
+
+    /** خروجی کامل دادهٔ کاربر؛ هرگز شامل اشتراک‌ها (pl_shares/pl_links) نیست. */
+    public function exportData(int $userId): array
+    {
+        $todos = $this->todos($userId);
+        foreach ($todos as &$t) {
+            $t['subtasks'] = $this->subtaskRows((int) $t['id']);
+            $t['tags'] = $this->todoTagNames((int) $t['id']);
+        }
+        unset($t);
+        $notes = $this->notes($userId);
+        foreach ($notes as &$n) {
+            $n['tags'] = $this->noteTagNames((int) $n['id']);
+        }
+        unset($n);
+        $projects = $this->projects($userId);
+        foreach ($projects as &$p) {
+            $p['needs'] = $this->needs((int) $p['id']);
+        }
+        unset($p);
+        $habits = $this->habits($userId);
+        foreach ($habits as &$h) {
+            $h['logs'] = $this->habitLogDates((int) $h['id']);
+        }
+        unset($h);
+        $stmt = $this->pdo()->prepare('SELECT * FROM pl_events WHERE user_id = :u ORDER BY date, start_time, id');
+        $stmt->execute(['u' => $userId]);
+        $events = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $stmt = $this->pdo()->prepare('SELECT * FROM pl_journal WHERE user_id = :u ORDER BY date');
+        $stmt->execute(['u' => $userId]);
+        $journal = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        return [
+            'todos' => $todos, 'events' => $events, 'notes' => $notes,
+            'projects' => $projects, 'habits' => $habits, 'journal' => $journal,
+        ];
     }
 
     // ---------- اشتراک‌گذاری ----------
