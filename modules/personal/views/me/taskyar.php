@@ -91,9 +91,9 @@ $__dark = !empty($settings['dark_default']) || ($__theme['default_theme'] ?? 'da
 
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         <div class="me-greeting">
-            <h2>سلام<span class="me-greeting-accent">، <?= e($user['username'] ?? '') ?></span></h2>
             <?php $__todayG = date('Y-m-d'); ?>
-            <p><?= \Modules\Personal\Personal::faWeekday($__todayG) ?> <?= \Modules\Personal\Personal::faDate($__todayG) ?> · تمرکز امروز</p>
+            <p><?= \Modules\Personal\Personal::faWeekday($__todayG) ?>، <?= \Modules\Personal\Personal::faDate($__todayG) ?></p>
+            <h2>تمرکز امروز<span class="me-greeting-accent">، <?= e($user['username'] ?? '') ?></span></h2>
         </div>
         <?php if (!empty($flash)): ?><div class="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-medium rounded-xl px-4 py-3"><?= e($flash) ?></div><?php endif; ?>
         <?php if (!empty($error)): ?><div class="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-medium rounded-xl px-4 py-3"><?= e($error) ?></div><?php endif; ?>
@@ -155,110 +155,99 @@ $__dark = !empty($settings['dark_default']) || ($__theme['default_theme'] ?? 'da
             </div>
         </div>
 
-        <!-- VIEW 1: Dashboard -->
-        <div id="view-dashboard" class="space-y-6">
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden group">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">کل وظایف</span>
-                            <h3 id="statTotalTasks" class="text-3xl font-extrabold mt-1 text-slate-800 dark:text-white">۰</h3>
-                        </div>
-                        <span class="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-lg">
-                            <i class="fa-solid fa-layer-group"></i>
-                        </span>
+        <!-- VIEW 1: Dashboard (بنتو، عین ماکاپ) -->
+        <div id="view-dashboard" class="space-y-4">
+            <section class="me-bento-grid">
+                <div class="me-card me-pomo-card">
+                    <div class="me-card-top">
+                        <span class="me-card-label"><i class="fa-regular fa-clock"></i> پومودورو</span>
+                        <span class="me-pomo-tag" id="bentoPomoSessions">۰ جلسه تکمیل‌شده</span>
                     </div>
-                    <div class="mt-4 flex items-center gap-2 text-xs text-slate-500">
-                        <span id="statCompletionRate" class="font-bold text-emerald-500">۰٪</span> تکمیل شده
+                    <div class="me-pomo-display">
+                        <span id="pomoCardDisplay" class="me-pomo-time"><?= sprintf('%02d:00', (int) $settings['pomo_focus']) ?></span>
+                        <svg class="me-pomo-ring" viewBox="0 0 36 36">
+                            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="var(--me-border)" stroke-width="3.5"/>
+                            <path id="pomoCardRing" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="var(--me-accent)" stroke-width="3.5" stroke-dasharray="0, 100" stroke-linecap="round"/>
+                        </svg>
                     </div>
-                </div>
-                <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden group">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">انجام شده امروز</span>
-                            <h3 id="statCompletedToday" class="text-3xl font-extrabold mt-1 text-emerald-600 dark:text-emerald-400">۰</h3>
-                        </div>
-                        <span class="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-lg">
-                            <i class="fa-solid fa-circle-check"></i>
-                        </span>
-                    </div>
-                    <div class="mt-4 text-xs text-slate-500 flex items-center gap-1">
-                        <span id="statRemainingToday" class="font-bold text-amber-500">۰</span> تسک باقی‌مانده امروز
+                    <div class="me-pomo-controls">
+                        <button id="pomoCardBtn" onclick="togglePomoTimer()" class="me-pomo-btn"><i class="fa-solid fa-play"></i><span>شروع</span></button>
+                        <button onclick="resetPomoTimer()" class="me-pomo-btn me-pomo-btn-reset" title="بازنشانی"><i class="fa-solid fa-rotate-left"></i></button>
                     </div>
                 </div>
-                <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden group">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">فوری و مهم</span>
-                            <h3 id="statUrgentTasks" class="text-3xl font-extrabold mt-1 text-rose-600 dark:text-rose-400">۰</h3>
-                        </div>
-                        <span class="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 flex items-center justify-center text-lg">
-                            <i class="fa-solid fa-triangle-exclamation"></i>
-                        </span>
+                <div class="me-card me-progress-card">
+                    <div class="me-card-top">
+                        <span class="me-card-label"><i class="fa-solid fa-chart-column"></i> پیشرفت روز</span>
                     </div>
-                    <div class="mt-4 text-xs text-slate-500">نیازمند اقدام سریع</div>
-                </div>
-                <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden group">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">جلسات تمرکز (پومودورو)</span>
-                            <h3 id="statPomodoroSessions" class="text-3xl font-extrabold mt-1 text-violet-600 dark:text-violet-400">۰</h3>
-                        </div>
-                        <span class="w-10 h-10 rounded-xl bg-violet-50 dark:bg-violet-950/50 text-violet-600 dark:text-violet-400 flex items-center justify-center text-lg">
-                            <i class="fa-solid fa-fire"></i>
-                        </span>
-                    </div>
-                    <div class="mt-4 text-xs text-slate-500">
-                        معادل <span id="statPomoMinutes" class="font-bold text-violet-500">۰</span> دقیقه فوکوس عمیق
-                    </div>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="lg:col-span-1 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
                     <div>
-                        <h4 class="font-bold text-sm text-slate-700 dark:text-slate-200 flex items-center gap-2 mb-4">
-                            <i class="fa-solid fa-bullseye text-indigo-500"></i>
-                            پیشرفت کارهای روز
-                        </h4>
-                        <div class="flex flex-col items-center justify-center py-4">
-                            <div class="relative w-36 h-36 flex items-center justify-center">
-                                <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                                    <path class="text-slate-100 dark:text-slate-800" stroke-width="3.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-                                    <path id="progressCircle" class="text-indigo-600 dark:text-indigo-500 transition-all duration-700 stroke-current" stroke-dasharray="0, 100" stroke-linecap="round" stroke-width="3.5" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-                                </svg>
-                                <div class="absolute flex flex-col items-center">
-                                    <span id="progressPercentageText" class="text-2xl font-black text-slate-800 dark:text-white">۰٪</span>
-                                    <span class="text-[10px] text-slate-400 font-medium">راندمان کاری</span>
-                                </div>
-                            </div>
-                        </div>
+                        <div class="me-progress-main"><span id="progressPercentageText" class="me-progress-percent">۰٪</span></div>
+                        <p class="me-progress-caption" id="bentoProgressCaption">۰ از ۰ کار امروز تکمیل شده</p>
                     </div>
-                    <div class="bg-indigo-50 dark:bg-slate-800/60 p-3.5 rounded-xl text-xs text-indigo-900 dark:text-indigo-200 space-y-1">
-                        <div class="flex justify-between font-medium">
-                            <span>توصیه بهره‌وری:</span>
-                            <span class="text-indigo-600 dark:text-indigo-400 font-bold">قانون ۲۰/۸۰</span>
-                        </div>
-                        <p class="text-slate-500 dark:text-slate-400 text-[11px] leading-relaxed">
-                            روی ۲۰٪ از کارهای با اولویت بالا تمرکز کنید تا ۸۰٪ نتایج چشمگیر روز را بسازید.
-                        </p>
-                    </div>
+                    <div class="me-mini-bars" id="bentoProgressWeekBars"></div>
                 </div>
-                <div class="lg:col-span-2 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col">
-                    <div class="flex items-center justify-between mb-4">
-                        <h4 class="font-bold text-sm text-slate-700 dark:text-slate-200 flex items-center gap-2">
-                            <i class="fa-solid fa-bell text-amber-500"></i>
-                            تسک‌های مهم (در اولویت)
-                        </h4>
-                        <button onclick="changeView('daily')" class="text-xs text-indigo-600 hover:underline">مشاهده همه لیست</button>
-                    </div>
-                    <div id="dashboardUrgentList" class="space-y-2.5 flex-1 overflow-y-auto max-h-72 pr-1"></div>
+            </section>
+
+            <section class="me-card">
+                <div class="me-section-head">
+                    <h3 class="me-section-title"><i class="fa-regular fa-calendar-days"></i> برنامه زمانی و تقویم</h3>
+                    <span class="me-section-action" id="bentoMonthLabel"></span>
                 </div>
-            </div>
+                <div class="me-cal-strip" id="bentoCalStrip"></div>
+                <div class="me-event-list" id="bentoEventsList"></div>
+            </section>
+
+            <section class="me-card">
+                <div class="me-section-head">
+                    <h3 class="me-section-title"><i class="fa-solid fa-list-check"></i> کارهای اولویت‌دار امروز</h3>
+                    <button onclick="openAddTaskModal()" class="me-section-action me-action-btn">+ افزودن کار</button>
+                </div>
+                <div id="bentoTodoList" class="space-y-2"></div>
+            </section>
+
+            <section class="me-dual">
+                <div class="me-card">
+                    <div class="me-section-head">
+                        <h3 class="me-section-title"><i class="fa-solid fa-diagram-project"></i> پروژه‌ها</h3>
+                        <a href="/me/projects" class="me-section-action">مشاهده همه</a>
+                    </div>
+                    <?php if (empty($projects)): ?>
+                        <p class="me-empty">هنوز پروژه‌ای نیست.</p>
+                    <?php else: ?>
+                        <?php foreach (array_slice($projects, 0, 5) as $pr): ?>
+                        <?php $pct = $pr['needs_total'] > 0 ? (int) round(100 * $pr['needs_done'] / $pr['needs_total']) : 0; ?>
+                        <div class="me-project-item">
+                            <div class="me-project-meta"><a href="/me/projects/<?= (int) $pr['id'] ?>"><?= e($pr['title']) ?></a><span><?= $pct ?>٪</span></div>
+                            <div class="me-progress-bar-bg"><div class="me-progress-bar-fill" style="width:<?= $pct ?>%"></div></div>
+                            <p class="me-project-needs"><?= (int) $pr['needs_done'] ?> از <?= (int) $pr['needs_total'] ?> نیاز تکمیل شده</p>
+                        </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+                <div class="me-card">
+                    <div class="me-section-head">
+                        <h3 class="me-section-title"><i class="fa-regular fa-note-sticky"></i> یادداشت سریع</h3>
+                        <a href="/me/notes" class="me-section-action">مشاهده همه</a>
+                    </div>
+                    <form method="post" action="/me/notes" class="me-note-form">
+                        <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
+                        <input type="text" name="title" required placeholder="یادداشت تازه..." class="me-note-input">
+                        <button class="me-note-btn">افزودن</button>
+                    </form>
+                    <?php if (empty($notes)): ?>
+                        <p class="me-empty">هنوز یادداشتی نیست.</p>
+                    <?php else: ?>
+                        <div class="space-y-2">
+                        <?php foreach (array_slice($notes, 0, 5) as $n): ?>
+                            <p class="me-note-row"><a href="/me/notes/<?= (int) $n['id'] ?>"><?= e($n['title']) ?></a> <span class="me-note-date"><?= e($n['updated_at']) ?></span></p>
+                        <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </section>
         </div>
 
         <!-- VIEW 2: Hourly Time Blocking -->
-        <div id="view-hourly" class="hidden space-y-4">
+        <div id="view-hourly" class="hidden space-y-4 me-view">
             <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-4 border-b border-slate-100 dark:border-slate-800 mb-6">
                     <div>
@@ -278,7 +267,7 @@ $__dark = !empty($settings['dark_default']) || ($__theme['default_theme'] ?? 'da
         </div>
 
         <!-- VIEW 3: Daily Tasks View -->
-        <div id="view-daily" class="hidden space-y-4">
+        <div id="view-daily" class="hidden space-y-4 me-view">
             <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-4 border-b border-slate-100 dark:border-slate-800 mb-6">
                     <div>
@@ -302,7 +291,7 @@ $__dark = !empty($settings['dark_default']) || ($__theme['default_theme'] ?? 'da
         </div>
 
         <!-- VIEW 4: Weekly Planner View -->
-        <div id="view-weekly" class="hidden space-y-4">
+        <div id="view-weekly" class="hidden space-y-4 me-view">
             <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-4 border-b border-slate-100 dark:border-slate-800 mb-6">
                     <div>
@@ -322,7 +311,7 @@ $__dark = !empty($settings['dark_default']) || ($__theme['default_theme'] ?? 'da
         </div>
 
         <!-- VIEW 5: Monthly View -->
-        <div id="view-monthly" class="hidden space-y-4">
+        <div id="view-monthly" class="hidden space-y-4 me-view">
             <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-4 border-b border-slate-100 dark:border-slate-800 mb-6">
                     <div>
@@ -607,14 +596,31 @@ $__dark = !empty($settings['dark_default']) || ($__theme['default_theme'] ?? 'da
         }
 
         function renderDashboardView() {
-            const list = document.getElementById('dashboardUrgentList');
-            const filtered = getFilteredTasks().filter(t => !t.done);
-            filtered.sort((a, b) => (a.priority === 'high' ? -1 : 1));
-            if (filtered.length === 0) {
-                list.innerHTML = '<div class="text-center py-10 text-slate-400 text-xs"><i class="fa-solid fa-circle-check text-emerald-500"></i> تبریک! هیچ تسک انجام‌نشده‌ای برای نمایش وجود ندارد.</div>';
-                return;
+            // نوار هفته (شنبه تا جمعه) + ماه جلالی — عین ماکاپ، با دادهٔ واقعی.
+            const strip = document.getElementById('bentoCalStrip');
+            let stripHtml = '';
+            for (let i = 0; i < 7; i++) {
+                const d = dateAdd(TASKYAR.weekSat, i);
+                const isToday = d === TASKYAR.today;
+                let dayNum = d.slice(8, 10).replace(/^0/, '');
+                try { dayNum = new Intl.DateTimeFormat('fa-IR', { day: 'numeric' }).format(new Date(d + 'T00:00:00Z')); } catch (e) {}
+                stripHtml += '<button onclick="window.location.href=\'/me?date=' + d + '&view=daily\'" class="me-cal-day' + (isToday ? ' selected' : '') + '"><span class="me-cal-day-name">' + DAYS_OF_WEEK[i] + '</span><span class="me-cal-day-num">' + dayNum + '</span></button>';
             }
-            list.innerHTML = filtered.slice(0, 5).map(task => createTaskCardHTML(task)).join('');
+            strip.innerHTML = stripHtml;
+            try { document.getElementById('bentoMonthLabel').innerText = new Intl.DateTimeFormat('fa-IR', { month: 'long', year: 'numeric' }).format(new Date(TASKYAR.today + 'T00:00:00Z')); } catch (e) {}
+            // رویدادهای امروز (ساعت‌دار)، به ترتیب ساعت.
+            const eventsBox = document.getElementById('bentoEventsList');
+            const events = getFilteredTasks().filter(t => t.kind === 'event' && t.date === TASKYAR.today).sort((a, b) => (a.hour || '').localeCompare(b.hour || ''));
+            eventsBox.innerHTML = events.length === 0
+                ? '<p class="me-empty">رویدادی برای امروز نیست.</p>'
+                : events.map(t => createTaskCardHTML(t)).join('');
+            // کارهای اولویت‌دار امروز (تودوهای انجام‌نشدهٔ امروز، فوری اول).
+            const list = document.getElementById('bentoTodoList');
+            const todos = getFilteredTasks().filter(t => t.kind === 'todo' && !t.done && t.date === TASKYAR.today);
+            todos.sort((a, b) => (a.priority === 'high' ? -1 : (b.priority === 'high' ? 1 : 0)));
+            list.innerHTML = todos.length === 0
+                ? '<div class="me-empty">کاری برای امروز نیست.</div>'
+                : todos.slice(0, 8).map(t => createTaskCardHTML(t)).join('');
         }
 
         function renderHourlyView() {
@@ -743,21 +749,22 @@ $__dark = !empty($settings['dark_default']) || ($__theme['default_theme'] ?? 'da
         }
 
         function updateDashboardMetrics() {
-            const total = state.tasks.length;
-            const completed = state.tasks.filter(t => t.done).length;
-            const completedToday = state.tasks.filter(t => t.done && t.date === TASKYAR.today).length;
-            const remainingToday = state.tasks.filter(t => !t.done && t.date === TASKYAR.today).length;
-            const urgentCount = state.tasks.filter(t => t.priority === 'high' && !t.done).length;
-            const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
-            document.getElementById('statTotalTasks').innerText = faNum(total);
-            document.getElementById('statCompletedToday').innerText = faNum(completedToday);
-            document.getElementById('statRemainingToday').innerText = faNum(remainingToday);
-            document.getElementById('statUrgentTasks').innerText = faNum(urgentCount);
-            document.getElementById('statCompletionRate').innerText = faNum(percentage) + '٪';
-            document.getElementById('progressCircle').setAttribute('stroke-dasharray', percentage + ', 100');
+            // کارت پیشرفت روز: درصد امروز + میله‌های هفته + شمار جلسات پومودورو.
+            const todayTasks = state.tasks.filter(t => t.date === TASKYAR.today);
+            const todayDone = todayTasks.filter(t => t.done).length;
+            const percentage = todayTasks.length > 0 ? Math.round((todayDone / todayTasks.length) * 100) : 0;
             document.getElementById('progressPercentageText').innerText = faNum(percentage) + '٪';
-            document.getElementById('statPomodoroSessions').innerText = faNum(state.pomoSessions);
-            document.getElementById('statPomoMinutes').innerText = faNum(state.pomoSessions * (TASKYAR.pomoFocus || 25));
+            document.getElementById('bentoProgressCaption').innerText = faNum(todayDone) + ' از ' + faNum(todayTasks.length) + ' کار امروز تکمیل شده';
+            let bars = '';
+            for (let i = 0; i < 7; i++) {
+                const d = dateAdd(TASKYAR.weekSat, i);
+                const dayTasks = state.tasks.filter(t => t.date === d);
+                const dayDone = dayTasks.filter(t => t.done).length;
+                const pct = dayTasks.length > 0 ? Math.round((dayDone / dayTasks.length) * 100) : 0;
+                bars += '<div class="me-bar-col"><div class="me-bar-fill' + (d === TASKYAR.today ? ' active' : '') + '" style="height:' + Math.max(pct, 4) + '%"></div><span class="me-bar-day">' + DAYS_OF_WEEK[i].slice(0, 1) + '</span></div>';
+            }
+            document.getElementById('bentoProgressWeekBars').innerHTML = bars;
+            document.getElementById('bentoPomoSessions').innerText = faNum(state.pomoSessions) + ' جلسه تکمیل‌شده';
         }
 
         function postTask(url, data) {
@@ -954,6 +961,11 @@ $__dark = !empty($settings['dark_default']) || ($__theme['default_theme'] ?? 'da
                 btn.innerHTML = '<i class="fa-solid fa-play"></i> <span>شروع</span>';
                 btn.className = 'px-6 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-xs shadow-md shadow-indigo-600/30 hover:bg-indigo-700 transition flex items-center gap-2';
             }
+            // دکمهٔ کارت پومودورو روی داشبورد هم با همان وضعیت همگام می‌شود.
+            const cardBtn = document.getElementById('pomoCardBtn');
+            if (cardBtn) {
+                cardBtn.innerHTML = pomoIsRunning ? '<i class="fa-solid fa-pause"></i><span>توقف</span>' : '<i class="fa-solid fa-play"></i><span>شروع</span>';
+            }
         }
 
         function renderPomoDisplay() {
@@ -962,6 +974,15 @@ $__dark = !empty($settings['dark_default']) || ($__theme['default_theme'] ?? 'da
             const formatted = String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
             document.getElementById('pomoDisplay').innerText = formatted;
             document.getElementById('headerPomoTimer').innerText = formatted;
+            // نمایش کارت پومودورو روی داشبورد + حلقهٔ پیشرفت نوبت.
+            const cardDisplay = document.getElementById('pomoCardDisplay');
+            if (cardDisplay) cardDisplay.innerText = formatted;
+            const ring = document.getElementById('pomoCardRing');
+            if (ring) {
+                const total = pomoMode === 'work' ? (TASKYAR.pomoFocus || 25) * 60 : (pomoMode === 'shortBreak' ? (TASKYAR.pomoBreak || 5) * 60 : 15 * 60);
+                const elapsed = total > 0 ? Math.round(100 * (total - pomoTimeLeft) / total) : 0;
+                ring.setAttribute('stroke-dasharray', elapsed + ', 100');
+            }
         }
 
         function playToneNotification() {

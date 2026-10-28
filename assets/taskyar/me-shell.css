@@ -134,3 +134,407 @@ body.me-has-dock main { padding-bottom: 104px; }
   cursor: pointer;
   text-decoration: none;
 }
+
+/* ================= بنتو صفحه اصلی (عین ماکاپ) ================= */
+
+.me-card {
+  background: var(--me-panel);
+  border: 1px solid var(--me-border);
+  border-radius: var(--me-radius);
+  box-shadow: var(--me-shadow);
+  padding: 18px;
+  color: var(--me-text);
+}
+[data-theme="swissPop"] .me-card { border-width: 2px; }
+
+.me-card-top, .me-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.me-card-label, .me-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--me-text);
+}
+.me-section-action {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--me-accent);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.me-action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+}
+.me-empty {
+  font-size: 0.75rem;
+  color: var(--me-muted);
+  text-align: center;
+  padding: 12px 0;
+}
+
+.me-bento-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 12px;
+}
+@media (max-width: 640px) {
+  .me-bento-grid { grid-template-columns: 1fr; }
+}
+
+.me-pomo-card, .me-progress-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+}
+[data-theme="swissPop"] .me-pomo-card { background: var(--me-accent); color: #111111; }
+[data-theme="swissPop"] .me-pomo-card .me-card-label { color: #111111; }
+.me-pomo-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  opacity: 0.8;
+}
+.me-pomo-display {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  margin: 2px auto;
+}
+.me-pomo-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.me-pomo-time {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  font-weight: 900;
+}
+.me-pomo-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.me-pomo-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 12px;
+  border: none;
+  background: var(--me-accent);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+}
+[data-theme="swissPop"] .me-pomo-card .me-pomo-btn { background: #111111; color: #fff; }
+.me-pomo-btn-reset {
+  padding: 8px 12px;
+  background: transparent;
+  color: var(--me-text);
+  border: 1px solid var(--me-border);
+}
+[data-theme="swissPop"] .me-pomo-card .me-pomo-btn-reset { background: transparent; color: #111111; border-color: #111111; }
+
+.me-progress-main { margin: 6px 0; }
+.me-progress-percent {
+  font-size: 1.7rem;
+  font-weight: 900;
+  color: var(--me-accent2);
+  line-height: 1;
+}
+[data-theme="swissPop"] .me-progress-percent { color: #111111; }
+.me-progress-caption {
+  font-size: 0.7rem;
+  color: var(--me-muted);
+}
+.me-mini-bars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 42px;
+  gap: 5px;
+  margin-top: 8px;
+  padding-top: 6px;
+}
+.me-bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+  justify-content: flex-end;
+}
+.me-bar-fill {
+  width: 100%;
+  background: color-mix(in srgb, var(--me-text) 16%, transparent);
+  border-radius: 4px;
+}
+.me-bar-fill.active { background: var(--me-accent); }
+.me-bar-day {
+  font-size: 0.6rem;
+  color: var(--me-muted);
+}
+
+.me-cal-strip {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.me-cal-day {
+  background: var(--me-panel);
+  border: 1px solid var(--me-border);
+  border-radius: 12px;
+  padding: 8px 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+  color: var(--me-text);
+  font-family: inherit;
+}
+.me-cal-day.selected {
+  background: var(--me-accent);
+  color: #fff;
+  border-color: var(--me-accent);
+}
+[data-theme="swissPop"] .me-cal-day.selected {
+  background: var(--me-accent2);
+  color: #111111;
+  border: 2px solid #111111;
+  box-shadow: 2px 2px 0 #111111;
+}
+.me-cal-day-name { font-size: 0.62rem; opacity: 0.8; }
+.me-cal-day-num { font-size: 0.9rem; font-weight: 800; }
+.me-event-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.me-dual {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 640px) {
+  .me-dual { grid-template-columns: 1fr; }
+}
+.me-project-item { margin-top: 14px; }
+.me-project-item:first-of-type { margin-top: 0; }
+.me-project-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.me-project-meta a { color: var(--me-text); text-decoration: none; }
+.me-project-meta span { color: var(--me-muted); font-size: 0.75rem; }
+.me-progress-bar-bg {
+  height: 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--me-text) 12%, transparent);
+  overflow: hidden;
+}
+.me-progress-bar-fill { height: 100%; background: var(--me-accent); border-radius: 999px; }
+.me-project-item:nth-child(even) .me-progress-bar-fill { background: var(--me-accent2); }
+.me-project-needs {
+  font-size: 0.68rem;
+  color: var(--me-muted);
+  margin-top: 4px;
+}
+.me-note-form {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.me-note-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--me-panel);
+  border: 1px solid var(--me-border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 0.8rem;
+  color: var(--me-text);
+  font-family: inherit;
+}
+.me-note-input:focus { outline: 2px solid var(--me-accent); }
+.me-note-btn {
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: none;
+  background: var(--me-accent);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.me-note-row { font-size: 0.8rem; }
+.me-note-row a { color: var(--me-text); text-decoration: none; font-weight: 600; }
+.me-note-date { font-size: 0.68rem; color: var(--me-muted); }
+
+/* کارت تسک ساختهٔ JS داخل بنتو: رنگ‌های تم به‌جای slate */
+html[data-theme] #bentoTodoList .group,
+html[data-theme] #bentoEventsList .group {
+  background: var(--me-panel-solid);
+  border-color: var(--me-border);
+  border-radius: var(--me-radius);
+}
+html[data-theme] #bentoTodoList .text-slate-800,
+html[data-theme] #bentoEventsList .text-slate-800,
+html[data-theme] #bentoTodoList .dark\:text-slate-200,
+html[data-theme] #bentoEventsList .dark\:text-slate-200 { color: var(--me-text); }
+html[data-theme] #bentoTodoList .text-slate-400,
+html[data-theme] #bentoEventsList .text-slate-400 { color: var(--me-muted); }
+
+/* نماهای دیگر صفحه اصلی (ساعتی/روزانه/هفتگی/ماهانه): همان متغیرهای تم */
+html[data-theme] .me-view .bg-white,
+html[data-theme] .me-view .dark\:bg-slate-900 { background: var(--me-panel-solid); }
+html[data-theme] .me-view .bg-slate-50,
+html[data-theme] .me-view .dark\:bg-slate-800\/40 { background: var(--me-panel); }
+html[data-theme] .me-view .bg-indigo-50\/60 { background: color-mix(in srgb, var(--me-accent) 14%, transparent); }
+html[data-theme] .me-view .border-slate-200\/80,
+html[data-theme] .me-view .border-slate-200\/60,
+html[data-theme] .me-view .dark\:border-slate-800,
+html[data-theme] .me-view .dark\:border-slate-700\/60 { border-color: var(--me-border); }
+html[data-theme] .me-view .border-indigo-200 { border-color: color-mix(in srgb, var(--me-accent) 40%, transparent); }
+html[data-theme] .me-view .text-slate-800,
+html[data-theme] .me-view .dark\:text-white,
+html[data-theme] .me-view .dark\:text-slate-200 { color: var(--me-text); }
+html[data-theme] .me-view .text-slate-500,
+html[data-theme] .me-view .text-slate-400,
+html[data-theme] .me-view .dark\:text-slate-400,
+html[data-theme] .me-view .dark\:text-slate-300 { color: var(--me-muted); }
+html[data-theme] .me-view .text-indigo-600,
+html[data-theme] .me-view .dark\:text-indigo-400 { color: var(--me-accent); }
+
+/* ================= صفحه تنظیمات (عین ماکاپ) ================= */
+
+.me-settings-sub {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--me-text);
+  margin: 20px 0 10px;
+}
+.me-settings-sub:first-child { margin-top: 0; }
+.me-style-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.me-style-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: var(--me-panel);
+  border: 1px solid var(--me-border);
+  border-radius: var(--me-radius);
+  cursor: pointer;
+}
+.me-style-row input { position: absolute; opacity: 0; pointer-events: none; }
+.me-style-row:has(input:checked) { border-color: var(--me-accent); box-shadow: var(--me-shadow); }
+.me-theme-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.me-style-text { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.me-style-name { font-size: 0.8rem; font-weight: 800; color: var(--me-text); }
+.me-style-desc { font-size: 0.68rem; color: var(--me-muted); }
+.me-style-check { opacity: 0; color: var(--me-accent); flex-shrink: 0; }
+.me-style-row input:checked ~ .me-style-check { opacity: 1; }
+.me-settings-field { margin-bottom: 12px; }
+.me-settings-field label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--me-muted);
+  margin-bottom: 4px;
+}
+.me-settings-field input,
+.me-settings-field select,
+.me-settings-field textarea {
+  width: 100%;
+  background: var(--me-panel);
+  border: 1px solid var(--me-border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 0.85rem;
+  color: var(--me-text);
+  font-family: inherit;
+}
+.me-settings-field input:focus,
+.me-settings-field select:focus,
+.me-settings-field textarea:focus { outline: 2px solid var(--me-accent); }
+.me-settings-hint { font-size: 0.68rem; color: var(--me-muted); margin-top: 4px; }
+.me-settings-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--me-text);
+  margin-bottom: 12px;
+}
+.me-save-btn {
+  padding: 10px 20px;
+  border-radius: 12px;
+  border: none;
+  background: var(--me-accent);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+}
+.me-account-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  color: var(--me-text);
+}
+.me-logout-btn {
+  padding: 8px 16px;
+  border-radius: 12px;
+  border: 1px solid #e11d48;
+  background: transparent;
+  color: #e11d48;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+}
+.me-logout-btn.solid { background: #e11d48; color: #fff; border-color: #e11d48; }
+.me-btn-row { display: flex; gap: 8px; margin-top: 10px; }
+.me-logout-confirm p { font-size: 0.8rem; color: var(--me-text); margin-top: 10px; }

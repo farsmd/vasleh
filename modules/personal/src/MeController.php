@@ -95,8 +95,18 @@ final class MeController
         if (!in_array($view, ['dashboard', 'hourly', 'daily', 'weekly', 'monthly'], true)) {
             $view = $settings['default_view'];
         }
+        // کارت‌های پروژه و یادداشت صفحه اصلی: همان دادهٔ صفحه‌های خودشان، بدون روت تازه.
+        $uid = (int) $this->user()['id'];
+        $bentoProjects = [];
+        foreach ($this->store()->projects($uid) as $pr) {
+            $needs = $this->store()->needs((int) $pr['id']);
+            $done = count(array_filter($needs, static fn ($n) => (int) ($n['done'] ?? 0) === 1));
+            $bentoProjects[] = $pr + ['needs_done' => $done, 'needs_total' => count($needs)];
+        }
         return Response::html(View::render('personal', 'me', 'taskyar', [
-            'tasks' => $this->store()->tasksForRange((int) $this->user()['id'], $from, $to),
+            'tasks' => $this->store()->tasksForRange($uid, $from, $to),
+            'projects' => $bentoProjects,
+            'notes' => $this->store()->notes($uid),
             'today' => date('Y-m-d'),
             'date' => $date,
             'weekSat' => $weekSat,
@@ -190,6 +200,7 @@ final class MeController
         return $this->page2($request, 'settings', [
             'settings' => $settings,
             'categories_text' => implode("\n", $lines),
+            'user' => $this->user(),
         ], 'تنظیمات شخصی', 'settings');
     }
 
