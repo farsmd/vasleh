@@ -1,0 +1,136 @@
+/* پوسته /me — همان ۴ سبک ماکاپ مدیریت شخصی.
+   فقط بدنه، سربرگ سلام و داک پایین را رنگ می‌کند؛ کارت‌ها و فرم‌های
+   موجود تسک‌یار دست نمی‌خورند. فونت و آیکون همان فایل‌های محلی‌اند. */
+
+[data-theme="darkPrism"] {
+  --me-bg: #090A0F;
+  --me-panel: rgba(255, 255, 255, 0.055);
+  --me-panel-solid: #151826;
+  --me-nav: rgba(15, 17, 26, 0.75);
+  --me-nav-text: #F8FAFC;
+  --me-text: #F8FAFC;
+  --me-muted: #94A3B8;
+  --me-accent: #818CF8;
+  --me-accent2: #34D399;
+  --me-border: rgba(255, 255, 255, 0.11);
+  --me-radius: 24px;
+  --me-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="zenCanvas"] {
+  --me-bg: #F6F4F0;
+  --me-panel: #FFFFFF;
+  --me-panel-solid: #FFFFFF;
+  --me-nav: rgba(255, 255, 255, 0.92);
+  --me-nav-text: #1C1B18;
+  --me-text: #1C1B18;
+  --me-muted: #605C56;
+  --me-accent: #2D5A27;
+  --me-accent2: #D96B43;
+  --me-border: #E6E2DA;
+  --me-radius: 20px;
+  --me-shadow: 0 4px 20px rgba(28, 27, 24, 0.08);
+}
+
+[data-theme="swissPop"] {
+  --me-bg: #F2F3F7;
+  --me-panel: #FFFFFF;
+  --me-panel-solid: #FFFFFF;
+  --me-nav: #111111;
+  --me-nav-text: #FFFFFF;
+  --me-text: #111111;
+  --me-muted: #3F3F46;
+  --me-accent: #FF5E36;
+  --me-accent2: #D4FF33;
+  --me-border: #111111;
+  --me-radius: 16px;
+  --me-shadow: 4px 4px 0px #111111;
+}
+
+[data-theme="monoGrid"] {
+  --me-bg: #111215;
+  --me-panel: #181A1F;
+  --me-panel-solid: #181A1F;
+  --me-nav: #14161A;
+  --me-nav-text: #EDEDEF;
+  --me-text: #EDEDEF;
+  --me-muted: #8A8F98;
+  --me-accent: #FF4F00;
+  --me-accent2: #00E5FF;
+  --me-border: #282C34;
+  --me-radius: 6px;
+  --me-shadow: none;
+}
+
+body[data-theme] {
+  background: var(--me-bg);
+  color: var(--me-text);
+}
+
+/* سربرگ سلام (عین ماکاپ: سلام + تاریخ روز) */
+.me-greeting { margin-bottom: 4px; }
+.me-greeting h2 { font-weight: 800; font-size: 1.25rem; line-height: 1.6; }
+.me-greeting p { font-size: 0.8rem; color: var(--me-muted); }
+.me-greeting .me-greeting-accent { color: var(--me-accent); }
+
+/* داک پایین شناور (عین ماکاپ) — جای محتوا را با فاصله پایین main می‌گیرد */
+body.me-has-dock main { padding-bottom: 104px; }
+.me-dock {
+  position: fixed;
+  right: 12px;
+  left: 12px;
+  bottom: 12px;
+  z-index: 50;
+  max-width: 520px;
+  margin: 0 auto;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 2px;
+  padding: 8px 10px;
+  background: var(--me-nav);
+  color: var(--me-nav-text);
+  border: 1px solid var(--me-border);
+  border-radius: var(--me-radius);
+  box-shadow: var(--me-shadow);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+[data-theme="swissPop"] .me-dock { border-width: 2px; }
+.me-dock-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 2px 4px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--me-nav-text);
+  opacity: 0.75;
+  text-decoration: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+.me-dock-item i { font-size: 1rem; }
+.me-dock-item.me-dock-active { opacity: 1; color: var(--me-accent); }
+[data-theme="swissPop"] .me-dock-item.me-dock-active { color: #FF5E36; }
+.me-dock-fab-wrap { flex: 1; display: flex; justify-content: center; }
+.me-dock-fab {
+  width: 56px;
+  height: 56px;
+  margin-top: -26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--me-accent);
+  color: #fff;
+  font-size: 1.15rem;
+  border: 2px solid var(--me-nav);
+  box-shadow: var(--me-shadow);
+  cursor: pointer;
+  text-decoration: none;
+}

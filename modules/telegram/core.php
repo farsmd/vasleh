@@ -22,7 +22,7 @@ return [
     'title'       => 'تلگرام',
     'icon'        => '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg>',
     'description' => 'ربات و مینی‌اپ تلگرام فروشگاه: سفارش از داخل تلگرام با همان مسیر فروشگاه و پیامک',
-    'version'     => '1.0.0',
+    'version'     => '1.0.1',
     'system'      => false,
     'requires'    => ['sqlite', 'session', 'shop'],
 

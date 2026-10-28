@@ -119,6 +119,14 @@ final class Personal
         ['key' => 'health', 'label' => 'سلامت'],
     ];
 
+    /** سبک‌های ظاهری /me (همان ۴ سبک ماکاپ مدیریت شخصی). */
+    public const STYLES = [
+        'darkPrism' => 'منشور تاریک',
+        'zenCanvas' => 'بوم آرام',
+        'swissPop' => 'نئون ساختاریافته',
+        'monoGrid' => 'ماتریس مهندسی',
+    ];
+
     /** تنظیمات کاربر؛ کلیدهای ناشناخته نادیده گرفته می‌شوند و مقادیر نرمال می‌شوند. */
     public function settings(int $userId): array
     {
@@ -132,6 +140,7 @@ final class Personal
             'pomo_focus' => 25,
             'pomo_break' => 5,
             'dark_default' => false,
+            'style' => 'darkPrism',
         ];
         $out = array_merge($defaults, array_intersect_key(is_array($saved) ? $saved : [], $defaults));
         $cats = [];
@@ -151,6 +160,9 @@ final class Personal
         $out['pomo_focus'] = max(1, min(180, (int) $out['pomo_focus']));
         $out['pomo_break'] = max(1, min(60, (int) $out['pomo_break']));
         $out['dark_default'] = !empty($out['dark_default']);
+        if (!isset(self::STYLES[(string) ($out['style'] ?? '')])) {
+            $out['style'] = 'darkPrism';
+        }
         if (!in_array($out['default_view'], ['dashboard', 'hourly', 'daily', 'weekly', 'monthly'], true)) {
             $out['default_view'] = 'dashboard';
         }

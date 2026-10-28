@@ -12,6 +12,14 @@
             </select>
         </div>
         <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">سبک ظاهری /me (همان ۴ سبک ماکاپ)</label>
+            <select name="style" class="w-full bg-slate-50 border border-slate-200 text-sm rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <?php foreach (\Modules\Personal\Personal::STYLES as $k => $label): ?>
+                <option value="<?= $k ?>" <?= ($settings['style'] ?? 'darkPrism') === $k ? 'selected' : '' ?>><?= $label ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1">دسته‌بندی‌ها (هر خط: کلید انگلیسی | برچسب فارسی)</label>
             <textarea name="categories_text" rows="6" dir="ltr" class="w-full bg-slate-50 border border-slate-200 text-sm rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-left"><?= e($categories_text) ?></textarea>
             <p class="text-xs text-slate-400 mt-1">کلید فقط حروف کوچک انگلیسی، عدد، خط تیره و زیرخط. تسک‌های قدیمی با دستهٔ حذف‌شده، برچسب «عمومی» می‌گیرند ولی داده‌شان نمی‌پرد.</p>

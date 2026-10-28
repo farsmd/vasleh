@@ -6,10 +6,18 @@ $__theme = \Modules\Admin\AdminTheme::load(dirname(__DIR__, 4));
 $__dark = !empty($settings['dark_default']) || ($__theme['default_theme'] ?? 'dark') === 'dark';
 ?>
 <!DOCTYPE html>
-<html lang="fa" dir="rtl"<?= $__dark ? ' class="dark"' : '' ?>>
+<html lang="fa" dir="rtl" data-theme="<?= isset(\Modules\Personal\Personal::STYLES[$settings['style'] ?? '']) ? $settings['style'] : 'darkPrism' ?>"<?= $__dark ? ' class="dark"' : '' ?>>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="/me/manifest.webmanifest">
+    <meta name="theme-color" content="#4f46e5">
+    <link rel="apple-touch-icon" href="/assets/pwa/apple-touch-icon.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="تسک‌یار">
+    <link rel="stylesheet" href="/assets/taskyar/me-shell.css">
     <title>تسک‌یار | مدیریت زمان و اهداف شخصی</title>
     <script>try{var _v=localStorage.getItem('vasleh_theme');if(!_v){var _o=localStorage.getItem('theme');if(_o){_v=_o;localStorage.setItem('vasleh_theme',_o);}}if(_v==='light'){document.documentElement.classList.remove('dark')}else if(_v==='dark'){document.documentElement.classList.add('dark')}}catch(e){}</script>
     <link rel="stylesheet" href="/assets/taskyar/fonts/vazirmatn.css">
@@ -47,7 +55,7 @@ $__dark = !empty($settings['dark_default']) || ($__theme['default_theme'] ?? 'da
         @keyframes popIn { 0% { transform: scale(0.96); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
     </style>
 </head>
-<body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col transition-colors duration-300">
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col transition-colors duration-300 me-has-dock">
 
     <header class="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -82,6 +90,11 @@ $__dark = !empty($settings['dark_default']) || ($__theme['default_theme'] ?? 'da
     </header>
 
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        <div class="me-greeting">
+            <h2>سلام<span class="me-greeting-accent">، <?= e($user['username'] ?? '') ?></span></h2>
+            <?php $__todayG = date('Y-m-d'); ?>
+            <p><?= \Modules\Personal\Personal::faWeekday($__todayG) ?> <?= \Modules\Personal\Personal::faDate($__todayG) ?> · تمرکز امروز</p>
+        </div>
         <?php if (!empty($flash)): ?><div class="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-medium rounded-xl px-4 py-3"><?= e($flash) ?></div><?php endif; ?>
         <?php if (!empty($error)): ?><div class="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-medium rounded-xl px-4 py-3"><?= e($error) ?></div><?php endif; ?>
 
@@ -329,7 +342,7 @@ $__dark = !empty($settings['dark_default']) || ($__theme['default_theme'] ?? 'da
         </div>
     </main>
 
-    <button onclick="openAddTaskModal()" title="افزودن سریع تسک" class="fixed bottom-6 left-6 z-40 w-14 h-14 rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-xl shadow-indigo-600/30 flex items-center justify-center text-xl hover:scale-105 active:scale-95 transition-all">
+    <button onclick="openAddTaskModal()" title="افزودن سریع تسک" class="fixed bottom-24 left-6 z-40 w-14 h-14 rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-xl shadow-indigo-600/30 flex items-center justify-center text-xl hover:scale-105 active:scale-95 transition-all">
         <i class="fa-solid fa-plus"></i>
     </button>
 
@@ -977,6 +990,30 @@ $__dark = !empty($settings['dark_default']) || ($__theme['default_theme'] ?? 'da
                 if (!pomo.classList.contains('hidden')) togglePomodoroModal();
             }
         });
+    </script>
+    <nav class="me-dock" aria-label="ناوبری تسک‌یار">
+        <a href="/me" class="me-dock-item me-dock-active">
+            <i class="fa-solid fa-gauge-high"></i><span>داشبورد</span>
+        </a>
+        <a href="/me/day" class="me-dock-item">
+            <i class="fa-regular fa-calendar-days"></i><span>تقویم</span>
+        </a>
+        <span class="me-dock-fab-wrap">
+            <button type="button" onclick="openAddTaskModal()" class="me-dock-fab" title="افزودن سریع تسک"><i class="fa-solid fa-plus"></i></button>
+        </span>
+        <a href="/me/notes" class="me-dock-item">
+            <i class="fa-regular fa-note-sticky"></i><span>یادداشت</span>
+        </a>
+        <a href="/me/settings" class="me-dock-item">
+            <i class="fa-solid fa-gear"></i><span>تنظیمات</span>
+        </a>
+    </nav>
+    <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/me/sw.js', { scope: '/me/' }).catch(function () {});
+      });
+    }
     </script>
 </body>
 </html>

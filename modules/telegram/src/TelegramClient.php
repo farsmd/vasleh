@@ -39,6 +39,14 @@ final class TelegramClient
                 return ['ok' => false, 'message' => 'خطا در ساخت درخواست', 'data' => null];
             }
         }
+        // لایهٔ انتقال: اول cURL (روی هاست‌هایی که allow_url_fopen خاموش است
+        // هم کار می‌کند)، و اگر cURL نبود یا خطا داد، همان stream قبلی.
+        if (function_exists('curl_init')) {
+            $raw = $this->requestViaCurl($url, $headers, $body);
+            if ($raw !== false) {
+                return $this->parseResponse($raw);
+            }
+        }
         $ctx = stream_context_create(['http' => [
             'method' => $payload !== null ? 'POST' : 'GET',
             'header' => implode("\r\n", $headers),
@@ -50,6 +58,33 @@ final class TelegramClient
         if ($raw === false) {
             return ['ok' => false, 'message' => 'خطای اتصال به تلگرام', 'data' => null];
         }
+        return $this->parseResponse($raw);
+    }
+
+    /** ارسال با cURL؛ در صورت خطای شبکه false تا stream هم شانسش را امتحان کند. */
+    private function requestViaCurl(string $url, array $headers, ?string $body): string|false
+    {
+        $ch = curl_init($url);
+        if ($ch === false) {
+            return false;
+        }
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+        if ($body !== null) {
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+        }
+        $raw = curl_exec($ch);
+        curl_close($ch);
+        return is_string($raw) ? $raw : false;
+    }
+
+    /** تفسیر پاسخ JSON تلگرام؛ شکل خروجی با قبل یکسان است. */
+    private function parseResponse(string $raw): array
+    {
         $decoded = json_decode($raw, true);
         if (!is_array($decoded)) {
             return ['ok' => false, 'message' => 'پاسخ نامعتبر از تلگرام', 'data' => null];

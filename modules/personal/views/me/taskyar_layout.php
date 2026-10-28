@@ -3,12 +3,21 @@
 // حالت تاریک/روشن با همان کلید localStorage ادمین خوانده می‌شود.
 $__theme = \Modules\Admin\AdminTheme::load(dirname(__DIR__, 4));
 $__dark = ($__theme['default_theme'] ?? 'dark') === 'dark';
+$__meStyle = (isset($me_style) && isset(\Modules\Personal\Personal::STYLES[$me_style])) ? $me_style : 'darkPrism';
 ?>
 <!DOCTYPE html>
-<html lang="fa" dir="rtl"<?= $__dark ? ' class="dark"' : '' ?>>
+<html lang="fa" dir="rtl" data-theme="<?= $__meStyle ?>"<?= $__dark ? ' class="dark"' : '' ?>>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="/me/manifest.webmanifest">
+<meta name="theme-color" content="#4f46e5">
+<link rel="apple-touch-icon" href="/assets/pwa/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="تسک‌یار">
+<link rel="stylesheet" href="/assets/taskyar/me-shell.css">
 <title><?= e($title) ?> | تسک‌یار</title>
 <script>try{var _t=localStorage.getItem('vasleh_theme');if(_t==='light'){document.documentElement.classList.remove('dark')}else if(_t==='dark'){document.documentElement.classList.add('dark')}}catch(e){}</script>
 <link rel="stylesheet" href="/assets/taskyar/fonts/vazirmatn.css">
@@ -31,7 +40,7 @@ $__dark = ($__theme['default_theme'] ?? 'dark') === 'dark';
     main .text-indigo-600, nav .text-indigo-600{color:var(--admin-accent)}
 </style>
 </head>
-<body class="min-h-screen flex flex-col" style="background:var(--admin-main-bg);color:var(--admin-text)">
+<body class="min-h-screen flex flex-col<?= empty($public) ? ' me-has-dock' : '' ?>" style="background:var(--admin-main-bg);color:var(--admin-text)">
 <header class="sticky top-0 z-40 backdrop-blur-md border-b" style="background:color-mix(in srgb, var(--admin-panel-bg) 80%, transparent);border-color:var(--admin-border)">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         <div class="flex items-center gap-3">
@@ -56,6 +65,13 @@ $__dark = ($__theme['default_theme'] ?? 'dark') === 'dark';
 </header>
 <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
     <?php if (empty($public)): ?>
+    <div class="me-greeting">
+        <h2>سلام<span class="me-greeting-accent">، <?= e($user['username'] ?? '') ?></span></h2>
+        <?php $__today = date('Y-m-d'); ?>
+        <p><?= \Modules\Personal\Personal::faWeekday($__today) ?> <?= \Modules\Personal\Personal::faDate($__today) ?> · <?= e($__today) ?></p>
+    </div>
+    <?php endif; ?>
+    <?php if (empty($public)): ?>
     <nav class="flex items-center gap-1 sm:gap-2 p-1 overflow-x-auto" style="background:color-mix(in srgb, var(--admin-panel-bg) 60%, transparent);border-radius:var(--admin-radius)">
         <a href="/me" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900 whitespace-nowrap">داشبورد و تسک‌ها</a>
         <a href="/me/dashboard" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap <?= $tab === 'dashboard' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900' ?>">داشبورد شخصی</a>
@@ -69,5 +85,31 @@ $__dark = ($__theme['default_theme'] ?? 'dark') === 'dark';
     <?php if (!empty($error)): ?><div class="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium rounded-xl px-4 py-3"><?= e($error) ?></div><?php endif; ?>
     <?= $content ?>
 </main>
+<?php if (empty($public)): ?>
+<nav class="me-dock" aria-label="ناوبری تسک‌یار">
+    <a href="/me" class="me-dock-item<?= ($tab ?? '') === 'dashboard' ? ' me-dock-active' : '' ?>">
+        <i class="fa-solid fa-gauge-high"></i><span>داشبورد</span>
+    </a>
+    <a href="/me/day" class="me-dock-item">
+        <i class="fa-regular fa-calendar-days"></i><span>تقویم</span>
+    </a>
+    <span class="me-dock-fab-wrap">
+        <a href="/me" class="me-dock-fab" title="افزودن سریع تسک"><i class="fa-solid fa-plus"></i></a>
+    </span>
+    <a href="/me/notes" class="me-dock-item<?= ($tab ?? '') === 'notes' ? ' me-dock-active' : '' ?>">
+        <i class="fa-regular fa-note-sticky"></i><span>یادداشت</span>
+    </a>
+    <a href="/me/settings" class="me-dock-item<?= ($tab ?? '') === 'settings' ? ' me-dock-active' : '' ?>">
+        <i class="fa-solid fa-gear"></i><span>تنظیمات</span>
+    </a>
+</nav>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('/me/sw.js', { scope: '/me/' }).catch(function () {});
+  });
+}
+</script>
+<?php endif; ?>
 </body>
 </html>

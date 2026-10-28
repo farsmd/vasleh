@@ -121,14 +121,17 @@ final class MeController
             'flash' => $request->input('msg'),
             'error' => $request->input('err'),
         ]);
+        $meUser = $session->user();
         return Response::html(View::render('personal', 'me', 'taskyar_layout', [
             'title' => $title,
             'content' => $inner,
-            'user' => $session->user(),
+            'user' => $meUser,
             'tab' => $tab,
             'flash' => $request->input('msg'),
             'error' => $request->input('err'),
             'public' => false,
+            'me_style' => $meUser === null ? 'darkPrism'
+                : ($this->store()->settings((int) $meUser['id'])['style'] ?? 'darkPrism'),
         ]));
     }
 
@@ -215,8 +218,37 @@ final class MeController
         $new['pomo_focus'] = max(1, min(180, (int) $request->input('pomo_focus', $current['pomo_focus'])));
         $new['pomo_break'] = max(1, min(60, (int) $request->input('pomo_break', $current['pomo_break'])));
         $new['dark_default'] = (bool) $request->input('dark_default');
+        $style = (string) $request->input('style', $current['style'] ?? 'darkPrism');
+        $new['style'] = isset(Personal::STYLES[$style]) ? $style : ($current['style'] ?? 'darkPrism');
         $this->store()->settingsSave($uid, $new);
         return $this->back('/me/settings', 'تنظیمات ذخیره شد.');
+    }
+
+    // ---------- فایل‌های PWA تسک‌یار (بدون نیاز به ورود؛ داده کاربر ندارند) ----------
+
+    public function pwaManifest(Request $request): Response
+    {
+        $file = dirname(__DIR__, 3) . '/assets/pwa/manifest.webmanifest';
+        if (!is_file($file)) {
+            return Response::notFound('منیفست پیدا نشد');
+        }
+        return new Response((string) file_get_contents($file), 200, [
+            'Content-Type' => 'application/manifest+json; charset=utf-8',
+            'Cache-Control' => 'public, max-age=3600',
+        ]);
+    }
+
+    public function pwaServiceWorker(Request $request): Response
+    {
+        $file = dirname(__DIR__, 3) . '/assets/pwa/sw.js';
+        if (!is_file($file)) {
+            return Response::notFound('سرویس‌ورکر پیدا نشد');
+        }
+        return new Response((string) file_get_contents($file), 200, [
+            'Content-Type' => 'application/javascript; charset=utf-8',
+            'Cache-Control' => 'no-cache',
+            'Service-Worker-Allowed' => '/me/',
+        ]);
     }
 
     // ریدایرکت مسیرهای قدیمی به نمای تازه
