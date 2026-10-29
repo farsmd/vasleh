@@ -4,8 +4,8 @@
         <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
         <input type="hidden" name="type" value="<?= e($type) ?>">
         <input type="hidden" name="item_id" value="<?= (int) $item_id ?>">
-        <input type="text" name="username" required placeholder="نام کاربری در وصله (فقط خواندنی)" class="flex-1 bg-slate-50 border border-slate-200 text-sm rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-        <button class="px-5 py-2.5 text-xs font-bold rounded-xl bg-indigo-600 text-white hover:bg-indigo-700">اشتراک با کاربر</button>
+        <input type="text" name="username" required placeholder="نام کاربری در وصله (فقط خواندنی)" class="flex-1 bg-slate-50 border border-slate-200 text-sm rounded-xl px-3.5 py-2.5 focus:outline-none">
+        <button class="me-note-btn">اشتراک با کاربر</button>
     </form>
     <?php if (!empty($shares)): ?>
         <div class="space-y-2 mb-4">

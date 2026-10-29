@@ -15,6 +15,7 @@
   --me-border: rgba(255, 255, 255, 0.11);
   --me-radius: 24px;
   --me-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --me-heading-weight: 800;
 }
 
 [data-theme="zenCanvas"] {
@@ -30,6 +31,7 @@
   --me-border: #E6E2DA;
   --me-radius: 20px;
   --me-shadow: 0 4px 20px rgba(28, 27, 24, 0.08);
+  --me-heading-weight: 600;
 }
 
 [data-theme="swissPop"] {
@@ -45,6 +47,7 @@
   --me-border: #111111;
   --me-radius: 16px;
   --me-shadow: 4px 4px 0px #111111;
+  --me-heading-weight: 900;
 }
 
 [data-theme="monoGrid"] {
@@ -60,6 +63,7 @@
   --me-border: #282C34;
   --me-radius: 6px;
   --me-shadow: none;
+  --me-heading-weight: 700;
 }
 
 body[data-theme] {
@@ -67,14 +71,23 @@ body[data-theme] {
   color: var(--me-text);
 }
 
-/* سربرگ سلام (عین ماکاپ: سلام + تاریخ روز) */
+/* ستون وسط‌چین صفحه اصلی (عین قاب گوشی ماکاپ) + سربرگ سلام */
+.me-page {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 20px 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
 .me-greeting { margin-bottom: 4px; }
-.me-greeting h2 { font-weight: 800; font-size: 1.25rem; line-height: 1.6; }
+.me-greeting h2 { font-weight: var(--me-heading-weight); font-size: 1.2rem; line-height: 1.6; }
 .me-greeting p { font-size: 0.8rem; color: var(--me-muted); }
 .me-greeting .me-greeting-accent { color: var(--me-accent); }
 
-/* داک پایین شناور (عین ماکاپ) — جای محتوا را با فاصله پایین main می‌گیرد */
-body.me-has-dock main { padding-bottom: 104px; }
+/* داک پایین شناور (عین ماکاپ) — جای محتوا را با فاصله ۱۰۰px پایین main می‌گیرد */
+body.me-has-dock main { padding-bottom: 100px; }
 .me-dock {
   position: fixed;
   right: 12px;
@@ -183,13 +196,11 @@ body.me-has-dock main { padding-bottom: 104px; }
   padding: 12px 0;
 }
 
+/* بنتو همیشه دو ستونه می‌ماند (حتی روی موبایل) — عین ماکاپ */
 .me-bento-grid {
   display: grid;
   grid-template-columns: 1.15fr 0.85fr;
   gap: 12px;
-}
-@media (max-width: 640px) {
-  .me-bento-grid { grid-template-columns: 1fr; }
 }
 
 .me-pomo-card, .me-progress-card {
@@ -333,13 +344,11 @@ body.me-has-dock main { padding-bottom: 104px; }
   gap: 8px;
 }
 
+/* دوتایی پروژه/یادداشت هم همیشه دو ستونه می‌ماند — عین ماکاپ */
 .me-dual {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
-}
-@media (max-width: 640px) {
-  .me-dual { grid-template-columns: 1fr; }
 }
 .me-project-item { margin-top: 14px; }
 .me-project-item:first-of-type { margin-top: 0; }
@@ -413,27 +422,6 @@ html[data-theme] #bentoTodoList .dark\:text-slate-200,
 html[data-theme] #bentoEventsList .dark\:text-slate-200 { color: var(--me-text); }
 html[data-theme] #bentoTodoList .text-slate-400,
 html[data-theme] #bentoEventsList .text-slate-400 { color: var(--me-muted); }
-
-/* نماهای دیگر صفحه اصلی (ساعتی/روزانه/هفتگی/ماهانه): همان متغیرهای تم */
-html[data-theme] .me-view .bg-white,
-html[data-theme] .me-view .dark\:bg-slate-900 { background: var(--me-panel-solid); }
-html[data-theme] .me-view .bg-slate-50,
-html[data-theme] .me-view .dark\:bg-slate-800\/40 { background: var(--me-panel); }
-html[data-theme] .me-view .bg-indigo-50\/60 { background: color-mix(in srgb, var(--me-accent) 14%, transparent); }
-html[data-theme] .me-view .border-slate-200\/80,
-html[data-theme] .me-view .border-slate-200\/60,
-html[data-theme] .me-view .dark\:border-slate-800,
-html[data-theme] .me-view .dark\:border-slate-700\/60 { border-color: var(--me-border); }
-html[data-theme] .me-view .border-indigo-200 { border-color: color-mix(in srgb, var(--me-accent) 40%, transparent); }
-html[data-theme] .me-view .text-slate-800,
-html[data-theme] .me-view .dark\:text-white,
-html[data-theme] .me-view .dark\:text-slate-200 { color: var(--me-text); }
-html[data-theme] .me-view .text-slate-500,
-html[data-theme] .me-view .text-slate-400,
-html[data-theme] .me-view .dark\:text-slate-400,
-html[data-theme] .me-view .dark\:text-slate-300 { color: var(--me-muted); }
-html[data-theme] .me-view .text-indigo-600,
-html[data-theme] .me-view .dark\:text-indigo-400 { color: var(--me-accent); }
 
 /* ================= صفحه تنظیمات (عین ماکاپ) ================= */
 
@@ -621,7 +609,7 @@ html[data-theme] {
 .me-badge-prio-low { background: rgba(16, 185, 129, 0.15); color: #059669; }
 .me-badge-streak { background: rgba(249, 115, 22, 0.15); color: #ea580c; }
 .me-badge-recur { background: var(--accent-secondary-soft); }
-.me-badge-future { background: rgba(99, 102, 241, 0.15); color: #6366f1; }
+.me-badge-future { background: var(--accent-primary-soft); color: var(--accent-primary); }
 .me-future-head { font-size: 0.8rem; font-weight: 800; color: var(--text-primary); margin: 14px 0 8px; display: flex; align-items: center; gap: 6px; }
 .me-task-wrap { display: flex; flex-direction: column; gap: 0; }
 .me-sub-list { padding: 8px 12px 10px 36px; display: flex; flex-direction: column; gap: 6px; }
@@ -804,3 +792,65 @@ html[data-theme] {
 [data-theme="swissPop"] .me-chip, [data-theme="swissPop"] .me-mini-btn, [data-theme="swissPop"] .me-nav-btn,
 [data-theme="swissPop"] .me-search-row, [data-theme="swissPop"] .me-board-card, [data-theme="swissPop"] .me-note-item,
 [data-theme="swissPop"] .me-cal-cell, [data-theme="swissPop"] .me-block-plain, [data-theme="swissPop"] .me-cmd-box { box-shadow: 3px 3px 0 #111; }
+
+/* ================= صفحه اصلی بازسازی‌شده (ساختار ماکاپ) ================= */
+
+/* خط‌های فشرده بالای کارت کارها: هشدار بار روز + انتقال ناتمام‌ها */
+.me-tasks-actions { display: inline-flex; align-items: center; gap: 10px; }
+.me-tasks-line { margin: 0 0 10px; }
+.me-tasks-line:last-child { margin-bottom: 0; }
+.me-line-warn { font-size: 0.75rem; font-weight: 700; color: #e11d48; line-height: 1.8; }
+
+/* ردیف تسک ساختهٔ JS (فقط توکن‌های تم، بدون کلاس رنگی تیلویند) */
+.me-task-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px; border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius-inner); background: var(--bg-surface-elevated);
+}
+.me-task-check {
+  width: 22px; height: 22px; flex-shrink: 0; margin-top: 1px;
+  border-radius: 7px; border: var(--border-width) solid var(--border-color);
+  background: transparent; color: #fff; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; font-size: 0.65rem;
+}
+.me-task-check.done { background: var(--accent-secondary); border-color: var(--accent-secondary); color: #111; }
+.me-task-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.me-task-title { font-size: 0.82rem; font-weight: 700; color: var(--text-primary); }
+.me-task-title.done { text-decoration: line-through; opacity: 0.6; }
+.me-task-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 0.68rem; color: var(--text-secondary); }
+.me-task-actions { display: flex; gap: 2px; flex-shrink: 0; }
+
+/* گزیدهٔ یادداشت سریع (تازه‌ترین یادداشت واقعی) */
+.me-note-snippet { display: flex; flex-direction: column; gap: 8px; }
+.me-note-snippet-title { font-size: 0.85rem; font-weight: 800; color: var(--text-primary); text-decoration: none; }
+.me-note-excerpt { font-size: 0.75rem; color: var(--text-secondary); line-height: 1.9; }
+.me-note-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* مودال‌های صفحه اصلی */
+.me-modal-overlay {
+  position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center;
+  padding: 16px; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px);
+}
+.me-modal-overlay.hidden { display: none; }
+.me-modal-box { width: 100%; max-width: 520px; max-height: 92vh; overflow-y: auto; position: relative; }
+.me-modal-box-sm { max-width: 380px; text-align: center; }
+.me-modal-close { position: absolute; left: 12px; top: 12px; }
+.me-modal-form { display: flex; flex-direction: column; gap: 4px; }
+.me-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 480px) { .me-form-grid { grid-template-columns: 1fr; } }
+.me-select {
+  width: 100%; background: var(--me-panel); border: 1px solid var(--me-border);
+  border-radius: 12px; padding: 10px 12px; font-size: 0.8rem; color: var(--me-text); font-family: inherit;
+}
+.me-select:focus { outline: 2px solid var(--me-accent); }
+.me-modal-actions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 12px; }
+.me-pomo-modes { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-top: 12px; }
+.me-mode-active { background: var(--me-accent) !important; color: #fff !important; border-color: var(--me-accent) !important; }
+.me-pomo-big { margin: 20px 0 8px; }
+.me-pomo-big-time { font-size: 2.6rem; font-weight: 900; letter-spacing: 0.05em; }
+.me-pomo-status { font-size: 0.75rem; color: var(--me-muted); margin-bottom: 16px; }
+
+/* سربرگ مینیمال صفحه‌های فرعی: فقط عنوان + بازگشت */
+.me-sub-header { display: flex; align-items: center; gap: 12px; padding: 16px 0 4px; }
+.me-sub-back { font-size: 0.8rem; font-weight: 700; color: var(--me-accent); text-decoration: none; white-space: nowrap; }
+.me-sub-title { font-size: 1.2rem; font-weight: var(--me-heading-weight); color: var(--me-text); }

@@ -6,7 +6,7 @@
     <?php else: ?>
         <div class="space-y-2">
         <?php foreach ($shared as $s): ?>
-            <p class="text-sm"><a href="/me/shared/<?= e($s['item_type']) ?>/<?= (int) $s['item_id'] ?>" class="text-indigo-600 hover:underline font-medium"><?= e($s['title']) ?></a>
+            <p class="text-sm"><a href="/me/shared/<?= e($s['item_type']) ?>/<?= (int) $s['item_id'] ?>" class="me-section-action"><?= e($s['title']) ?></a>
             <span class="text-xs text-slate-400"> · از <?= e($s['owner_name']) ?> · <?= $s['item_type'] === 'project' ? 'پروژه' : 'یادداشت' ?></span></p>
         <?php endforeach; ?>
         </div>

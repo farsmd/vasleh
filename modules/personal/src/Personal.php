@@ -897,7 +897,13 @@ final class Personal
             'SELECT * FROM pl_notes WHERE user_id = :u ORDER BY updated_at DESC, id DESC'
         );
         $stmt->execute(['u' => $userId]);
-        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        // برچسب‌ها برای کارت «یادداشت سریع» صفحه اصلی (صفحه یادداشت‌ها هم همین فیلد را می‌خواند).
+        foreach ($rows as &$n) {
+            $n['tags'] = $this->noteTagNames((int) $n['id']);
+        }
+        unset($n);
+        return $rows;
     }
 
     public function note(int $userId, int $id): ?array

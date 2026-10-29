@@ -22,7 +22,7 @@
 
     <?php $weekPct = count($weekTasks) > 0 ? (int) round(100 * $weekDone / count($weekTasks)) : 0; ?>
     <p class="text-xs font-semibold text-slate-600 mb-1">پیشرفت هفته: <?= $weekPct ?>٪</p>
-    <div class="h-3 bg-slate-100 rounded-full overflow-hidden mb-6"><div class="h-full bg-indigo-600 rounded-full" style="width:<?= $weekPct ?>%"></div></div>
+    <div class="h-3 bg-slate-100 rounded-full overflow-hidden mb-6"><div class="h-full rounded-full" style="width:<?= $weekPct ?>%;background:var(--me-accent)"></div></div>
 
     <h3 class="font-bold text-sm text-slate-800 mb-2">رویدادهای امروز</h3>
     <?php if (empty($todayEvents)): ?>
@@ -54,7 +54,7 @@
         <?php foreach ($projects as $pr): ?>
             <?php $pct = $pr['needs_total'] > 0 ? (int) round(100 * $pr['needs_done'] / $pr['needs_total']) : 0; ?>
             <div class="border border-slate-100 rounded-xl p-3">
-                <p class="text-sm font-semibold"><a href="/me/projects/<?= (int) $pr['id'] ?>" class="text-indigo-600 hover:underline"><?= e($pr['title']) ?></a> <span class="text-xs text-slate-400 font-normal"><?= (int) $pr['needs_done'] ?> از <?= (int) $pr['needs_total'] ?> نیاز · <?= $pct ?>٪</span></p>
+                <p class="text-sm font-semibold"><a href="/me/projects/<?= (int) $pr['id'] ?>" class="me-section-action"><?= e($pr['title']) ?></a> <span class="text-xs text-slate-400 font-normal"><?= (int) $pr['needs_done'] ?> از <?= (int) $pr['needs_total'] ?> نیاز · <?= $pct ?>٪</span></p>
                 <?php if (!empty($pr['needs'])): ?>
                 <ul class="text-xs text-slate-500 mt-1 space-y-0.5">
                     <?php foreach ($pr['needs'] as $n): ?>
@@ -66,5 +66,5 @@
         <?php endforeach; ?>
         </div>
     <?php endif; ?>
-    <p class="mt-4"><a href="/me" class="text-xs font-bold text-indigo-600 hover:underline">رفتن به تسک‌ها ←</a></p>
+    <p class="mt-4"><a href="/me" class="me-section-action">رفتن به تسک‌ها ←</a></p>
 </div>
