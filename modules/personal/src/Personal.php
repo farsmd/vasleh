@@ -501,6 +501,46 @@ final class Personal
         ]);
         $this->migrateExtended();
         $this->migrateRitual();
+        $this->migrateProjects();
+    }
+
+    /** پروژه: تاریخ پایان، وضعیت، و جدول مایل‌استون‌ها. */
+    public function migrateProjects(): void
+    {
+        $this->ensureColumns('pl_projects', [
+            'end_date' => "TEXT NOT NULL DEFAULT ''",
+            'status' => "TEXT NOT NULL DEFAULT 'active'",
+        ]);
+        $this->pdo()->exec(
+            'CREATE TABLE IF NOT EXISTS pl_project_milestones (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                date TEXT NOT NULL DEFAULT \'\',
+                done INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL
+            )'
+        );
+    }
+
+    /** وضعیت‌های معتبر پروژه. */
+    public static function projectStatuses(): array
+    {
+        return [
+            'active' => 'فعال',
+            'paused' => 'متوقف',
+            'done' => 'تکمیل‌شده',
+            'archived' => 'بایگانی‌شده',
+        ];
+    }
+
+    /** روزهای مانده تا پایان پروژه: مثبت=مانده، صفر=امروز، منفی=عقب‌افتاده. null یعنی بدون ددلاین. */
+    public static function projectDaysLeft(string $endDate, string $today): ?int
+    {
+        if (!self::validDate($endDate) || !self::validDate($today)) {
+            return null;
+        }
+        return (int) round((strtotime($endDate) - strtotime($today)) / 86400);
     }
 
     /** آیین روزانه: جدول ثبت انجام + ستون تاریخ تکمیل تسک‌ها. */
@@ -1164,27 +1204,57 @@ final class Personal
         return $row === false ? null : $row;
     }
 
-    public function projectCreate(int $userId, string $title, string $description, string $startDate, int $hours): int
+    public function projectCreate(int $userId, string $title, string $description, string $startDate, int $hours, string $endDate = '', string $status = 'active'): int
     {
         $now = date('Y-m-d H:i:s');
+        if (!self::validDate($endDate)) {
+            $endDate = '';
+        }
+        if (!isset(self::projectStatuses()[$status])) {
+            $status = 'active';
+        }
         $stmt = $this->pdo()->prepare(
-            'INSERT INTO pl_projects (user_id, title, description, start_date, hours_needed, created_at, updated_at)
-             VALUES (:u, :t, :d, :s, :h, :now, :now)'
+            'INSERT INTO pl_projects (user_id, title, description, start_date, end_date, status, hours_needed, created_at, updated_at)
+             VALUES (:u, :t, :d, :s, :e, :st, :h, :now, :now)'
         );
-        $stmt->execute(['u' => $userId, 't' => $title, 'd' => $description, 's' => $startDate, 'h' => $hours, 'now' => $now]);
+        $stmt->execute(['u' => $userId, 't' => $title, 'd' => $description, 's' => $startDate, 'e' => $endDate, 'st' => $status, 'h' => $hours, 'now' => $now]);
         return (int) $this->pdo()->lastInsertId();
     }
 
-    public function projectSave(int $userId, int $id, string $title, string $description, string $startDate, int $hours): bool
+    public function projectSave(int $userId, int $id, string $title, string $description, string $startDate, int $hours, string $endDate = '', string $status = 'active'): bool
     {
+        if (!self::validDate($endDate)) {
+            $endDate = '';
+        }
+        if (!isset(self::projectStatuses()[$status])) {
+            $status = 'active';
+        }
         $stmt = $this->pdo()->prepare(
-            'UPDATE pl_projects SET title = :t, description = :d, start_date = :s, hours_needed = :h, updated_at = :now
-             WHERE id = :id AND user_id = :u'
+            'UPDATE pl_projects SET title = :t, description = :d, start_date = :s, end_date = :e, status = :st,
+             hours_needed = :h, updated_at = :now WHERE id = :id AND user_id = :u'
         );
         $stmt->execute([
-            't' => $title, 'd' => $description, 's' => $startDate, 'h' => $hours,
+            't' => $title, 'd' => $description, 's' => $startDate, 'e' => $endDate, 'st' => $status, 'h' => $hours,
             'now' => date('Y-m-d H:i:s'), 'id' => $id, 'u' => $userId,
         ]);
+        return $stmt->rowCount() > 0;
+    }
+
+    /** تمدید ددلاین پروژه به تعداد روز (از ددلاین فعلی یا امروز، هر کدام دیرتر). */
+    public function projectExtend(int $userId, int $id, int $days): bool
+    {
+        $p = $this->project($userId, $id);
+        if ($p === null || $days < 1) {
+            return false;
+        }
+        $today = date('Y-m-d');
+        $base = self::validDate((string) ($p['end_date'] ?? '')) && (string) $p['end_date'] >= $today
+            ? (string) $p['end_date'] : $today;
+        $new = date('Y-m-d', strtotime($base . " +{$days} days"));
+        $stmt = $this->pdo()->prepare(
+            "UPDATE pl_projects SET end_date = :e, updated_at = :now WHERE id = :id AND user_id = :u"
+        );
+        $stmt->execute(['e' => $new, 'now' => date('Y-m-d H:i:s'), 'id' => $id, 'u' => $userId]);
         return $stmt->rowCount() > 0;
     }
 
@@ -1238,6 +1308,105 @@ final class Personal
             'DELETE FROM pl_needs WHERE id = :id AND project_id IN
              (SELECT id FROM pl_projects WHERE user_id = :u)'
         )->execute(['id' => $needId, 'u' => $userId]);
+    }
+
+    // ---------- مایل‌استون‌های پروژه ----------
+
+    public function projectMilestones(int $userId, int $projectId): array
+    {
+        if ($this->project($userId, $projectId) === null) {
+            return [];
+        }
+        $stmt = $this->pdo()->prepare(
+            'SELECT * FROM pl_project_milestones WHERE project_id = :p ORDER BY (date = \'\') ASC, date ASC, id ASC'
+        );
+        $stmt->execute(['p' => $projectId]);
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    public function projectMilestoneAdd(int $userId, int $projectId, string $title, string $date): bool
+    {
+        if ($this->project($userId, $projectId) === null || trim($title) === '') {
+            return false;
+        }
+        if (!self::validDate($date)) {
+            $date = '';
+        }
+        $this->pdo()->prepare(
+            'INSERT INTO pl_project_milestones (project_id, title, date, done, created_at)
+             VALUES (:p, :t, :d, 0, :now)'
+        )->execute(['p' => $projectId, 't' => trim($title), 'd' => $date, 'now' => date('Y-m-d H:i:s')]);
+        return true;
+    }
+
+    public function projectMilestoneToggle(int $userId, int $milestoneId): bool
+    {
+        $stmt = $this->pdo()->prepare(
+            'UPDATE pl_project_milestones SET done = 1 - done WHERE id = :id AND project_id IN
+             (SELECT id FROM pl_projects WHERE user_id = :u)'
+        );
+        $stmt->execute(['id' => $milestoneId, 'u' => $userId]);
+        return $stmt->rowCount() > 0;
+    }
+
+    public function projectMilestoneDelete(int $userId, int $milestoneId): void
+    {
+        $this->pdo()->prepare(
+            'DELETE FROM pl_project_milestones WHERE id = :id AND project_id IN
+             (SELECT id FROM pl_projects WHERE user_id = :u)'
+        )->execute(['id' => $milestoneId, 'u' => $userId]);
+    }
+
+    /** درصد پیشرفت ترکیبی پروژه از نیازها + کارها. */
+    public function projectProgress(int $userId, int $projectId): array
+    {
+        $needs = $this->needs($projectId);
+        $needDone = count(array_filter($needs, static fn ($n) => (int) ($n['done'] ?? 0) === 1));
+        $stmt = $this->pdo()->prepare(
+            'SELECT COUNT(*) AS total, COALESCE(SUM(done), 0) AS done FROM pl_todos WHERE user_id = :u AND project_id = :p'
+        );
+        $stmt->execute(['u' => $userId, 'p' => $projectId]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC) ?: ['total' => 0, 'done' => 0];
+        $total = count($needs) + (int) $row['total'];
+        $done = $needDone + (int) $row['done'];
+        return [
+            'total' => $total,
+            'done' => $done,
+            'pct' => $total > 0 ? (int) round($done * 100 / $total) : 0,
+            'needs_total' => count($needs),
+            'needs_done' => $needDone,
+            'tasks_total' => (int) $row['total'],
+            'tasks_done' => (int) $row['done'],
+        ];
+    }
+
+    /** ساعت واقعی پروژه: مجموع پومودوروهای کارهای لینک‌شده (به ساعت، یک رقم اعشار). */
+    public function projectActualHours(int $userId, int $projectId): float
+    {
+        $stmt = $this->pdo()->prepare(
+            'SELECT COALESCE(SUM(l.minutes), 0) FROM pl_pomo_logs l
+             INNER JOIN pl_todos t ON t.id = l.task_id
+             WHERE l.user_id = :u AND t.user_id = :u AND t.project_id = :p'
+        );
+        $stmt->execute(['u' => $userId, 'p' => $projectId]);
+        return round((int) $stmt->fetchColumn() / 60, 1);
+    }
+
+    /** پروژه‌های فعال با ددلاین نزدیک (تا N روز آینده) یا عقب‌افتاده. */
+    public function projectDeadlines(int $userId, string $today, int $days = 7): array
+    {
+        $until = date('Y-m-d', strtotime($today . " +{$days} days"));
+        $stmt = $this->pdo()->prepare(
+            "SELECT * FROM pl_projects WHERE user_id = :u AND status = 'active'
+             AND end_date <> '' AND end_date <= :until ORDER BY end_date ASC"
+        );
+        $stmt->execute(['u' => $userId, 'until' => $until]);
+        $out = [];
+        foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $p) {
+            $p['days_left'] = self::projectDaysLeft((string) ($p['end_date'] ?? ''), $today);
+            $out[] = $p;
+        }
+        return $out;
     }
 
     // ---------- توسعه‌یافته: زیرکار، برچسب، جست‌وجو، عادت، هدف، ژورنال ----------
@@ -1387,7 +1556,14 @@ final class Personal
              ORDER BY done ASC, (due_date = \'\') ASC, due_date ASC, id DESC'
         );
         $stmt->execute(['u' => $userId, 'p' => $projectId]);
-        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $out = [];
+        foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $t) {
+            $tid = (int) $t['id'];
+            $t['subtasks'] = $this->subtaskRows($tid);
+            $t['tags'] = $this->todoTagNames($tid);
+            $out[] = $t;
+        }
+        return $out;
     }
 
     /**
@@ -2016,12 +2192,13 @@ final class Personal
         }
         $now = date('Y-m-d H:i:s');
         $stmt = $this->pdo()->prepare(
-            'INSERT INTO pl_projects (user_id, title, description, start_date, hours_needed, created_at, updated_at)
-             VALUES (:u, :t, :d, :s, :h, :now, :now)'
+            'INSERT INTO pl_projects (user_id, title, description, start_date, end_date, status, hours_needed, created_at, updated_at)
+             VALUES (:u, :t, :d, :s, :e, :st, :h, :now, :now)'
         );
         $stmt->execute([
             'u' => $userId, 't' => 'کپی ' . (string) $src['title'], 'd' => (string) $src['description'],
-            's' => (string) $src['start_date'], 'h' => (int) $src['hours_needed'], 'now' => $now,
+            's' => (string) $src['start_date'], 'e' => (string) ($src['end_date'] ?? ''),
+            'st' => (string) ($src['status'] ?? 'active'), 'h' => (int) $src['hours_needed'], 'now' => $now,
         ]);
         $newId = (int) $this->pdo()->lastInsertId();
         foreach ($this->needs($id) as $n) {

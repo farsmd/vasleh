@@ -224,6 +224,7 @@ final class MeController
         return Response::html(View::render('personal', 'me', 'taskyar', [
             'tasks' => $mainTasks,
             'reminders' => $this->store()->dueReminders($uid, date('Y-m-d'), date('H:i')),
+            'projectDeadlines' => $this->store()->projectDeadlines($uid, date('Y-m-d'), 7),
             'savedFilters' => $this->sanitizeSavedFilters($settings['saved_filters'] ?? []),
             'workload' => $this->storeHas('workloadForDay')
                 ? (int) $this->store()->workloadForDay($uid, $date) : 0,
@@ -776,8 +777,27 @@ final class MeController
         if (($r = $this->requireUser()) !== null) {
             return $r;
         }
+        $uid = (int) $this->user()['id'];
+        $statusFilter = (string) $request->input('status', 'active');
+        $all = $this->store()->projects($uid);
+        $today = date('Y-m-d');
+        $rows = [];
+        foreach ($all as $p) {
+            $st = (string) ($p['status'] ?? 'active');
+            $p['days_left'] = Personal::projectDaysLeft((string) ($p['end_date'] ?? ''), $today);
+            $p['progress'] = $this->store()->projectProgress($uid, (int) $p['id']);
+            $rows[] = $p;
+        }
+        // بایگانی همیشه جدا؛ بقیه با فیلتر وضعیت.
+        $archived = array_values(array_filter($rows, static fn ($p) => (string) ($p['status'] ?? '') === 'archived'));
+        $visible = $statusFilter === 'all'
+            ? array_values(array_filter($rows, static fn ($p) => (string) ($p['status'] ?? '') !== 'archived'))
+            : array_values(array_filter($rows, static fn ($p) => (string) ($p['status'] ?? '') === $statusFilter));
         return $this->page2($request, 'projects', [
-            'projects' => $this->store()->projects((int) $this->user()['id']),
+            'projects' => $visible,
+            'archived' => $archived,
+            'statusFilter' => $statusFilter,
+            'statuses' => Personal::projectStatuses(),
         ], 'پروژه‌ها', 'projects');
     }
 
@@ -798,9 +818,11 @@ final class MeController
         if ($start !== '' && !Personal::validDate($start)) {
             return $this->back('/me/projects', '', 'تاریخ شروع معتبر نیست.');
         }
+        $end = trim((string) $request->input('end_date', ''));
+        $status = (string) $request->input('status', 'active');
         $id = $this->store()->projectCreate(
             (int) $this->user()['id'], $title,
-            trim((string) $request->input('description', '')), $start, $hours
+            trim((string) $request->input('description', '')), $start, $hours, $end, $status
         );
         return $this->back('/me/projects/' . $id, 'پروژه ساخته شد.');
     }
@@ -814,13 +836,21 @@ final class MeController
         if ($project === null) {
             return Response::notFound('پروژه پیدا نشد');
         }
+        $uid = (int) $this->user()['id'];
+        $pid = (int) $project['id'];
+        $today = date('Y-m-d');
         return $this->page2($request, 'project', [
             'project' => $project,
-            'needs' => $this->store()->needs((int) $project['id']),
-            'linkedNotes' => $this->linkedNotesForProject((int) $this->user()['id'], (int) $project['id']),
+            'needs' => $this->store()->needs($pid),
+            'linkedNotes' => $this->linkedNotesForProject($uid, $pid),
             'projectTasks' => $this->storeHas('tasksForProject')
-                ? $this->store()->tasksForProject((int) $this->user()['id'], (int) $project['id']) : [],
-            'shareBox' => $this->shareBox('project', (int) $project['id']),
+                ? $this->store()->tasksForProject($uid, $pid) : [],
+            'milestones' => $this->store()->projectMilestones($uid, $pid),
+            'progress' => $this->store()->projectProgress($uid, $pid),
+            'actualHours' => $this->store()->projectActualHours($uid, $pid),
+            'daysLeft' => Personal::projectDaysLeft((string) ($project['end_date'] ?? ''), $today),
+            'statuses' => Personal::projectStatuses(),
+            'shareBox' => $this->shareBox('project', $pid),
         ], 'پروژه', 'projects');
     }
 
@@ -841,7 +871,9 @@ final class MeController
         if (!$this->store()->projectSave(
             (int) $this->user()['id'], $id, $title,
             trim((string) $request->input('description', '')), $start,
-            max(0, (int) $request->input('hours_needed', 0))
+            max(0, (int) $request->input('hours_needed', 0)),
+            trim((string) $request->input('end_date', '')),
+            (string) $request->input('status', 'active')
         )) {
             return Response::notFound('پروژه پیدا نشد');
         }
@@ -1906,6 +1938,94 @@ final class MeController
             return Response::redirect('/me/projects/' . $newId);
         }
         return $this->back('/me/projects', '', 'کپی پروژه ممکن نشد.');
+    }
+
+    // ---------- مایل‌استون‌های پروژه ----------
+
+    public function projectMilestoneAdd(Request $request, array $params): Response
+    {
+        if (($r = $this->requireUser()) !== null) {
+            return $r;
+        }
+        if (!$this->csrfOk($request)) {
+            return Response::forbidden('توکن امنیتی نامعتبر است');
+        }
+        $pid = (int) ($params['id'] ?? 0);
+        $ok = $this->store()->projectMilestoneAdd(
+            (int) $this->user()['id'], $pid,
+            trim((string) $request->input('title', '')),
+            trim((string) $request->input('date', ''))
+        );
+        return $this->back('/me/projects/' . $pid, '', $ok ? '' : 'افزودن مایل‌استون ممکن نشد.');
+    }
+
+    public function projectMilestoneToggle(Request $request, array $params): Response
+    {
+        if (($r = $this->requireUser()) !== null) {
+            return $r;
+        }
+        if (!$this->csrfOk($request)) {
+            return Response::forbidden('توکن امنیتی نامعتبر است');
+        }
+        $pid = (int) $request->input('project_id', 0);
+        $this->store()->projectMilestoneToggle((int) $this->user()['id'], (int) ($params['id'] ?? 0));
+        return $this->back('/me/projects/' . $pid);
+    }
+
+    public function projectMilestoneDelete(Request $request, array $params): Response
+    {
+        if (($r = $this->requireUser()) !== null) {
+            return $r;
+        }
+        if (!$this->csrfOk($request)) {
+            return Response::forbidden('توکن امنیتی نامعتبر است');
+        }
+        $pid = (int) $request->input('project_id', 0);
+        $this->store()->projectMilestoneDelete((int) $this->user()['id'], (int) ($params['id'] ?? 0));
+        return $this->back('/me/projects/' . $pid, 'مایل‌استون حذف شد.');
+    }
+
+    /** تمدید ۷ روزه ددلاین از داشبورد. */
+    public function projectExtend(Request $request, array $params): Response
+    {
+        if (($r = $this->requireUser()) !== null) {
+            return $r;
+        }
+        if (!$this->csrfOk($request)) {
+            return Response::forbidden('توکن امنیتی نامعتبر است');
+        }
+        $ok = $this->store()->projectExtend((int) $this->user()['id'], (int) ($params['id'] ?? 0), 7);
+        $back = (string) $request->input('back', '/me');
+        if (!str_starts_with($back, '/me')) {
+            $back = '/me';
+        }
+        return $this->back($back, '', $ok ? '' : 'تمدید ممکن نشد.');
+    }
+
+    /** گزارش یک‌صفحه‌ای وضعیت پروژه (چاپی). */
+    public function projectReport(Request $request, array $params): Response
+    {
+        if (($r = $this->requireUser()) !== null) {
+            return $r;
+        }
+        $uid = (int) $this->user()['id'];
+        $project = $this->store()->project($uid, (int) ($params['id'] ?? 0));
+        if ($project === null) {
+            return Response::notFound('پروژه پیدا نشد');
+        }
+        $pid = (int) $project['id'];
+        $today = date('Y-m-d');
+        return $this->page2($request, 'report', [
+            'project' => $project,
+            'needs' => $this->store()->needs($pid),
+            'milestones' => $this->store()->projectMilestones($uid, $pid),
+            'projectTasks' => $this->storeHas('tasksForProject') ? $this->store()->tasksForProject($uid, $pid) : [],
+            'progress' => $this->store()->projectProgress($uid, $pid),
+            'actualHours' => $this->store()->projectActualHours($uid, $pid),
+            'daysLeft' => Personal::projectDaysLeft((string) ($project['end_date'] ?? ''), $today),
+            'statuses' => Personal::projectStatuses(),
+            'todayFa' => Personal::faDate($today),
+        ], 'گزارش پروژه', 'projects');
     }
 
     // ---------- لینک عمومی (بدون ورود) ----------

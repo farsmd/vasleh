@@ -148,7 +148,9 @@
   --accent-secondary-soft: rgba(0, 229, 255, 0.12);
 }
 
-body[data-theme] {
+/* توجه: data-theme روی <html> است نه <body>؛ سلکتور قبلی body[data-theme] هیچ‌وقت مچ نمی‌شد
+   و بک‌گراند/رنگ متن تم اعمال نمی‌شد (باگ گزارش‌شده ۲۰۲۶-۱۰-۲۹: تم تیره سفید دیده می‌شد). */
+html[data-theme] body {
   background: var(--me-bg);
   background-image: var(--me-glow, none);
   color: var(--me-text);
@@ -274,6 +276,12 @@ body.me-has-dock main { padding-bottom: 100px; }
   font-family: inherit;
   padding: 0;
 }
+.me-hidden { display: none !important; }
+/* تایم‌لاین: حالت اختصاص (کار انتخاب شده) + فرم سریع ساخت کار روی ساعت آزاد */
+.me-timeline.me-assign-mode .me-slot { border-color: var(--me-accent); cursor: pointer; }
+.me-timeline.me-assign-mode .me-slot-empty { color: var(--me-accent); font-weight: 700; }
+.me-slot-qa { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.me-slot-qa-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .me-empty {
   font-size: 0.75rem;
   color: var(--me-muted);

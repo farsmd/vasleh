@@ -129,6 +129,38 @@ if ($__latestNote !== null && !empty($__latestNote['body'])) {
         </section>
         <?php endif; ?>
 
+        <?php $__pds = (isset($projectDeadlines) && is_array($projectDeadlines)) ? $projectDeadlines : []; ?>
+        <?php if ($__pds !== []): ?>
+        <!-- ددلاین پروژه‌ها: نزدیک یا عقب‌افتاده -->
+        <section class="me-card">
+            <div class="me-section-head">
+                <h3 class="me-section-title"><i class="fa-solid fa-hourglass-half"></i> ددلاین پروژه‌ها</h3>
+                <a href="/me/projects" class="me-section-action">همه پروژه‌ها</a>
+            </div>
+            <?php foreach ($__pds as $__pd): ?>
+            <?php $__pdl = (int) ($__pd['days_left'] ?? 0); ?>
+            <div class="me-task-row">
+                <div class="me-task-main">
+                    <div class="me-task-title"><a href="/me/projects/<?= (int) ($__pd['id'] ?? 0) ?>"><?= e((string) ($__pd['title'] ?? '')) ?></a></div>
+                    <div class="me-task-meta">
+                        <?php if ($__pdl < 0): ?><span class="me-badge" style="background:#fee;color:#b00"><?= -$__pdl ?> روز عقب‌افتاده</span>
+                        <?php elseif ($__pdl === 0): ?><span class="me-badge">ددلاین امروز</span>
+                        <?php else: ?><span class="me-badge"><?= $__pdl ?> روز مانده</span><?php endif; ?>
+                        <span><?= e((string) ($__pd['end_date'] ?? '')) ?></span>
+                    </div>
+                </div>
+                <div class="me-task-actions">
+                    <form method="post" action="/me/projects/<?= (int) ($__pd['id'] ?? 0) ?>/extend">
+                        <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">
+                        <input type="hidden" name="back" value="/me">
+                        <button class="me-mini-btn" title="تمدید ۷ روزه"><i class="fa-solid fa-calendar-plus"></i> ‎+۷ روز</button>
+                    </form>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </section>
+        <?php endif; ?>
+
         <!-- ۴. کارها: تودوهای امروز با تیک، هشدار بار روز و انتقال ناتمام‌ها فقط دو خط فشرده -->
         <section class="me-card">
             <div class="me-section-head">

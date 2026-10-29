@@ -120,7 +120,7 @@ $__nextMonth = sprintf('%04d-%02d-%02d', $__ngy, $__ngm, $__ngd);
             <span class="me-slot-hour"><?= e($__h) ?></span>
             <div class="me-slot-body">
             <?php if ($__slot === []): ?>
-                <span class="me-slot-empty">ساعت آزاد — برای اختصاص ساعت کلیک کنید</span>
+                <span class="me-slot-empty">ساعت آزاد — کلیک کنید: کار تازه بسازید یا کارِ انتخاب‌شده را اینجا بگذارید</span>
             <?php else: ?>
                 <?php foreach ($__slot as $__t): ?>
                 <?php $__cls = ($__t['kind'] ?? '') === 'event' ? 'meeting' : (((string) ($__t['priority'] ?? '')) === 'high' ? 'deep' : 'plain'); ?>
@@ -144,6 +144,8 @@ function meCalSelect(el) {
   document.querySelectorAll('.me-assign-card').forEach(function (c) { c.classList.remove('selected'); });
   el.classList.add('selected');
   meCalSelected = el;
+  var tl = document.querySelector('.me-timeline');
+  if (tl) { tl.classList.add('me-assign-mode'); }
 }
 function meCalDrag(ev, el) {
   meCalSelect(el);
@@ -155,7 +157,46 @@ function meCalDrop(ev, slot) {
   if (meCalSelected) { meCalAssign(slot.getAttribute('data-hour')); }
 }
 function meCalSlotClick(slot) {
-  if (meCalSelected) { meCalAssign(slot.getAttribute('data-hour')); }
+  if (meCalSelected) { meCalAssign(slot.getAttribute('data-hour')); return; }
+  // بدون کارِ انتخاب‌شده: خودِ ساعت آزاد قابل کلیک است و فرم سریع ساخت کار باز می‌کند.
+  if (slot.querySelector('.me-block')) { return; }
+  meCalQuickAdd(slot);
+}
+function meCalQuickAdd(slot) {
+  var body = slot.querySelector('.me-slot-body');
+  if (!body || body.querySelector('.me-slot-qa')) { return; }
+  var hour = slot.getAttribute('data-hour');
+  body.innerHTML =
+    '<div class="me-slot-qa">' +
+    '<input type="text" id="meQaTitle" class="me-note-input" placeholder="کار تازه در ساعت ' + hour + '...">' +
+    '<div class="me-slot-qa-row">' +
+    '<select id="meQaDur" class="me-input-sm">' +
+    '<option value="15">۱۵ دقیقه</option><option value="30" selected>۳۰ دقیقه</option>' +
+    '<option value="45">۴۵ دقیقه</option><option value="60">۱ ساعت</option>' +
+    '<option value="90">۱.۵ ساعت</option><option value="120">۲ ساعت</option></select>' +
+    '<button type="button" class="me-note-btn" onclick="meCalQuickSave(this)">ثبت</button>' +
+    '<button type="button" class="me-mini-btn" onclick="window.location.reload()">انصراف</button>' +
+    '</div></div>';
+  var inp = document.getElementById('meQaTitle');
+  inp.focus();
+  inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { meCalQuickSave(inp); } });
+}
+function meCalQuickSave(el) {
+  var slot = el.closest('.me-slot');
+  var titleEl = document.getElementById('meQaTitle');
+  var title = titleEl ? titleEl.value.trim() : '';
+  if (!title || !slot) { return; }
+  el.disabled = true;
+  var fd = new FormData();
+  fd.append('_csrf', meCalCsrf);
+  fd.append('kind', 'todo');
+  fd.append('title', title);
+  fd.append('date', meCalDate);
+  fd.append('hour', slot.getAttribute('data-hour'));
+  fd.append('duration', document.getElementById('meQaDur').value);
+  fetch('/me/task', { method: 'POST', body: fd })
+    .then(function () { window.location.reload(); })
+    .catch(function () { window.location.reload(); });
 }
 function meCalAssign(hour) {
   if (!meCalSelected) { return; }
