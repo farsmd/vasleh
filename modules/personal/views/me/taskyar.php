@@ -106,11 +106,35 @@ if ($__latestNote !== null && !empty($__latestNote['body'])) {
             <div class="me-event-list" id="bentoEventsList"></div>
         </section>
 
+        <?php $__reminders = (isset($reminders) && is_array($reminders)) ? $reminders : []; ?>
+        <?php if ($__reminders !== []): ?>
+        <!-- یادآورهای رسیده: دکمه‌های سریع انجام / تعویق / فردا -->
+        <section class="me-card">
+            <div class="me-section-head">
+                <h3 class="me-section-title"><i class="fa-regular fa-bell"></i> یادآورهای رسیده (<?= count($__reminders) ?>)</h3>
+            </div>
+            <?php foreach ($__reminders as $__rm): ?>
+            <div class="me-task-row">
+                <div class="me-task-main">
+                    <div class="me-task-title"><?= e((string) ($__rm['title'] ?? '')) ?></div>
+                    <div class="me-task-meta"><span><i class="fa-regular fa-bell"></i> <?= e((string) ($__rm['remind_at'] ?? '')) ?></span><span><?= e((string) ($__rm['date'] ?? '')) ?></span></div>
+                </div>
+                <div class="me-task-actions" style="display:flex;gap:6px;flex-wrap:wrap">
+                    <button type="button" class="me-mini-btn" onclick="toggleTaskStatus('<?= e((string) ($__rm['kind'] ?? 'todo')) ?>', <?= (int) ($__rm['id'] ?? 0) ?>)"><i class="fa-solid fa-check"></i> انجام شد</button>
+                    <button type="button" class="me-mini-btn" onclick="remindQuick('<?= e((string) ($__rm['kind'] ?? 'todo')) ?>', <?= (int) ($__rm['id'] ?? 0) ?>, 'snooze')"><i class="fa-solid fa-clock"></i> ۱۵ دقیقه دیگر</button>
+                    <button type="button" class="me-mini-btn" onclick="remindQuick('<?= e((string) ($__rm['kind'] ?? 'todo')) ?>', <?= (int) ($__rm['id'] ?? 0) ?>, 'tomorrow')"><i class="fa-solid fa-calendar-day"></i> فردا ۹ صبح</button>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </section>
+        <?php endif; ?>
+
         <!-- ۴. کارها: تودوهای امروز با تیک، هشدار بار روز و انتقال ناتمام‌ها فقط دو خط فشرده -->
         <section class="me-card">
             <div class="me-section-head">
                 <h3 class="me-section-title"><i class="fa-solid fa-list-check"></i> کارهای اولویت‌دار امروز</h3>
                 <span class="me-tasks-actions">
+                    <a href="/me/ritual" class="me-section-action"><i class="fa-solid fa-sun"></i> آیین روزانه</a>
                     <a href="/me/search" class="me-section-action">جستجو</a>
                     <button onclick="openAddTaskModal()" class="me-section-action me-action-btn">+ افزودن کار</button>
                 </span>
@@ -124,6 +148,12 @@ if ($__latestNote !== null && !empty($__latestNote['body'])) {
                 <button class="me-mini-btn"><i class="fa-solid fa-forward"></i> انتقال <?= count($__overdue) ?> کار ناتمام به امروز</button>
             </form>
             <?php endif; ?>
+            <div class="me-chip-row" style="margin-bottom:10px">
+                <button type="button" class="me-chip me-energy-chip active" onclick="setEnergyFilter('all', this)">همه</button>
+                <button type="button" class="me-chip me-energy-chip" onclick="setEnergyFilter('high', this)"><i class="fa-solid fa-bolt"></i> پرانرژی</button>
+                <button type="button" class="me-chip me-energy-chip" onclick="setEnergyFilter('medium', this)"><i class="fa-solid fa-battery-half"></i> متوسط</button>
+                <button type="button" class="me-chip me-energy-chip" onclick="setEnergyFilter('low', this)"><i class="fa-solid fa-leaf"></i> کم‌انرژی</button>
+            </div>
             <div id="bentoTodoList"></div>
         </section>
 
@@ -217,6 +247,14 @@ if ($__latestNote !== null && !empty($__latestNote['body'])) {
                             <option value="high">بالا و فوری</option>
                             <option value="medium" selected>متوسط</option>
                             <option value="low">پایین و روتین</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="me-field-label">سطح انرژی لازم</label>
+                        <select id="taskEnergy" class="me-select">
+                            <option value="high">پرانرژی</option>
+                            <option value="medium" selected>متوسط</option>
+                            <option value="low">کم‌انرژی</option>
                         </select>
                     </div>
                 </div>
@@ -367,6 +405,22 @@ if ($__latestNote !== null && !empty($__latestNote['body'])) {
             }
         }
 
+        function getEnergyMeta(energy) {
+            switch(energy) {
+                case 'high': return { label: 'پرانرژی', icon: 'fa-bolt' };
+                case 'low': return { label: 'کم‌انرژی', icon: 'fa-leaf' };
+                default: return { label: 'انرژی متوسط', icon: 'fa-battery-half' };
+            }
+        }
+
+        var energyFilter = 'all';
+        function setEnergyFilter(val, el) {
+            energyFilter = val;
+            document.querySelectorAll('.me-energy-chip').forEach(function (c) { c.classList.remove('active'); });
+            if (el) el.classList.add('active');
+            renderBento();
+        }
+
         function renderBento() {
             // نوار هفته (شنبه تا جمعه) + ماه جلالی — عین ماکاپ، با دادهٔ واقعی.
             const strip = document.getElementById('bentoCalStrip');
@@ -389,9 +443,10 @@ if ($__latestNote !== null && !empty($__latestNote['body'])) {
             // کارهای اولویت‌دار امروز (تودوهای انجام‌نشدهٔ امروز، فوری اول) + بخش «آینده» برای شروع‌های آینده.
             const list = document.getElementById('bentoTodoList');
             const todos = state.tasks.filter(t => t.kind === 'todo' && !t.done && t.date === TASKYAR.today);
-            todos.sort((a, b) => (a.priority === 'high' ? -1 : (b.priority === 'high' ? 1 : 0)));
-            const todosNow = todos.filter(t => !(t.start_date && t.start_date > TASKYAR.today));
-            const todosFuture = todos.filter(t => t.start_date && t.start_date > TASKYAR.today);
+            const todosVis = energyFilter === 'all' ? todos : todos.filter(t => (t.energy || 'medium') === energyFilter);
+            todosVis.sort((a, b) => (a.priority === 'high' ? -1 : (b.priority === 'high' ? 1 : 0)));
+            const todosNow = todosVis.filter(t => !(t.start_date && t.start_date > TASKYAR.today));
+            const todosFuture = todosVis.filter(t => t.start_date && t.start_date > TASKYAR.today);
             let todosHtml = todosNow.length === 0
                 ? '<div class="me-empty">کاری برای امروز نیست.</div>'
                 : todosNow.slice(0, 8).map(t => createTaskCardHTML(t)).join('');
@@ -404,6 +459,7 @@ if ($__latestNote !== null && !empty($__latestNote['body'])) {
         function createTaskCardHTML(task) {
             const catMeta = getCategoryMeta(task.category);
             const prioMeta = getPriorityMeta(task.priority);
+            const energyMeta = getEnergyMeta(task.energy);
             const timeLabel = task.hour === 'all-day' ? 'تمام روز' : task.hour + (task.end ? ' تا ' + task.end : '');
             let tagsHtml = '';
             if (Array.isArray(task.tags)) {
@@ -432,6 +488,7 @@ if ($__latestNote !== null && !empty($__latestNote['body'])) {
                 + '<div class="me-task-meta">'
                 + '<span class="me-tag-chip">' + catMeta.label + '</span>'
                 + '<span class="me-tag-chip">' + prioMeta.label + '</span>'
+                + '<span class="me-tag-chip" title="سطح انرژی لازم"><i class="fa-solid ' + energyMeta.icon + '"></i> ' + energyMeta.label + '</span>'
                 + '<span><i class="fa-regular fa-clock"></i> ' + timeLabel + '</span>'
                 + (task.duration ? '<span>(' + faNum(task.duration) + ' د)</span>' : '')
                 + (task.date ? '<span>' + faDateOf(task.date) + '</span>' : '<span>بدون تاریخ</span>')
@@ -479,6 +536,16 @@ if ($__latestNote !== null && !empty($__latestNote['body'])) {
             });
         }
 
+        function remindQuick(kind, id, mode) {
+            const url = mode === 'tomorrow'
+                ? '/me/task/' + kind + '/' + id + '/remind-tomorrow'
+                : '/me/task/' + kind + '/' + id + '/snooze';
+            const fd = new FormData();
+            fd.append('_csrf', TASKYAR.csrf);
+            if (mode === 'snooze') fd.append('minutes', '15');
+            fetch(url, { method: 'POST', body: fd }).then(function () { window.location.reload(); }).catch(function () { window.location.reload(); });
+        }
+
         function deleteTask(kind, id) {
             if (!confirm('این تسک حذف شود؟')) return;
             postTask('/me/task/' + kind + '/' + id + '/delete', {}).then(res => {
@@ -499,6 +566,7 @@ if ($__latestNote !== null && !empty($__latestNote['body'])) {
                 title: title,
                 category: document.getElementById('taskCategory').value,
                 priority: document.getElementById('taskPriority').value,
+                energy: document.getElementById('taskEnergy').value,
                 date: date,
                 hour: document.getElementById('taskHour').value,
                 duration: document.getElementById('taskDuration').value,
@@ -551,6 +619,7 @@ if ($__latestNote !== null && !empty($__latestNote['body'])) {
             document.getElementById('taskTitle').value = task.title;
             document.getElementById('taskCategory').value = task.category;
             document.getElementById('taskPriority').value = task.priority;
+            document.getElementById('taskEnergy').value = task.energy || 'medium';
             document.getElementById('taskDay').value = task.day !== null ? task.day : uiDayOf(TASKYAR.date);
             document.getElementById('taskHour').value = task.hour;
             document.getElementById('taskDuration').value = task.duration || 30;

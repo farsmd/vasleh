@@ -14,7 +14,10 @@
   --me-accent2: #34D399;
   --me-border: rgba(255, 255, 255, 0.11);
   --me-radius: 24px;
-  --me-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --me-shadow: 0 20px 45px -15px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  --me-dock-shadow: 0 24px 48px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  --me-glow: radial-gradient(circle at 15% 15%, rgba(129, 140, 248, 0.14), transparent 40%), radial-gradient(circle at 85% 80%, rgba(52, 211, 153, 0.1), transparent 40%);
+  --me-blur: blur(24px) saturate(180%);
   --me-heading-weight: 800;
   /* نام‌های مستعار توکن‌های معنایی (ادغام جمینای) — بدون این‌ها قانون‌های
      قدیمی‌تر که با این نام‌ها نوشته شده‌اند بی‌اثر می‌شدند. */
@@ -24,10 +27,13 @@
   --bg-surface-elevated: var(--me-panel);
   --border-width: 1px;
   --border-color: var(--me-border);
-  --radius-inner: 12px;
+  --radius-inner: 16px;
   --radius-pill: 999px;
   --radius-card: var(--me-radius);
   --shadow-card: var(--me-shadow);
+  --shadow-dock: var(--me-dock-shadow);
+  --backdrop-filter: var(--me-blur);
+  --ambient-glow: var(--me-glow);
   --accent-primary: var(--me-accent);
   --accent-secondary: var(--me-accent2);
   --accent-primary-soft: rgba(129, 140, 248, 0.16);
@@ -46,7 +52,10 @@
   --me-accent2: #D96B43;
   --me-border: #E6E2DA;
   --me-radius: 20px;
-  --me-shadow: 0 4px 20px rgba(28, 27, 24, 0.08);
+  --me-shadow: 0 8px 24px -6px rgba(45, 42, 36, 0.06), 0 2px 6px -1px rgba(45, 42, 36, 0.04);
+  --me-dock-shadow: 0 16px 36px -4px rgba(45, 42, 36, 0.12);
+  --me-glow: none;
+  --me-blur: none;
   --me-heading-weight: 600;
   --text-primary: var(--me-text);
   --text-secondary: var(--me-muted);
@@ -54,10 +63,13 @@
   --bg-surface-elevated: var(--me-panel);
   --border-width: 1px;
   --border-color: var(--me-border);
-  --radius-inner: 10px;
+  --radius-inner: 12px;
   --radius-pill: 999px;
   --radius-card: var(--me-radius);
   --shadow-card: var(--me-shadow);
+  --shadow-dock: var(--me-dock-shadow);
+  --backdrop-filter: var(--me-blur);
+  --ambient-glow: var(--me-glow);
   --accent-primary: var(--me-accent);
   --accent-secondary: var(--me-accent2);
   --accent-primary-soft: rgba(45, 90, 39, 0.1);
@@ -75,8 +87,11 @@
   --me-accent: #FF5E36;
   --me-accent2: #D4FF33;
   --me-border: #111111;
-  --me-radius: 16px;
+  --me-radius: 12px;
   --me-shadow: 4px 4px 0px #111111;
+  --me-dock-shadow: 6px 6px 0px #111111;
+  --me-glow: none;
+  --me-blur: none;
   --me-heading-weight: 900;
   --text-primary: var(--me-text);
   --text-secondary: var(--me-muted);
@@ -85,9 +100,12 @@
   --border-width: 2px;
   --border-color: var(--me-border);
   --radius-inner: 8px;
-  --radius-pill: 999px;
+  --radius-pill: 8px;
   --radius-card: var(--me-radius);
   --shadow-card: var(--me-shadow);
+  --shadow-dock: var(--me-dock-shadow);
+  --backdrop-filter: var(--me-blur);
+  --ambient-glow: var(--me-glow);
   --accent-primary: var(--me-accent);
   --accent-secondary: var(--me-accent2);
   --accent-primary-soft: #FFE4DC;
@@ -106,7 +124,10 @@
   --me-accent2: #00E5FF;
   --me-border: #282C34;
   --me-radius: 6px;
-  --me-shadow: none;
+  --me-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  --me-dock-shadow: 0 8px 24px rgba(0, 0, 0, 0.75);
+  --me-glow: linear-gradient(to left, rgba(255, 79, 0, 0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 79, 0, 0.03) 1px, transparent 1px);
+  --me-blur: none;
   --me-heading-weight: 700;
   --text-primary: var(--me-text);
   --text-secondary: var(--me-muted);
@@ -115,9 +136,12 @@
   --border-width: 1px;
   --border-color: var(--me-border);
   --radius-inner: 4px;
-  --radius-pill: 999px;
+  --radius-pill: 4px;
   --radius-card: var(--me-radius);
   --shadow-card: var(--me-shadow);
+  --shadow-dock: var(--me-dock-shadow);
+  --backdrop-filter: var(--me-blur);
+  --ambient-glow: var(--me-glow);
   --accent-primary: var(--me-accent);
   --accent-secondary: var(--me-accent2);
   --accent-primary-soft: rgba(255, 79, 0, 0.14);
@@ -126,6 +150,7 @@
 
 body[data-theme] {
   background: var(--me-bg);
+  background-image: var(--me-glow, none);
   color: var(--me-text);
 }
 
@@ -163,9 +188,9 @@ body.me-has-dock main { padding-bottom: 100px; }
   color: var(--me-nav-text);
   border: 1px solid var(--me-border);
   border-radius: var(--me-radius);
-  box-shadow: var(--me-shadow);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  box-shadow: var(--me-dock-shadow, var(--me-shadow));
+  backdrop-filter: var(--me-blur, blur(20px));
+  -webkit-backdrop-filter: var(--me-blur, blur(20px));
 }
 [data-theme="swissPop"] .me-dock { border-width: 2px; }
 .me-dock-item {
@@ -213,6 +238,8 @@ body.me-has-dock main { padding-bottom: 100px; }
   border: 1px solid var(--me-border);
   border-radius: var(--me-radius);
   box-shadow: var(--me-shadow);
+  backdrop-filter: var(--me-blur, none);
+  -webkit-backdrop-filter: var(--me-blur, none);
   padding: 18px;
   color: var(--me-text);
 }

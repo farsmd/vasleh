@@ -223,6 +223,7 @@ final class MeController
         }
         return Response::html(View::render('personal', 'me', 'taskyar', [
             'tasks' => $mainTasks,
+            'reminders' => $this->store()->dueReminders($uid, date('Y-m-d'), date('H:i')),
             'savedFilters' => $this->sanitizeSavedFilters($settings['saved_filters'] ?? []),
             'workload' => $this->storeHas('workloadForDay')
                 ? (int) $this->store()->workloadForDay($uid, $date) : 0,
@@ -481,14 +482,32 @@ final class MeController
             'start_date' => Personal::validDate($startDate) ? $startDate : '',
             'project_id' => max(0, (int) $request->input('project_id', 0)),
         ];
+        // انرژی فقط وقتی در ورودی آمده باشد پاس داده می‌شود تا در ویرایش/درگِ بدون
+        // فیلد انرژی، مقدار قبلی حفظ شود (الگوی فیلدهای افزودنی todoExtraFields).
+        if ($request->input('energy', null) !== null) {
+            $f['energy'] = in_array($request->input('energy'), ['low', 'medium', 'high'], true)
+                ? (string) $request->input('energy')
+                : 'medium';
+        }
         $kind = (string) $request->input('kind', '');
         $id = (int) $request->input('id', 0);
+        $uid = (int) $this->user()['id'];
         $task = ($kind !== '' && $id > 0)
-            ? $this->store()->taskUpdate((int) $this->user()['id'], $kind, $id, $f)
-            : $this->store()->taskCreate((int) $this->user()['id'], $f);
+            ? $this->store()->taskUpdate($uid, $kind, $id, $f)
+            : $this->store()->taskCreate($uid, $f);
         if ($task === null) {
             return Response::json(['ok' => false, 'error' => 'عنوان و تاریخ معتبر لازم است.'], 400);
         }
+        // پاسخ غنی برای رندر بی‌درنگ کارت (انرژی، برچسب، زیرکار...)؛ اگر پیدا نشد همان هویت.
+        $full = null;
+        $fd = $f['date'] !== '' ? $f['date'] : date('Y-m-d');
+        foreach ($this->store()->tasksForRange($uid, $fd, $fd) as $t) {
+            if ($t['kind'] === $task['kind'] && (int) $t['id'] === (int) $task['id']) {
+                $full = $t;
+                break;
+            }
+        }
+        $task = $full ?? $task;
         // برچسب‌ها: $f['tags'] فعلاً در استور خوانده نمی‌شود (گزارش نهایی)؛
         // اگر setTodoTags پیاده شده باشد و فرم برچسب فرستاده باشد، همان‌جا ست می‌شود.
         // فرم بدون فیلد tags نباید برچسب‌های قبلی را پاک کند، پس فقط وقتی فیلد آمده است.
@@ -553,6 +572,23 @@ final class MeController
             $minutes
         );
         return $this->back('/me', 'یادآوری ' . $minutes . ' دقیقه به تعویق افتاد.');
+    }
+
+    /** یادآوری «فردا ۹ صبح» از کارت یادآورهای رسیده. */
+    public function taskRemindTomorrow(Request $request, array $params): Response
+    {
+        if (($r = $this->requireUser()) !== null) {
+            return $r;
+        }
+        if (!$this->csrfOk($request)) {
+            return Response::forbidden('توکن امنیتی نامعتبر است');
+        }
+        $ok = $this->store()->taskRemindTomorrow(
+            (int) $this->user()['id'],
+            (string) ($params['kind'] ?? ''),
+            (int) ($params['id'] ?? 0)
+        );
+        return $this->back('/me', '', $ok ? '' : 'تنظیم یادآوری ممکن نشد.');
     }
 
     // ---------- تودو ----------
@@ -1015,9 +1051,117 @@ final class MeController
         $yesterday = date('Y-m-d', strtotime('-1 day'));
         $today = date('Y-m-d');
         $count = (int) $this->store()->rollover((int) $this->user()['id'], $yesterday, $today);
+        $back = (string) $request->input('back', '/me');
+        if (!str_starts_with($back, '/me')) {
+            $back = '/me';
+        }
         return $count > 0
-            ? $this->back('/me', $count . ' کار ناتمام به امروز منتقل شد.')
-            : $this->back('/me', 'کار ناتمامی برای انتقال نبود.');
+            ? $this->back($back, $count . ' کار ناتمام به امروز منتقل شد.')
+            : $this->back($back, 'کار ناتمامی برای انتقال نبود.');
+    }
+
+    // ---------- آیین روزانه (صبحگاهی / شبانه) ----------
+
+    public function ritual(Request $request): Response
+    {
+        if (($r = $this->requireUser()) !== null) {
+            return $r;
+        }
+        $uid = (int) $this->user()['id'];
+        $today = date('Y-m-d');
+        $store = $this->store();
+        $tasks = $store->tasksForRange($uid, $today, $today);
+        $open = array_values(array_filter($tasks, static fn ($t) => !(int) ($t['done'] ?? 0)));
+        $settings = $store->settings($uid);
+        return $this->page2($request, 'ritual', [
+            'today' => $today,
+            'todayFa' => Personal::faDate($today),
+            'overdue' => $store->overdueTasks($uid, $today),
+            'todayOpen' => $open,
+            'completedToday' => $store->completedCount($uid, $today),
+            'focusToday' => $store->pomoMinutesForRange($uid, $today, $today),
+            'workload' => (int) $store->workloadForDay($uid, $today),
+            'capacity' => (int) ($settings['day_capacity'] ?? 480),
+            'morningDone' => $store->ritualDone($uid, $today, 'morning'),
+            'eveningDone' => $store->ritualDone($uid, $today, 'evening'),
+            'journal' => $store->journal($uid, $today),
+        ], 'آیین روزانه', 'ritual');
+    }
+
+    public function ritualComplete(Request $request): Response
+    {
+        if (($r = $this->requireUser()) !== null) {
+            return $r;
+        }
+        if (!$this->csrfOk($request)) {
+            return Response::forbidden('توکن امنیتی نامعتبر است');
+        }
+        $kind = (string) $request->input('kind', '');
+        $uid = (int) $this->user()['id'];
+        $today = date('Y-m-d');
+        $intention = trim((string) $request->input('intention', ''));
+        if ($kind === 'morning' && $intention !== '') {
+            $j = $this->store()->journal($uid, $today);
+            $body = (string) ($j['body'] ?? '');
+            if (!str_contains($body, $intention)) {
+                $body = ($body === '' ? '' : $body . "\n") . 'نیت امروز: ' . $intention;
+            }
+            $mood = (string) ($j['mood'] ?? '');
+            $this->store()->journalSave($uid, $today, $body, $mood === '' ? 'ok' : $mood);
+        }
+        $this->store()->ritualComplete($uid, $today, $kind);
+        return $this->back('/me/ritual', $kind === 'morning' ? 'آیین صبحگاهی ثبت شد؛ روز خوبی داشته باشید.' : 'مرور شبانه ثبت شد.');
+    }
+
+    public function ritualMove(Request $request): Response
+    {
+        if (($r = $this->requireUser()) !== null) {
+            return $r;
+        }
+        if (!$this->csrfOk($request)) {
+            return Response::forbidden('توکن امنیتی نامعتبر است');
+        }
+        $ok = $this->store()->taskMoveDate(
+            (int) $this->user()['id'],
+            (string) $request->input('kind', ''),
+            (int) $request->input('id', 0),
+            trim((string) $request->input('date', ''))
+        );
+        return $this->back('/me/ritual', '', $ok ? '' : 'انتقال ممکن نشد.');
+    }
+
+    public function ritualDelete(Request $request): Response
+    {
+        if (($r = $this->requireUser()) !== null) {
+            return $r;
+        }
+        if (!$this->csrfOk($request)) {
+            return Response::forbidden('توکن امنیتی نامعتبر است');
+        }
+        $this->store()->taskDelete(
+            (int) $this->user()['id'],
+            (string) $request->input('kind', ''),
+            (int) $request->input('id', 0)
+        );
+        return $this->back('/me/ritual', 'کار حذف شد.');
+    }
+
+    public function ritualMood(Request $request): Response
+    {
+        if (($r = $this->requireUser()) !== null) {
+            return $r;
+        }
+        if (!$this->csrfOk($request)) {
+            return Response::forbidden('توکن امنیتی نامعتبر است');
+        }
+        $uid = (int) $this->user()['id'];
+        $today = date('Y-m-d');
+        $j = $this->store()->journal($uid, $today);
+        $mood = (string) $request->input('mood', '');
+        if ($this->store()->journalSave($uid, $today, (string) ($j['body'] ?? ''), $mood)) {
+            return $this->back('/me/ritual', 'حال امروز ثبت شد.');
+        }
+        return $this->back('/me/ritual', '', 'مقدار حال معتبر نیست.');
     }
 
     // ---------- نماهای ذخیره‌شده ----------
@@ -1206,10 +1350,32 @@ final class MeController
                 'done_total' => $doneTotal,
                 'by_category' => $byCategory,
                 'habit_streaks' => $habitStreaks,
+                'planned_vs_actual' => $this->plannedVsActual($uid, $from7, $today),
             ],
             'weekSat' => $weekSat,
             'today' => $today,
         ], 'آمار', 'stats');
+    }
+
+    /** برنامه‌ریزی‌شده در برابر واقعیِ ۷ روز اخیر: [date, faDate, planned, actual]. */
+    private function plannedVsActual(int $uid, string $from, string $today): array
+    {
+        $planned = $this->store()->plannedMinutesByDay($uid, $from, $today);
+        $actual = $this->store()->pomoMinutesByDay($uid, $from, $today);
+        $out = [];
+        for ($i = 0; $i < 7; $i++) {
+            $d = date('Y-m-d', strtotime($from . " +{$i} days"));
+            if ($d > $today) {
+                break;
+            }
+            $out[] = [
+                'date' => $d,
+                'fa' => Personal::faDate($d),
+                'planned' => (int) ($planned[$d] ?? 0),
+                'actual' => (int) ($actual[$d] ?? 0),
+            ];
+        }
+        return $out;
     }
 
     // ---------- بورد و ماتریس ----------

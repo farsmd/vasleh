@@ -500,6 +500,125 @@ final class Personal
             'done' => 'INTEGER NOT NULL DEFAULT 0',
         ]);
         $this->migrateExtended();
+        $this->migrateRitual();
+    }
+
+    /** آیین روزانه: جدول ثبت انجام + ستون تاریخ تکمیل تسک‌ها. */
+    public function migrateRitual(): void
+    {
+        $this->ensureColumns('pl_todos', ['completed_at' => "TEXT NOT NULL DEFAULT ''"]);
+        $this->ensureColumns('pl_events', ['completed_at' => "TEXT NOT NULL DEFAULT ''"]);
+        $this->pdo()->exec(
+            'CREATE TABLE IF NOT EXISTS pl_rituals (
+                user_id INTEGER NOT NULL,
+                date TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                done_at TEXT NOT NULL,
+                UNIQUE(user_id, date, kind)
+            )'
+        );
+    }
+
+    /** تعداد کارهای تکمیل‌شده در یک روز (تودو + رویداد). */
+    public function completedCount(int $userId, string $date): int
+    {
+        if (!self::validDate($date)) {
+            return 0;
+        }
+        $n = 0;
+        foreach (['pl_todos', 'pl_events'] as $table) {
+            $stmt = $this->pdo()->prepare(
+                "SELECT COUNT(*) FROM {$table} WHERE user_id = :u AND done = 1 AND completed_at LIKE :d"
+            );
+            $stmt->execute(['u' => $userId, 'd' => $date . '%']);
+            $n += (int) $stmt->fetchColumn();
+        }
+        return $n;
+    }
+
+    /** کارهای ناتمامِ عقب‌افتاده (تاریخ < امروز)، تودو و رویداد. */
+    public function overdueTasks(int $userId, string $today): array
+    {
+        $pdo = $this->pdo();
+        $stmt = $pdo->prepare(
+            "SELECT id, title, due_date AS date, duration, 'todo' AS kind FROM pl_todos
+             WHERE user_id = :u AND done = 0 AND due_date <> '' AND due_date < :t ORDER BY due_date, id"
+        );
+        $stmt->execute(['u' => $userId, 't' => $today]);
+        $out = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $stmt = $pdo->prepare(
+            "SELECT id, title, date, duration, 'event' AS kind FROM pl_events
+             WHERE user_id = :u AND done = 0 AND date < :t ORDER BY date, start_time, id"
+        );
+        $stmt->execute(['u' => $userId, 't' => $today]);
+        return array_merge($out, $stmt->fetchAll(\PDO::FETCH_ASSOC));
+    }
+
+    public function ritualDone(int $userId, string $date, string $kind): bool
+    {
+        $stmt = $this->pdo()->prepare('SELECT 1 FROM pl_rituals WHERE user_id = :u AND date = :d AND kind = :k');
+        $stmt->execute(['u' => $userId, 'd' => $date, 'k' => $kind]);
+        return $stmt->fetchColumn() !== false;
+    }
+
+    public function ritualComplete(int $userId, string $date, string $kind): void
+    {
+        if (!in_array($kind, ['morning', 'evening'], true) || !self::validDate($date)) {
+            return;
+        }
+        $this->pdo()->prepare(
+            'INSERT INTO pl_rituals (user_id, date, kind, done_at) VALUES (:u, :d, :k, :now)
+             ON CONFLICT(user_id, date, kind) DO NOTHING'
+        )->execute(['u' => $userId, 'd' => $date, 'k' => $kind, 'now' => date('Y-m-d H:i:s')]);
+    }
+
+    /** یادآورهای رسیده: remind_at تنظیم‌شده، تاریخ ≤ امروز، انجام‌نشده، ساعت یادآوری گذشته. */
+    public function dueReminders(int $userId, string $today, string $nowHm): array
+    {
+        $pdo = $this->pdo();
+        $stmt = $pdo->prepare(
+            "SELECT id, title, due_date AS date, 'all-day' AS hour, remind_at, 'todo' AS kind FROM pl_todos
+             WHERE user_id = :u AND done = 0 AND remind_at <> '' AND due_date <> '' AND due_date <= :t
+               AND (due_date < :t OR remind_at <= :hm) ORDER BY due_date, remind_at"
+        );
+        $stmt->execute(['u' => $userId, 't' => $today, 'hm' => $nowHm]);
+        $out = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $stmt = $pdo->prepare(
+            "SELECT id, title, date, start_time AS hour, remind_at, 'event' AS kind FROM pl_events
+             WHERE user_id = :u AND done = 0 AND remind_at <> '' AND date <= :t
+               AND (date < :t OR remind_at <= :hm) ORDER BY date, remind_at"
+        );
+        $stmt->execute(['u' => $userId, 't' => $today, 'hm' => $nowHm]);
+        return array_merge($out, $stmt->fetchAll(\PDO::FETCH_ASSOC));
+    }
+
+    /** یادآوری «فردا ۹ صبح»: انتقال تسک به فردا + تنظیم یادآوری ساعت ۹. */
+    public function taskRemindTomorrow(int $userId, string $kind, int $id): bool
+    {
+        if (!in_array($kind, ['todo', 'event'], true)) {
+            return false;
+        }
+        $tomorrow = date('Y-m-d', strtotime('+1 day'));
+        $table = $kind === 'event' ? 'pl_events' : 'pl_todos';
+        $col = $kind === 'event' ? 'date' : 'due_date';
+        $stmt = $this->pdo()->prepare(
+            "UPDATE {$table} SET {$col} = :d, remind_at = '09:00' WHERE id = :id AND user_id = :u AND done = 0"
+        );
+        $stmt->execute(['d' => $tomorrow, 'id' => $id, 'u' => $userId]);
+        return $stmt->rowCount() > 0;
+    }
+
+    /** انتقال یک تسک ناتمام به تاریخ دیگر (آیین روزانه). */
+    public function taskMoveDate(int $userId, string $kind, int $id, string $date): bool
+    {
+        if (!self::validDate($date) || !in_array($kind, ['todo', 'event'], true)) {
+            return false;
+        }
+        $table = $kind === 'event' ? 'pl_events' : 'pl_todos';
+        $col = $kind === 'event' ? 'date' : 'due_date';
+        $stmt = $this->pdo()->prepare("UPDATE {$table} SET {$col} = :d WHERE id = :id AND user_id = :u AND done = 0");
+        $stmt->execute(['d' => $date, 'id' => $id, 'u' => $userId]);
+        return $stmt->rowCount() > 0;
     }
 
     /** ستون‌های توسعه‌یافته: تکرار، یادآوری، تاریخ شروع و لینک پروژه. */
@@ -512,9 +631,11 @@ final class Personal
             'remind_at' => "TEXT NOT NULL DEFAULT ''",
             'start_date' => "TEXT NOT NULL DEFAULT ''",
             'project_id' => 'INTEGER NOT NULL DEFAULT 0',
+            'energy' => "TEXT NOT NULL DEFAULT 'medium'",
         ]);
         $this->ensureColumns('pl_events', [
             'remind_at' => "TEXT NOT NULL DEFAULT ''",
+            'energy' => "TEXT NOT NULL DEFAULT 'medium'",
         ]);
         $this->pdo()->exec(
             'CREATE TABLE IF NOT EXISTS pl_goal_tasks (
@@ -569,6 +690,7 @@ final class Personal
                 'start_date' => (string) ($t['start_date'] ?? ''),
                 'remind_at' => (string) ($t['remind_at'] ?? ''),
                 'project_id' => (int) ($t['project_id'] ?? 0),
+                'energy' => (string) ($t['energy'] ?? 'medium'),
             ];
         }
         $stmt = $pdo->prepare(
@@ -586,6 +708,7 @@ final class Personal
                 'duration' => (int) ($ev['duration'] ?? 30), 'note' => (string) $ev['note'],
                 'done' => (int) ($ev['done'] ?? 0),
                 'remind_at' => (string) ($ev['remind_at'] ?? ''),
+                'energy' => (string) ($ev['energy'] ?? 'medium'),
             ];
         }
         return $tasks;
@@ -610,6 +733,7 @@ final class Personal
             'end' => $kind === 'event' ? (string) $row['end_time'] : '',
             'duration' => (int) ($row['duration'] ?? 30), 'note' => (string) ($row['note'] ?? ''),
             'done' => (int) $row['done'],
+            'energy' => (string) ($row['energy'] ?? 'medium'),
         ];
     }
 
@@ -639,20 +763,20 @@ final class Personal
             $this->pdo()->prepare(
                 'UPDATE pl_todos SET category = :c, priority = :p, duration = :d, note = :n,
                  recur = :r, recur_until = :ru, recur_mode = :rm, remind_at = :ra,
-                 start_date = :sd, project_id = :pj WHERE id = :id'
+                 start_date = :sd, project_id = :pj, energy = :e WHERE id = :id'
             )->execute([
                 'c' => $category, 'p' => $priority, 'd' => $duration, 'n' => $note,
                 'r' => $extra['recur'], 'ru' => $extra['recur_until'], 'rm' => $extra['recur_mode'],
                 'ra' => $extra['remind_at'], 'sd' => $extra['start_date'], 'pj' => $extra['project_id'],
-                'id' => $id,
+                'e' => $extra['energy'], 'id' => $id,
             ]);
             return ['kind' => 'todo', 'id' => $id];
         }
         $end = date('H:i', min(strtotime($date . ' ' . $hour) + $duration * 60, strtotime($date . ' 23:59')));
         $id = $this->eventCreate($userId, $title, $date, $hour, $end, $note);
         $this->pdo()->prepare(
-            'UPDATE pl_events SET category = :c, priority = :p, duration = :d, remind_at = :ra WHERE id = :id'
-        )->execute(['c' => $category, 'p' => $priority, 'd' => $duration, 'ra' => $extra['remind_at'], 'id' => $id]);
+            'UPDATE pl_events SET category = :c, priority = :p, duration = :d, remind_at = :ra, energy = :e WHERE id = :id'
+        )->execute(['c' => $category, 'p' => $priority, 'd' => $duration, 'ra' => $extra['remind_at'], 'e' => $extra['energy'], 'id' => $id]);
         return ['kind' => 'event', 'id' => $id];
     }
 
@@ -676,6 +800,10 @@ final class Personal
         }
         $newKind = ($hour === 'all-day' || $hour === '' || !self::validTime($hour)) ? 'todo' : 'event';
         if ($newKind !== $kind) {
+            // سطح انرژی در تبدیل تمام‌روز ↔ ساعت‌دار حفظ شود (ورودی تقویم آن را نمی‌فرستد).
+            if (!array_key_exists('energy', $f) && isset($existing['energy'])) {
+                $f['energy'] = $existing['energy'];
+            }
             $this->taskDelete($userId, $kind, $id);
             $created = $this->taskCreate($userId, $f);
             if ($created !== null && (int) $existing['done'] === 1) {
@@ -699,24 +827,24 @@ final class Personal
             $end = date('H:i', min(strtotime($date . ' ' . $hour) + $duration * 60, strtotime($date . ' 23:59')));
             $stmt = $pdo->prepare(
                 'UPDATE pl_events SET title = :t, date = :d, start_time = :s, end_time = :e, note = :n,
-                 category = :c, priority = :p, duration = :du, remind_at = :ra WHERE id = :id AND user_id = :u'
+                 category = :c, priority = :p, duration = :du, remind_at = :ra, energy = :en WHERE id = :id AND user_id = :u'
             );
             $stmt->execute([
                 't' => $title, 'd' => $date, 's' => $hour, 'e' => $end, 'n' => $note,
                 'c' => $category, 'p' => $priority, 'du' => $duration, 'ra' => $extra['remind_at'],
-                'id' => $id, 'u' => $userId,
+                'en' => $extra['energy'], 'id' => $id, 'u' => $userId,
             ]);
         } else {
             $stmt = $pdo->prepare(
                 'UPDATE pl_todos SET title = :t, due_date = :d, category = :c, priority = :p,
                  duration = :du, note = :n, recur = :r, recur_until = :ru, recur_mode = :rm,
-                 remind_at = :ra, start_date = :sd, project_id = :pj WHERE id = :id AND user_id = :u'
+                 remind_at = :ra, start_date = :sd, project_id = :pj, energy = :en WHERE id = :id AND user_id = :u'
             );
             $stmt->execute([
                 't' => $title, 'd' => $date, 'c' => $category, 'p' => $priority,
                 'du' => $duration, 'n' => $note, 'r' => $extra['recur'], 'ru' => $extra['recur_until'],
                 'rm' => $extra['recur_mode'], 'ra' => $extra['remind_at'], 'sd' => $extra['start_date'],
-                'pj' => $extra['project_id'], 'id' => $id, 'u' => $userId,
+                'pj' => $extra['project_id'], 'en' => $extra['energy'], 'id' => $id, 'u' => $userId,
             ]);
         }
         return $this->taskByKind($userId, $kind, $id);
@@ -730,6 +858,12 @@ final class Personal
         if ($stmt->rowCount() === 0) {
             return null;
         }
+        // تاریخ تکمیل برای شمارش «انجام‌شده‌های امروز» در آیین شبانه.
+        $doneNow = (int) $this->pdo()->query(
+            "SELECT done FROM {$table} WHERE id = " . (int) $id . " AND user_id = " . (int) $userId
+        )->fetchColumn();
+        $this->pdo()->prepare("UPDATE {$table} SET completed_at = :c WHERE id = :id AND user_id = :u")
+            ->execute(['c' => $doneNow === 1 ? date('Y-m-d H:i:s') : '', 'id' => $id, 'u' => $userId]);
         $task = $this->taskByKind($userId, $kind, $id);
         if ($task === null) {
             return null;
@@ -750,6 +884,7 @@ final class Personal
             'remind_at' => (string) ($current['remind_at'] ?? ''),
             'start_date' => (string) ($current['start_date'] ?? ''),
             'project_id' => (int) ($current['project_id'] ?? 0),
+            'energy' => (string) ($current['energy'] ?? 'medium'),
         ];
         if (array_key_exists('recur', $f)) {
             $out['recur'] = in_array($f['recur'], ['daily', 'weekly', 'monthly'], true) ? (string) $f['recur'] : 'none';
@@ -769,6 +904,9 @@ final class Personal
         if (array_key_exists('project_id', $f)) {
             $pid = (int) $f['project_id'];
             $out['project_id'] = ($pid > 0 && $this->project($userId, $pid) !== null) ? $pid : 0;
+        }
+        if (array_key_exists('energy', $f)) {
+            $out['energy'] = in_array($f['energy'], ['low', 'medium', 'high'], true) ? (string) $f['energy'] : 'medium';
         }
         return $out;
     }
@@ -1628,6 +1766,47 @@ final class Personal
         $this->pdo()->prepare(
             'INSERT INTO pl_pomo_logs (user_id, task_id, started_at, minutes) VALUES (:u, :t, :now, :m)'
         )->execute(['u' => $userId, 't' => $task, 'now' => date('Y-m-d H:i:s'), 'm' => $minutes]);
+    }
+
+    /** دقیقه‌های پومودورو به تفکیک روز در بازه (برای نمودار برنامه در برابر واقعی). */
+    public function pomoMinutesByDay(int $userId, string $from, string $to): array
+    {
+        $stmt = $this->pdo()->prepare(
+            'SELECT substr(started_at, 1, 10) AS d, COALESCE(SUM(minutes), 0) AS m FROM pl_pomo_logs
+             WHERE user_id = :u AND substr(started_at, 1, 10) BETWEEN :a AND :b GROUP BY d'
+        );
+        $stmt->execute(['u' => $userId, 'a' => $from, 'b' => $to]);
+        $out = [];
+        foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
+            $out[(string) $row['d']] = (int) $row['m'];
+        }
+        return $out;
+    }
+
+    /** دقیقه‌های برنامه‌ریزی‌شده (مجموع مدت تسک‌های هر روز) به تفکیک روز. */
+    public function plannedMinutesByDay(int $userId, string $from, string $to): array
+    {
+        $out = [];
+        $pdo = $this->pdo();
+        $stmt = $pdo->prepare(
+            'SELECT due_date AS d, COALESCE(SUM(duration), 0) AS m FROM pl_todos
+             WHERE user_id = :u AND due_date BETWEEN :a AND :b GROUP BY due_date'
+        );
+        $stmt->execute(['u' => $userId, 'a' => $from, 'b' => $to]);
+        foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
+            $d = (string) $row['d'];
+            $out[$d] = ($out[$d] ?? 0) + (int) $row['m'];
+        }
+        $stmt = $pdo->prepare(
+            'SELECT date AS d, COALESCE(SUM(duration), 0) AS m FROM pl_events
+             WHERE user_id = :u AND date BETWEEN :a AND :b GROUP BY date'
+        );
+        $stmt->execute(['u' => $userId, 'a' => $from, 'b' => $to]);
+        foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
+            $d = (string) $row['d'];
+            $out[$d] = ($out[$d] ?? 0) + (int) $row['m'];
+        }
+        return $out;
     }
 
     /** مجموع دقیقه‌های پومودورو در بازهٔ تاریخی (شامل روزها). */

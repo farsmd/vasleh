@@ -19,7 +19,7 @@ return [
     'title'       => 'مدیریت شخصی',
     'icon'        => '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="m9 16 2 2 4-4"/></svg>',
     'description' => 'مدیریت شخصی: تودو، زمان‌بندی روز و هفته، نوت و پروژه با اشتراک‌گذاری',
-    'version'     => '1.4.3',
+    'version'     => '1.5.0',
     'system'      => false,
     'requires'    => ['sqlite', 'session'],
 
@@ -90,6 +90,11 @@ return [
         $router->post('/me/habits/{id}/delete', [MeController::class, 'habitDelete'], $module);
         $router->get('/me/review', [MeController::class, 'review'], $module);
         $router->get('/me/stats', [MeController::class, 'stats'], $module);
+        $router->get('/me/ritual', [MeController::class, 'ritual'], $module);
+        $router->post('/me/ritual/complete', [MeController::class, 'ritualComplete'], $module);
+        $router->post('/me/ritual/move', [MeController::class, 'ritualMove'], $module);
+        $router->post('/me/ritual/delete', [MeController::class, 'ritualDelete'], $module);
+        $router->post('/me/ritual/mood', [MeController::class, 'ritualMood'], $module);
         $router->get('/me/board', [MeController::class, 'board'], $module);
         $router->get('/me/matrix', [MeController::class, 'matrix'], $module);
         $router->get('/me/goals', [MeController::class, 'goals'], $module);
@@ -106,6 +111,7 @@ return [
         $router->get('/me/export', [MeController::class, 'export'], $module);
         $router->post('/me/pomo/log', [MeController::class, 'pomoLog'], $module);
         $router->post('/me/task/{kind}/{id}/snooze', [MeController::class, 'taskSnooze'], $module);
+        $router->post('/me/task/{kind}/{id}/remind-tomorrow', [MeController::class, 'taskRemindTomorrow'], $module);
         $router->post('/me/todos/{id}/subtasks', [MeController::class, 'subtaskAdd'], $module);
         $router->post('/me/todos/subtasks/{id}/toggle', [MeController::class, 'subtaskToggle'], $module);
         $router->post('/me/todos/subtasks/{id}/delete', [MeController::class, 'subtaskDelete'], $module);

@@ -48,6 +48,23 @@ $__cards = [
     </div>
 </div>
 <?php endif; ?>
+<?php if (!empty($__s['planned_vs_actual']) && is_array($__s['planned_vs_actual'])): ?>
+<div class="me-card">
+    <h3 class="me-section-title"><i class="fa-solid fa-scale-balanced"></i> برنامه‌ریزی‌شده در برابر واقعی (۷ روز اخیر)</h3>
+    <p class="me-muted" style="font-size:0.8rem;margin-bottom:10px">میلهٔ روشن: دقیقه‌های برنامه‌ریزی‌شده (مجموع مدت کارها)؛ میلهٔ تیره: دقیقه‌های واقعی تمرکز (پومودورو).</p>
+    <?php $__pmax = 1; foreach ($__s['planned_vs_actual'] as $__r) { $__pmax = max($__pmax, (int) ($__r['planned'] ?? 0), (int) ($__r['actual'] ?? 0)); } ?>
+    <?php foreach ($__s['planned_vs_actual'] as $__r): ?>
+    <div class="me-cat-bar-row">
+        <span class="me-cat-bar-label"><?= e((string) ($__r['fa'] ?? '')) ?></span>
+        <div style="flex:1;display:flex;flex-direction:column;gap:3px">
+            <div class="me-progress-bar-bg" title="برنامه: <?= (int) ($__r['planned'] ?? 0) ?> دقیقه"><div class="me-progress-bar-fill" style="width:<?= (int) round(100 * (int) ($__r['planned'] ?? 0) / $__pmax) ?>%;opacity:.45"></div></div>
+            <div class="me-progress-bar-bg" title="واقعی: <?= (int) ($__r['actual'] ?? 0) ?> دقیقه"><div class="me-progress-bar-fill" style="width:<?= (int) round(100 * (int) ($__r['actual'] ?? 0) / $__pmax) ?>%"></div></div>
+        </div>
+        <span class="me-cat-bar-num"><?= (int) ($__r['actual'] ?? 0) ?>/<?= (int) ($__r['planned'] ?? 0) ?></span>
+    </div>
+    <?php endforeach; ?>
+</div>
+<?php endif; ?>
 <?php if ($__s === []): ?>
 <div class="me-card"><p class="me-empty">هنوز آماری ثبت نشده است.</p></div>
 <?php endif; ?>
