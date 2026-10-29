@@ -6,6 +6,12 @@ $__dark = ($__theme['default_theme'] ?? 'dark') === 'dark';
 $__meStyle = (isset($me_style) && isset(\Modules\Personal\Personal::STYLES[$me_style])) ? $me_style : 'darkPrism';
 $__themeColors = ['darkPrism' => '#090A0F', 'zenCanvas' => '#F6F4F0', 'swissPop' => '#F2F3F7', 'monoGrid' => '#111215'];
 $__themeColor = $__themeColors[$__meStyle] ?? '#090A0F';
+$__assetV = '8.2.23';
+$__vf = dirname(__DIR__, 4) . '/version.json';
+if (is_file($__vf)) {
+    $__vp = json_decode((string) file_get_contents($__vf), true);
+    if (is_array($__vp)) { $__assetV = (int) ($__vp['core'] ?? 0) . '.' . (int) ($__vp['system'] ?? 0) . '.' . (int) ($__vp['other'] ?? 0); }
+}
 ?>
 <!DOCTYPE html>
 <html lang="fa" dir="rtl" data-theme="<?= $__meStyle ?>"<?= $__dark ? ' class="dark"' : '' ?>>
@@ -19,7 +25,7 @@ $__themeColor = $__themeColors[$__meStyle] ?? '#090A0F';
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="تسک‌یار">
-<link rel="stylesheet" href="/assets/taskyar/me-shell.css">
+<link rel="stylesheet" href="/assets/taskyar/me-shell.css?v=<?= e($__assetV) ?>">
 <title><?= e($title) ?> | تسک‌یار</title>
 <script>try{var _t=localStorage.getItem('vasleh_theme');if(_t==='light'){document.documentElement.classList.remove('dark')}else if(_t==='dark'){document.documentElement.classList.add('dark')}}catch(e){}</script>
 <link rel="stylesheet" href="/assets/taskyar/fonts/vazirmatn.css">
@@ -60,7 +66,7 @@ $__themeColor = $__themeColors[$__meStyle] ?? '#090A0F';
         <i class="fa-regular fa-calendar-days"></i><span>تقویم</span>
     </a>
     <span class="me-dock-fab-wrap">
-        <a href="/me" class="me-dock-fab" title="افزودن سریع تسک"><i class="fa-solid fa-plus"></i></a>
+        <a href="/me#add" class="me-dock-fab" title="افزودن سریع تسک"><i class="fa-solid fa-plus"></i></a>
     </span>
     <a href="/me/notes" class="me-dock-item<?= ($tab ?? '') === 'notes' ? ' me-dock-active' : '' ?>">
         <i class="fa-regular fa-note-sticky"></i><span>یادداشت</span>

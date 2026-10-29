@@ -416,8 +416,11 @@ final class MeController
         if (!Personal::validDate($date)) {
             $date = date('Y-m-d');
         }
-        $monthFirst = substr($date, 0, 7) . '-01';
-        $monthLast = date('Y-m-t', strtotime($date));
+        // بازهٔ کارها = ماه شمسیِ روز فعال (نه ماه میلادی)، تا لبه‌های ماه جا نمانند.
+        [$__jy, $__jm] = Personal::toJalali((int) substr($date, 0, 4), (int) substr($date, 5, 2), (int) substr($date, 8, 2));
+        [$__gy, $__gm, $__gd] = Personal::fromJalali($__jy, $__jm, 1);
+        $monthFirst = sprintf('%04d-%02d-%02d', $__gy, $__gm, $__gd);
+        $monthLast = date('Y-m-d', strtotime($monthFirst . ' +' . (Personal::jalaliMonthDays($__jy, $__jm) - 1) . ' days'));
         $settings = $this->store()->settings($uid);
         return $this->page2($request, 'calendar', [
             'tasks' => $this->store()->tasksForRange($uid, $monthFirst, $monthLast),

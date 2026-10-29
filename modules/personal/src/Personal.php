@@ -371,6 +371,67 @@ final class Personal
         return [$jy, $i + 1, $days + 1];
     }
 
+    /** سال کبیسهٔ شمسی — قاعدهٔ ۳۳ ساله: باقیمانده‌های ۱، ۵، ۹، ۱۳، ۱۷، ۲۲، ۲۶، ۳۰. */
+    public static function isJalaliLeap(int $jy): bool
+    {
+        $r = $jy % 33;
+        if ($r < 0) { $r += 33; }
+        return in_array($r, [1, 5, 9, 13, 17, 22, 26, 30], true);
+    }
+
+    /** طول ماه شمسی (اسفند در سال کبیسه ۳۰ روز). */
+    public static function jalaliMonthDays(int $jy, int $jm): int
+    {
+        if ($jm <= 6) { return 31; }
+        if ($jm <= 11) { return 30; }
+        return self::isJalaliLeap($jy) ? 30 : 29;
+    }
+
+    /** تبدیل شمسی به میلادی — الگوریتم کوتاه استاندارد (معکوس toJalali). */
+    public static function fromJalali(int $jy, int $jm, int $jd): array
+    {
+        $gDays = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        $jDays = [31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29];
+        $jy2 = $jy - 979;
+        $jm2 = $jm - 1;
+        $jd2 = $jd - 1;
+        $jDayNo = 365 * $jy2 + (int) ($jy2 / 33) * 8 + (int) (($jy2 % 33 + 3) / 4);
+        for ($i = 0; $i < $jm2; $i++) { $jDayNo += $jDays[$i]; }
+        $jDayNo += $jd2;
+        $gDayNo = $jDayNo + 79;
+        $gy = 1600 + 400 * (int) ($gDayNo / 146097);
+        $gDayNo %= 146097;
+        $leap = true;
+        if ($gDayNo >= 36525) {
+            $gDayNo--;
+            $gy += 100 * (int) ($gDayNo / 36524);
+            $gDayNo %= 36524;
+            if ($gDayNo >= 365) { $gDayNo++; } else { $leap = false; }
+        }
+        $gy += 4 * (int) ($gDayNo / 1461);
+        $gDayNo %= 1461;
+        if ($gDayNo >= 366) {
+            $leap = false;
+            $gDayNo--;
+            $gy += (int) ($gDayNo / 365);
+            $gDayNo %= 365;
+        }
+        $i = 0;
+        while ($gDayNo >= $gDays[$i] + ($i === 1 && $leap ? 1 : 0)) {
+            $gDayNo -= $gDays[$i] + ($i === 1 && $leap ? 1 : 0);
+            $i++;
+        }
+        return [$gy, $i + 1, $gDayNo + 1];
+    }
+
+    /** نام ماه شمسی + سال با ارقام فارسی: «آبان ۱۴۰۵». */
+    public static function faMonthLabel(int $jy, int $jm): string
+    {
+        $names = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
+        $digits = ['0' => '۰', '1' => '۱', '2' => '۲', '3' => '۳', '4' => '۴', '5' => '۵', '6' => '۶', '7' => '۷', '8' => '۸', '9' => '۹'];
+        return ($names[$jm - 1] ?? '') . ' ' . strtr((string) $jy, $digits);
+    }
+
     /** تاریخ میلادی YYYY-MM-DD به شمسی با ارقام فارسی: ۱۴۰۵/۰۸/۰۴ */
     public static function faDate(string $date): string
     {

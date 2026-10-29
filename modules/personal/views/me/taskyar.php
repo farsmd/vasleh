@@ -7,6 +7,14 @@ $__meStyle = (isset($settings['style']) && isset(\Modules\Personal\Personal::STY
 $__today = (string) ($today ?? date('Y-m-d'));
 $__themeColors = ['darkPrism' => '#090A0F', 'zenCanvas' => '#F6F4F0', 'swissPop' => '#F2F3F7', 'monoGrid' => '#111215'];
 $__themeColor = $__themeColors[$__meStyle] ?? '#090A0F';
+// نسخه از version.json برای شکستن کش مرورگر روی me-shell.css (بدون این،
+// سافاری بعد از آپدیت فایل CSS قدیمی را نگه می‌داشت و چیدمان تازه خراب دیده می‌شد).
+$__assetV = '8.2.23';
+$__vf = dirname(__DIR__, 4) . '/version.json';
+if (is_file($__vf)) {
+    $__vp = json_decode((string) file_get_contents($__vf), true);
+    if (is_array($__vp)) { $__assetV = (int) ($__vp['core'] ?? 0) . '.' . (int) ($__vp['system'] ?? 0) . '.' . (int) ($__vp['other'] ?? 0); }
+}
 $__cap = (int) ($settings['day_capacity'] ?? 0);
 $__load = (int) ($workload ?? 0);
 $__overdue = array_values(array_filter($tasks, static fn ($t) => ($t['kind'] ?? '') === 'todo' && ($t['date'] ?? '') !== '' && ($t['date'] ?? '') < $__today && empty($t['done'])));
@@ -29,7 +37,7 @@ if ($__latestNote !== null && !empty($__latestNote['body'])) {
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="تسک‌یار">
-    <link rel="stylesheet" href="/assets/taskyar/me-shell.css">
+    <link rel="stylesheet" href="/assets/taskyar/me-shell.css?v=<?= e($__assetV) ?>">
     <title>تسک‌یار | مدیریت زمان و اهداف شخصی</title>
     <link rel="stylesheet" href="/assets/taskyar/fonts/vazirmatn.css">
     <link rel="stylesheet" href="/assets/taskyar/fa/css/all.min.css">
@@ -335,6 +343,11 @@ if ($__latestNote !== null && !empty($__latestNote['body'])) {
             document.getElementById('weekRangeHint').innerText = 'هفته جاری: ' + TASKYAR.weekSatFa + ' تا ' + TASKYAR.weekSunFa;
             renderBento();
             updateDashboardMetrics();
+            // دکمه + صفحه‌های فرعی به /me#add می‌آید؛ فرم افزودن را مستقیم باز کن.
+            if (window.location.hash === '#add') {
+                try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch (e) {}
+                openAddTaskModal();
+            }
         });
 
         function getCategoryMeta(cat) {
