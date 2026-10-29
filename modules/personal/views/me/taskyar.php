@@ -100,7 +100,8 @@ if ($__latestNote !== null && !empty($__latestNote['body'])) {
         <?php $__rt = (isset($ritual) && is_array($ritual)) ? $ritual : null; ?>
         <?php $__pw = (isset($projectWidget) && is_array($projectWidget)) ? $projectWidget : null; ?>
         <?php $__rjd = \Modules\Personal\Personal::toJalali((int) substr($__today, 0, 4), (int) substr($__today, 5, 2), (int) substr($__today, 8, 2)); ?>
-        <?php $__ritualHead = 'آیین · ' . \Modules\Personal\Personal::faWeekday($__today) . ' ' . strtr((string) $__rjd[2], $__faD) . ' ' . \Modules\Personal\Personal::faMonthLabel($__rjd[0], $__rjd[1]); ?>
+        <?php $__rMonths = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند']; ?>
+        <?php $__ritualHead = 'آیین · ' . \Modules\Personal\Personal::faWeekday($__today) . ' ' . strtr((string) $__rjd[2], $__faD) . ' ' . ($__rMonths[$__rjd[1] - 1] ?? ''); ?>
         <?php if ($__rt !== null || $__pw !== null): ?>
         <!-- بنتوی دوم: آیین روزانه (فشرده) + ویجت پروژه‌ها -->
         <?php $__rtHour = (int) ($__rt['hour'] ?? 12); $__rtEve = $__rtHour >= 17; ?>
