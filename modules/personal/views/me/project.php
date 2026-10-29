@@ -22,7 +22,7 @@
         <?php endif; ?>
         <?php if (!empty($project['end_date'])): ?><span class="me-tag-chip">پایان: <?= e(\Modules\Personal\Personal::faDate((string) $project['end_date'])) ?></span><?php endif; ?>
     </div>
-    <p class="me-goal-date"><?= $__fa((int) ($__pr['done'] ?? 0)) ?> از <?= $__fa((int) ($__pr['total'] ?? 0)) ?> مورد (نیاز <?= $__fa((int) ($__pr['needs_done'] ?? 0)) ?>/<?= $__fa((int) ($__pr['needs_total'] ?? 0)) ?> · کار <?= $__fa((int) ($__pr['tasks_done'] ?? 0)) ?>/<?= $__fa((int) ($__pr['tasks_total'] ?? 0)) ?>)<?php if (!empty($project['hours_needed'])): ?> · برآورد <?= $__fa((int) $project['hours_needed']) ?> ساعت<?php endif; ?><?php if (!empty($actualHours)): ?> · واقعی <?= $__fa((string) $actualHours) ?> ساعت<?php endif; ?></p>
+    <p class="me-goal-date"><?php if (!empty($__pr['phases'])): ?><?= $__fa((int) $__pr['phases']) ?> فاز (هر فاز یک‌<?= $__fa((int) $__pr['phases']) ?>م پیشرفت) · <?php endif; ?><?= $__fa((int) ($__pr['done'] ?? 0)) ?> از <?= $__fa((int) ($__pr['total'] ?? 0)) ?> مورد (نیاز <?= $__fa((int) ($__pr['needs_done'] ?? 0)) ?>/<?= $__fa((int) ($__pr['needs_total'] ?? 0)) ?> · کار <?= $__fa((int) ($__pr['tasks_done'] ?? 0)) ?>/<?= $__fa((int) ($__pr['tasks_total'] ?? 0)) ?>)<?php if (!empty($project['hours_needed'])): ?> · برآورد <?= $__fa((int) $project['hours_needed']) ?> ساعت<?php endif; ?><?php if (!empty($actualHours)): ?> · واقعی <?= $__fa((string) $actualHours) ?> ساعت<?php endif; ?></p>
     <div class="me-progress-bar-bg"><div class="me-progress-bar-fill" style="width:<?= $__pct ?>%"></div></div>
     <form method="post" action="/me/projects/<?= (int) $project['id'] ?>" class="me-settings-form">
         <input type="hidden" name="_csrf" value="<?= e($csrf) ?>">

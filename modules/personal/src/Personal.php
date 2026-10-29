@@ -1357,7 +1357,13 @@ final class Personal
         )->execute(['id' => $milestoneId, 'u' => $userId]);
     }
 
-    /** درصد پیشرفت ترکیبی پروژه از نیازها + کارها. */
+    /**
+     * درصد پیشرفت پروژه — فرمول فرشاد (۲۰۲۶-۱۰-۲۹):
+     * هر کارِ پروژه یک «فاز» است و همه فازها وزن مساوی دارند (۱/N).
+     * پیشرفت هر فاز = قدم‌های انجام‌شده (زیرکارها) ÷ کل قدم‌های همان فاز.
+     * درصد کلی = میانگین پیشرفت فازها.
+     * فاز بدون قدم: انجام‌شده=۱۰۰٪، باز=۰٪. بدون کار: fallback به نیازها.
+     */
     public function projectProgress(int $userId, int $projectId): array
     {
         $needs = $this->needs($projectId);
@@ -1367,16 +1373,44 @@ final class Personal
         );
         $stmt->execute(['u' => $userId, 'p' => $projectId]);
         $row = $stmt->fetch(\PDO::FETCH_ASSOC) ?: ['total' => 0, 'done' => 0];
-        $total = count($needs) + (int) $row['total'];
-        $done = $needDone + (int) $row['done'];
+        $tasksTotal = (int) $row['total'];
+        $tasksDone = (int) $row['done'];
+
+        if ($tasksTotal > 0) {
+            // میانگین وزنی مساوی فازها از روی زیرکارها.
+            $phaseSum = 0.0;
+            $phaseN = 0;
+            $tstmt = $this->pdo()->prepare(
+                'SELECT id, done FROM pl_todos WHERE user_id = :u AND project_id = :p'
+            );
+            $tstmt->execute(['u' => $userId, 'p' => $projectId]);
+            foreach ($tstmt->fetchAll(\PDO::FETCH_ASSOC) as $t) {
+                $subs = $this->subtaskRows((int) $t['id']);
+                if ($subs === []) {
+                    $phaseSum += !empty($t['done']) ? 1.0 : 0.0;
+                } else {
+                    $sd = count(array_filter($subs, static fn ($s) => !empty($s['done'])));
+                    $phaseSum += $sd / count($subs);
+                }
+                $phaseN++;
+            }
+            $pct = $phaseN > 0 ? (int) round($phaseSum / $phaseN * 100) : 0;
+        } else {
+            // بدون کار: درصد از نیازها (رفتار قبلی).
+            $total = count($needs);
+            $pct = $total > 0 ? (int) round($needDone * 100 / $total) : 0;
+            $phaseN = 0;
+        }
+
         return [
-            'total' => $total,
-            'done' => $done,
-            'pct' => $total > 0 ? (int) round($done * 100 / $total) : 0,
+            'total' => count($needs) + $tasksTotal,
+            'done' => $needDone + $tasksDone,
+            'pct' => $pct,
+            'phases' => $phaseN,
             'needs_total' => count($needs),
             'needs_done' => $needDone,
-            'tasks_total' => (int) $row['total'],
-            'tasks_done' => (int) $row['done'],
+            'tasks_total' => $tasksTotal,
+            'tasks_done' => $tasksDone,
         ];
     }
 
