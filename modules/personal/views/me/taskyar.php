@@ -16,6 +16,7 @@ if (is_file($__vf)) {
     if (is_array($__vp)) { $__assetV = (int) ($__vp['core'] ?? 0) . '.' . (int) ($__vp['system'] ?? 0) . '.' . (int) ($__vp['other'] ?? 0); }
 }
 $__cap = (int) ($settings['day_capacity'] ?? 0);
+$__faD = ['0' => '۰', '1' => '۱', '2' => '۲', '3' => '۳', '4' => '۴', '5' => '۵', '6' => '۶', '7' => '۷', '8' => '۸', '9' => '۹'];
 $__load = (int) ($workload ?? 0);
 $__overdue = array_values(array_filter($tasks, static fn ($t) => ($t['kind'] ?? '') === 'todo' && ($t['date'] ?? '') !== '' && ($t['date'] ?? '') < $__today && empty($t['done'])));
 $__latestNote = (!empty($notes) && is_array($notes)) ? $notes[0] : null;
@@ -98,6 +99,8 @@ if ($__latestNote !== null && !empty($__latestNote['body'])) {
 
         <?php $__rt = (isset($ritual) && is_array($ritual)) ? $ritual : null; ?>
         <?php $__pw = (isset($projectWidget) && is_array($projectWidget)) ? $projectWidget : null; ?>
+        <?php $__rjd = \Modules\Personal\Personal::toJalali((int) substr($__today, 0, 4), (int) substr($__today, 5, 2), (int) substr($__today, 8, 2)); ?>
+        <?php $__ritualHead = 'آیین · ' . \Modules\Personal\Personal::faWeekday($__today) . ' ' . strtr((string) $__rjd[2], $__faD) . ' ' . \Modules\Personal\Personal::faMonthLabel($__rjd[0], $__rjd[1]); ?>
         <?php if ($__rt !== null || $__pw !== null): ?>
         <!-- بنتوی دوم: آیین روزانه (فشرده) + ویجت پروژه‌ها -->
         <?php $__rtHour = (int) ($__rt['hour'] ?? 12); $__rtEve = $__rtHour >= 17; ?>
@@ -107,10 +110,7 @@ if ($__latestNote !== null && !empty($__latestNote['body'])) {
         <section class="me-bento-grid">
             <?php if ($__rt !== null): ?>
             <div class="me-card me-mini-widget">
-                <div class="me-card-top">
-                    <span class="me-card-label"><i class="fa-solid fa-sun"></i> آیین روزانه</span>
-                    <a href="/me/ritual" class="me-section-action">باز کردن</a>
-                </div>
+                <a href="/me/ritual" class="me-ritual-head" data-autofit><?= e($__ritualHead) ?></a>
                 <a href="/me/ritual" class="me-mini-row<?= !$__rtEve ? ' active' : '' ?>">
                     <span class="me-mini-ico"><i class="fa-solid fa-mug-sun"></i></span>
                     <span class="me-mini-title">صبحگاهی</span>
@@ -412,7 +412,7 @@ if ($__latestNote !== null && !empty($__latestNote['body'])) {
         <div class="me-card me-modal-box me-modal-box-sm animate-pop">
             <button onclick="togglePomodoroModal()" class="me-icon-btn me-modal-close"><i class="fa-solid fa-xmark"></i></button>
             <div class="me-pomo-modes">
-                <button onclick="setPomoMode('work')" id="pomoBtnWork" class="me-mini-btn">تمرکز (<?= strtr((string) (int) $settings['pomo_focus'], '0123456789', '۰۱۲۳۴۵۶۷۸۹') ?> د)</button>
+                <button onclick="setPomoMode('work')" id="pomoBtnWork" class="me-mini-btn">تمرکز (<?= strtr((string) (int) $settings['pomo_focus'], $__faD) ?> د)</button>
                 <button onclick="setPomoMode('shortBreak')" id="pomoBtnShort" class="me-mini-btn">استراحت کوتاه</button>
                 <button onclick="setPomoMode('longBreak')" id="pomoBtnLong" class="me-mini-btn">استراحت بلند</button>
             </div>
@@ -900,6 +900,20 @@ if ($__latestNote !== null && !empty($__latestNote['body'])) {
     });
     </script>
     <script>
+    // هدر آیین: سایز فونت بر اساس طول جمله، بین ۸ تا ۱۶ پیکسل، همیشه تک‌ردیف.
+    function meFitHeads() {
+        document.querySelectorAll('[data-autofit]').forEach(function (el) {
+            el.style.fontSize = '16px';
+            var fs = 16;
+            while (fs > 8 && el.scrollWidth > el.clientWidth) {
+                fs -= 0.5;
+                el.style.fontSize = fs + 'px';
+            }
+        });
+    }
+    document.addEventListener('DOMContentLoaded', meFitHeads);
+    window.addEventListener('resize', meFitHeads);
+    window.addEventListener('load', meFitHeads);
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
         navigator.serviceWorker.register('/me/sw.js?v=<?= e($__assetV) ?>', { scope: '/me/' }).catch(function () {});
