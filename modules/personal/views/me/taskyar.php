@@ -107,7 +107,7 @@ if ($__latestNote !== null && !empty($__latestNote['body'])) {
         <?php $__pf = ($__pw !== null && isset($__pw['featured']) && is_array($__pw['featured'])) ? $__pw['featured'] : null; ?>
         <?php $__pp = ($__pf !== null && isset($__pf['progress']) && is_array($__pf['progress'])) ? $__pf['progress'] : ['pct' => 0, 'tasks_total' => 0, 'tasks_done' => 0]; ?>
         <?php $__pdl = $__pf !== null ? ($__pf['days_left'] ?? null) : null; ?>
-        <section class="me-bento-grid">
+        <section class="me-bento-grid me-bento-rev">
             <?php if ($__rt !== null): ?>
             <div class="me-card me-mini-widget">
                 <a href="/me/ritual" class="me-ritual-head" data-autofit><?= e($__ritualHead) ?></a>

@@ -277,6 +277,8 @@ body.me-has-dock main { padding-bottom: 100px; }
   padding: 0;
 }
 .me-hidden { display: none !important; }
+/* ردیف دوم بنتو: برعکس ردیف اول — آیین کوچیک (اندازه پیشرفت روز)، پروژه‌ها بزرگ */
+.me-bento-grid.me-bento-rev { grid-template-columns: 0.85fr 1.15fr; }
 /* هدر کم‌ارتفاع آیین: تاریخ و روز + «آیین» در یک ردیف؛ سایز فونت با JS بین ۸ تا ۱۶ تنظیم می‌شود */
 .me-ritual-head { display: block; padding: 5px 8px; margin-bottom: 2px; text-align: center; font-weight: 800; font-size: 16px; line-height: 1.7; color: var(--me-text); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-bottom: 1px solid var(--me-border); }
 .me-ritual-head:hover { color: var(--me-accent); }
