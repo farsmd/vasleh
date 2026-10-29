@@ -60,10 +60,11 @@ if ($__latestNote !== null && !empty($__latestNote['body'])) {
         <?php if (!empty($flash)): ?><div class="me-card"><p class="me-alert-text"><?= e($flash) ?></p></div><?php endif; ?>
         <?php if (!empty($error)): ?><div class="me-card"><p class="me-alert-text"><?= e($error) ?></p></div><?php endif; ?>
 
-        <!-- ۱. فقط سلام: تاریخ جلالی بالا، «تمرکز امروز، نام کاربری» -->
+        <!-- ۱. هدر صفحه: تاریخ جلالی بالا + نیت امروز آیین صبحگاهی (بدون نام کاربری) -->
+        <?php $__intention = (isset($intention) && is_string($intention)) ? trim($intention) : ''; ?>
         <section class="me-greeting">
             <p><?= \Modules\Personal\Personal::faWeekday($__today) ?>، <?= \Modules\Personal\Personal::faDate($__today) ?></p>
-            <h2>تمرکز امروز<span class="me-greeting-accent">، <?= e($user['username'] ?? '') ?></span></h2>
+            <h2><?= $__intention !== '' ? e($__intention) : 'تمرکز امروز' ?></h2>
         </section>
 
         <!-- ۲. بنتو دو ستونه: پومودورو + پیشرفت روز -->

@@ -559,6 +559,21 @@ final class Personal
         );
     }
 
+    /** نیت امروز از ژورنال (خط «نیت امروز: ...») — برای هدر صفحه. خالی اگر ثبت نشده. */
+    public function todayIntention(int $userId, string $date): string
+    {
+        $j = $this->journal($userId, $date);
+        $body = (string) ($j['body'] ?? '');
+        $prefix = 'نیت امروز:';
+        foreach (explode("\n", $body) as $line) {
+            $line = trim($line);
+            if (str_starts_with($line, $prefix)) {
+                return trim(substr($line, strlen($prefix)));
+            }
+        }
+        return '';
+    }
+
     /** تعداد کارهای تکمیل‌شده در یک روز (تودو + رویداد). */
     public function completedCount(int $userId, string $date): int
     {

@@ -268,6 +268,7 @@ final class MeController
                 'hour' => (int) date('H'),
             ],
             'projectWidget' => $this->projectWidgetData($uid, date('Y-m-d')),
+            'intention' => $this->store()->todayIntention($uid, date('Y-m-d')),
             'savedFilters' => $this->sanitizeSavedFilters($settings['saved_filters'] ?? []),
             'workload' => $this->storeHas('workloadForDay')
                 ? (int) $this->store()->workloadForDay($uid, $date) : 0,

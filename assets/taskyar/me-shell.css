@@ -169,12 +169,12 @@ html[data-theme] body {
 .me-greeting { margin-bottom: 4px; }
 .me-greeting h2 { font-weight: var(--me-heading-weight); font-size: 1.2rem; line-height: 1.6; }
 .me-greeting p { font-size: 0.8rem; color: var(--me-muted); }
-.me-greeting .me-greeting-accent { color: var(--me-accent); }
-/* تم swissPop: هدر صفحه بلوک سبز فسفری مثل ویجت‌ها */
-[data-theme="swissPop"] .me-greeting { background: var(--me-accent2); border: 2px solid #111111; border-radius: var(--me-radius); box-shadow: var(--me-shadow); padding: 14px 16px; margin-bottom: 14px; }
-[data-theme="swissPop"] .me-greeting h2 { color: #111111; }
-[data-theme="swissPop"] .me-greeting p { color: #111111; opacity: 0.75; }
-[data-theme="swissPop"] .me-greeting .me-greeting-accent { color: #111111; }
+/* هدر صفحه مثل ویجت‌ها — همه تم‌ها با رنگ accent2 تم خودش (رنگ نهایی با فرشاد) */
+.me-greeting { background: var(--me-accent2); border: 1px solid var(--me-border); border-radius: var(--me-radius); box-shadow: var(--me-shadow); padding: 14px 16px; margin-bottom: 14px; }
+.me-greeting h2 { color: #111111; }
+.me-greeting p { color: #111111; opacity: 0.75; }
+/* تم swissPop: بوردر ۲px مشکی مثل بقیه ویجت‌ها */
+[data-theme="swissPop"] .me-greeting { border: 2px solid #111111; }
 
 /* داک پایین شناور (عین ماکاپ) — جای محتوا را با فاصله ۱۰۰px پایین main می‌گیرد */
 body.me-has-dock main { padding-bottom: 100px; }
