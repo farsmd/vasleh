@@ -78,7 +78,7 @@ if (is_file($__vf)) {
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('/me/sw.js', { scope: '/me/' }).catch(function () {});
+    navigator.serviceWorker.register('/me/sw.js?v=<?= e($__assetV) ?>', { scope: '/me/' }).catch(function () {});
   });
 }
 </script>

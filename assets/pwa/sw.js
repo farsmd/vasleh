@@ -12,7 +12,7 @@
  */
 'use strict';
 
-var CACHE = 'taskyar-pwa-v1';
+var CACHE = 'taskyar-pwa-v2';
 var OFFLINE_URL = '/assets/pwa/offline.html';
 var STATIC_ASSETS = [
   '/assets/taskyar/me-shell.css',
@@ -60,8 +60,11 @@ self.addEventListener('fetch', function (event) {
 
   if (isStaticAsset(url)) {
     // cache-first برای استاتیک، با به‌روزرسانی آرام در پس‌زمینه.
+    // نکتهٔ مهم: ignoreSearch عمداً حذف شده — چون نسخهٔ CSS با ?v= در URL
+    // می‌آید و باید کلید کشِ جدا داشته باشد؛ وگرنه CSS قدیمیِ کش‌شده به‌جای
+    // نسخهٔ تازه سرو می‌شد و چیدمانِ تازه خراب دیده می‌شد.
     event.respondWith(
-      caches.match(request, { ignoreSearch: true }).then(function (cached) {
+      caches.match(request).then(function (cached) {
         var network = fetch(request).then(function (response) {
           if (response && response.status === 200) {
             var copy = response.clone();
