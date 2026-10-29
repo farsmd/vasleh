@@ -97,38 +97,61 @@ if ($__latestNote !== null && !empty($__latestNote['body'])) {
         </section>
 
         <?php $__rt = (isset($ritual) && is_array($ritual)) ? $ritual : null; ?>
-        <?php if ($__rt !== null): ?>
-        <!-- آیین روزانه: وضعیت صبحگاهی/شبانگاهی امروز + ورود به صفحه آیین -->
+        <?php $__pw = (isset($projectWidget) && is_array($projectWidget)) ? $projectWidget : null; ?>
+        <?php if ($__rt !== null || $__pw !== null): ?>
+        <!-- بنتوی دوم: آیین روزانه (فشرده) + ویجت پروژه‌ها -->
         <?php $__rtHour = (int) ($__rt['hour'] ?? 12); $__rtEve = $__rtHour >= 17; ?>
-        <section class="me-card">
-            <div class="me-section-head">
-                <h3 class="me-section-title"><i class="fa-solid fa-sun"></i> آیین روزانه</h3>
-                <a href="/me/ritual" class="me-section-action">باز کردن آیین</a>
-            </div>
-            <div class="me-ritual-rows">
-                <div class="me-ritual-row<?= !$__rtEve ? ' active' : '' ?>">
-                    <span class="me-ritual-ico"><i class="fa-solid fa-mug-sun"></i></span>
-                    <div class="me-task-main">
-                        <div class="me-task-title">آیین صبحگاهی</div>
-                        <div class="me-task-meta">
-                            <?php if (!empty($__rt['morningDone'])): ?><span class="me-badge"><i class="fa-solid fa-check"></i> انجام شد</span>
-                            <?php else: ?><span><?= (int) ($__rt['overdue'] ?? 0) ?> کار عقب‌افتاده برای تعیین تکلیف</span><?php endif; ?>
-                        </div>
-                    </div>
-                    <?php if (empty($__rt['morningDone'])): ?><a href="/me/ritual" class="me-mini-btn">شروع</a><?php endif; ?>
+        <?php $__pf = ($__pw !== null && isset($__pw['featured']) && is_array($__pw['featured'])) ? $__pw['featured'] : null; ?>
+        <?php $__pp = ($__pf !== null && isset($__pf['progress']) && is_array($__pf['progress'])) ? $__pf['progress'] : ['pct' => 0, 'tasks_total' => 0, 'tasks_done' => 0]; ?>
+        <?php $__pdl = $__pf !== null ? ($__pf['days_left'] ?? null) : null; ?>
+        <section class="me-bento-grid">
+            <?php if ($__rt !== null): ?>
+            <div class="me-card me-mini-widget">
+                <div class="me-card-top">
+                    <span class="me-card-label"><i class="fa-solid fa-sun"></i> آیین روزانه</span>
+                    <a href="/me/ritual" class="me-section-action">باز کردن</a>
                 </div>
-                <div class="me-ritual-row<?= $__rtEve ? ' active' : '' ?>">
-                    <span class="me-ritual-ico"><i class="fa-solid fa-moon"></i></span>
-                    <div class="me-task-main">
-                        <div class="me-task-title">آیین شبانگاهی</div>
-                        <div class="me-task-meta">
-                            <?php if (!empty($__rt['eveningDone'])): ?><span class="me-badge"><i class="fa-solid fa-check"></i> انجام شد</span>
-                            <?php else: ?><span><?= (int) ($__rt['completed'] ?? 0) ?> کار امروز انجام شده</span><?php endif; ?>
-                        </div>
-                    </div>
-                    <?php if (empty($__rt['eveningDone'])): ?><a href="/me/ritual" class="me-mini-btn">شروع</a><?php endif; ?>
-                </div>
+                <a href="/me/ritual" class="me-mini-row<?= !$__rtEve ? ' active' : '' ?>">
+                    <span class="me-mini-ico"><i class="fa-solid fa-mug-sun"></i></span>
+                    <span class="me-mini-title">صبحگاهی</span>
+                    <?php if (!empty($__rt['morningDone'])): ?><span class="me-badge"><i class="fa-solid fa-check"></i></span>
+                    <?php else: ?><span class="me-mini-dot"></span><?php endif; ?>
+                </a>
+                <a href="/me/ritual" class="me-mini-row<?= $__rtEve ? ' active' : '' ?>">
+                    <span class="me-mini-ico"><i class="fa-solid fa-moon"></i></span>
+                    <span class="me-mini-title">شبانگاهی</span>
+                    <?php if (!empty($__rt['eveningDone'])): ?><span class="me-badge"><i class="fa-solid fa-check"></i></span>
+                    <?php else: ?><span class="me-mini-dot"></span><?php endif; ?>
+                </a>
             </div>
+            <?php endif; ?>
+            <?php if ($__pw !== null): ?>
+            <div class="me-card me-mini-widget">
+                <div class="me-card-top">
+                    <span class="me-card-label"><i class="fa-solid fa-diagram-project"></i> پروژه‌ها</span>
+                    <a href="/me/projects" class="me-section-action"><?= (int) ($__pw['count'] ?? 0) ?> فعال</a>
+                </div>
+                <?php if ($__pf === null): ?>
+                    <p class="me-empty">پروژه فعالی نیست.</p>
+                    <a href="/me/projects" class="me-mini-btn">ساخت پروژه</a>
+                <?php else: ?>
+                    <div class="me-mini-big"><?= (int) ($__pp['pct'] ?? 0) ?>٪</div>
+                    <div class="me-progress-bar-bg"><div class="me-progress-bar-fill" style="width:<?= (int) ($__pp['pct'] ?? 0) ?>%"></div></div>
+                    <div class="me-mini-meta">
+                        <span class="me-mini-ellipsis"><?= e((string) ($__pf['title'] ?? '')) ?></span>
+                    </div>
+                    <div class="me-mini-meta">
+                        <span><i class="fa-solid fa-list-check"></i> <?= (int) ($__pp['tasks_done'] ?? 0) ?>/<?= (int) ($__pp['tasks_total'] ?? 0) ?> کار</span>
+                        <?php if ($__pdl !== null): ?>
+                            <?php if ($__pdl < 0): ?><span class="me-badge" style="background:#fee;color:#b00"><?= -$__pdl ?> روز عقب</span>
+                            <?php elseif ($__pdl === 0): ?><span class="me-badge">ددلاین امروز</span>
+                            <?php else: ?><span><i class="fa-regular fa-calendar"></i> <?= $__pdl ?> روز مانده</span><?php endif; ?>
+                        <?php endif; ?>
+                    </div>
+                    <a href="/me/projects/<?= (int) ($__pf['id'] ?? 0) ?>" class="me-section-action">مشاهده پروژه</a>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
         </section>
         <?php endif; ?>
 

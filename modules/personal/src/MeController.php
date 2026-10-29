@@ -172,6 +172,41 @@ final class MeController
     // ---------- تسک‌یار ----------
 
     /** صفحه اصلی مدیریت شخصی با پوسته تسک‌یار و داده یکپارچه تسک‌ها. */
+    /** دادهٔ ویجت پروژه‌های داشبورد: پروژه‌های فعال با پیشرفت و روزهای مانده، مرتب بر اساس نزدیک‌ترین ددلاین. */
+    private function projectWidgetData(int $uid, string $today): array
+    {
+        $rows = [];
+        foreach ($this->store()->projects($uid) as $p) {
+            if ((string) ($p['status'] ?? 'active') !== 'active') {
+                continue;
+            }
+            $pid = (int) $p['id'];
+            $p['progress'] = $this->store()->projectProgress($uid, $pid);
+            $p['days_left'] = Personal::projectDaysLeft((string) ($p['end_date'] ?? ''), $today);
+            $rows[] = $p;
+        }
+        usort($rows, static function ($a, $b) {
+            $da = $a['days_left'] ?? null;
+            $db = $b['days_left'] ?? null;
+            if ($da === null && $db === null) {
+                return 0;
+            }
+            if ($da === null) {
+                return 1;
+            }
+            if ($db === null) {
+                return -1;
+            }
+            return $da <=> $db;
+        });
+        $openTasks = 0;
+        foreach ($rows as $p) {
+            $pr = $p['progress'] ?? [];
+            $openTasks += max(0, (int) ($pr['tasks_total'] ?? 0) - (int) ($pr['tasks_done'] ?? 0));
+        }
+        return ['projects' => $rows, 'count' => count($rows), 'openTasks' => $openTasks, 'featured' => $rows[0] ?? null];
+    }
+
     public function tasks(Request $request): Response
     {
         if (($r = $this->requireUser()) !== null) {
@@ -232,6 +267,7 @@ final class MeController
                 'completed' => $this->store()->completedCount($uid, date('Y-m-d')),
                 'hour' => (int) date('H'),
             ],
+            'projectWidget' => $this->projectWidgetData($uid, date('Y-m-d')),
             'savedFilters' => $this->sanitizeSavedFilters($settings['saved_filters'] ?? []),
             'workload' => $this->storeHas('workloadForDay')
                 ? (int) $this->store()->workloadForDay($uid, $date) : 0,
