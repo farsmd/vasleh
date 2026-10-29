@@ -277,6 +277,11 @@ body.me-has-dock main { padding-bottom: 100px; }
   padding: 0;
 }
 .me-hidden { display: none !important; }
+/* آیین روزانه در داشبورد: دو ردیف صبحگاهی/شبانگاهی */
+.me-ritual-rows { display: flex; flex-direction: column; gap: 8px; }
+.me-ritual-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--me-border); border-radius: var(--radius-inner); }
+.me-ritual-row.active { border-color: var(--me-accent); background: var(--bg-glass-subtle, transparent); }
+.me-ritual-ico { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--me-accent-soft, rgba(128,128,128,.12)); color: var(--me-accent); flex-shrink: 0; }
 /* تایم‌لاین: حالت اختصاص (کار انتخاب شده) + فرم سریع ساخت کار روی ساعت آزاد */
 .me-timeline.me-assign-mode .me-slot { border-color: var(--me-accent); cursor: pointer; }
 .me-timeline.me-assign-mode .me-slot-empty { color: var(--me-accent); font-weight: 700; }

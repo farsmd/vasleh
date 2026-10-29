@@ -96,6 +96,42 @@ if ($__latestNote !== null && !empty($__latestNote['body'])) {
             </div>
         </section>
 
+        <?php $__rt = (isset($ritual) && is_array($ritual)) ? $ritual : null; ?>
+        <?php if ($__rt !== null): ?>
+        <!-- آیین روزانه: وضعیت صبحگاهی/شبانگاهی امروز + ورود به صفحه آیین -->
+        <?php $__rtHour = (int) ($__rt['hour'] ?? 12); $__rtEve = $__rtHour >= 17; ?>
+        <section class="me-card">
+            <div class="me-section-head">
+                <h3 class="me-section-title"><i class="fa-solid fa-sun"></i> آیین روزانه</h3>
+                <a href="/me/ritual" class="me-section-action">باز کردن آیین</a>
+            </div>
+            <div class="me-ritual-rows">
+                <div class="me-ritual-row<?= !$__rtEve ? ' active' : '' ?>">
+                    <span class="me-ritual-ico"><i class="fa-solid fa-mug-sun"></i></span>
+                    <div class="me-task-main">
+                        <div class="me-task-title">آیین صبحگاهی</div>
+                        <div class="me-task-meta">
+                            <?php if (!empty($__rt['morningDone'])): ?><span class="me-badge"><i class="fa-solid fa-check"></i> انجام شد</span>
+                            <?php else: ?><span><?= (int) ($__rt['overdue'] ?? 0) ?> کار عقب‌افتاده برای تعیین تکلیف</span><?php endif; ?>
+                        </div>
+                    </div>
+                    <?php if (empty($__rt['morningDone'])): ?><a href="/me/ritual" class="me-mini-btn">شروع</a><?php endif; ?>
+                </div>
+                <div class="me-ritual-row<?= $__rtEve ? ' active' : '' ?>">
+                    <span class="me-ritual-ico"><i class="fa-solid fa-moon"></i></span>
+                    <div class="me-task-main">
+                        <div class="me-task-title">آیین شبانگاهی</div>
+                        <div class="me-task-meta">
+                            <?php if (!empty($__rt['eveningDone'])): ?><span class="me-badge"><i class="fa-solid fa-check"></i> انجام شد</span>
+                            <?php else: ?><span><?= (int) ($__rt['completed'] ?? 0) ?> کار امروز انجام شده</span><?php endif; ?>
+                        </div>
+                    </div>
+                    <?php if (empty($__rt['eveningDone'])): ?><a href="/me/ritual" class="me-mini-btn">شروع</a><?php endif; ?>
+                </div>
+            </div>
+        </section>
+        <?php endif; ?>
+
         <!-- ۳. تقویم: نوار هفته شنبه تا جمعه + رویدادهای امروز -->
         <section class="me-card">
             <div class="me-section-head">

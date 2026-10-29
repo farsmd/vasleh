@@ -225,6 +225,13 @@ final class MeController
             'tasks' => $mainTasks,
             'reminders' => $this->store()->dueReminders($uid, date('Y-m-d'), date('H:i')),
             'projectDeadlines' => $this->store()->projectDeadlines($uid, date('Y-m-d'), 7),
+            'ritual' => [
+                'morningDone' => $this->store()->ritualDone($uid, date('Y-m-d'), 'morning'),
+                'eveningDone' => $this->store()->ritualDone($uid, date('Y-m-d'), 'evening'),
+                'overdue' => count($this->store()->overdueTasks($uid, date('Y-m-d'))),
+                'completed' => $this->store()->completedCount($uid, date('Y-m-d')),
+                'hour' => (int) date('H'),
+            ],
             'savedFilters' => $this->sanitizeSavedFilters($settings['saved_filters'] ?? []),
             'workload' => $this->storeHas('workloadForDay')
                 ? (int) $this->store()->workloadForDay($uid, $date) : 0,
